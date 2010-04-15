@@ -103,14 +103,14 @@ class ProblemBase:
                 dt =  0.25*h**2 / (U*(nu + h*U))/int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Computing time step accoring to stability criterions and time step refinements'
+                print 'Computing time step according to stability criteria and time step refinements'
 
         # Otherwise, base time step on mesh size
             else:
                 dt =  0.25*h**2 / (U*(nu + h*U))
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Computing time step accoring to stability criterions'
+                print 'Computing time step accoring to stability criteria'
 
         # Compute range
         t_range = linspace(0,T,n+1)[1:] # FIXME: Comment out [1:] to run g2ref g2ref
