@@ -65,6 +65,7 @@ class Problem(ProblemBase):
         if refinement_level > 6:
             raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
         self.mesh = Mesh("data/cylinder_%d.xml.gz" % refinement_level)
+        #self.mesh = Mesh("data/cylinder_new_%d.xml.gz" % refinement_level)
 
         # Create right-hand side function
         self.f =  Constant((0, 0))
