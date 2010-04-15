@@ -1,0 +1,42 @@
+NSbench is a collection of Python scripts based on FEniCS/DOLFIN for
+benchmarking a number of common methods for solving the incompressible
+Navier-Stokes equations.
+
+It consists of a collection of test problems and a collection of
+reference/prototype solvers. Problem implementations can be found in
+the 'problem' directory and solver implementations can be found in the
+'solver' directory.
+
+Two main scripts are provided for running the solvers: 'ns' and 'bench'.
+
+The script 'ns' can be used to solve a specific problem with a specific
+solver:
+
+  ./ns problem solver
+
+Without any arguments, the 'ns' script will list available problems
+and solvers.
+
+The script 'bench' can be used to run all problems for all solvers,
+one specific problem for all solvers, or one specific solver for all
+problems:
+
+  ./bench
+  ./bench problem
+  ./bench solver
+
+This version of NSbench requires DOLFIN version 0.9.7.
+
+NSbench is written by
+
+  Kristian Valen-Sendstad
+  Anders Logg
+  Kent-Andre Mardal
+  Harish Narayanan
+  Mikael Mortensen
+
+and is licensed under the GNU GPL, version 3 or (at your option) any
+later version.
+
+Simula Research Laboratory
+Oslo, 2010
