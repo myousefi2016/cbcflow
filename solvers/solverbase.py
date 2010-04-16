@@ -94,8 +94,10 @@ class SolverBase:
 	    refinement = self.options["refinement_level"]
             if (self._timestep - 1) % frequency == 0:
                 # Create files for saving
-                if self._ufile is None: self._ufile = File(self.prefix(problem) +"refinement_level_"+ str(refinement) + "_u.pvd")
-                if self._pfile is None: self._pfile = File(self.prefix(problem) +"refinement_level_"+ str(refinement) + "_p.pvd")
+                if self._ufile is None:
+                    self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_u.pvd")
+                if self._pfile is None:
+                    self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_p.pvd")
                 self._ufile << u
                 self._pfile << p
 
@@ -104,8 +106,10 @@ class SolverBase:
             if t >= problem.T:
                 refinement = self.options["refinement_level"]
                 # Create files for saving
-                if self._ufile is None: self._ufile = File(self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_u.pvd")
-                if self._pfile is None: self._pfile = File(self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
+                if self._ufile is None:
+                    self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_u.pvd")
+                if self._pfile is None:
+                    self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
                 self._ufile << u
                 self._pfile << p
 
