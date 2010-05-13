@@ -83,7 +83,8 @@ class Problem(ProblemBase):
         self.g1 = Expression(('norm0*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))',
                               'norm1*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))',
                               'norm2*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))'),
-                             defaults = {'norm0': 1.0, 'norm1': 0.0, 'norm2': 0.0,  'r': 0.002})
+                             defaults = {'norm0': 1.0, 'norm1': 0.0, 'norm2': 0.0,  'r': 0.002},
+                             degree=3)
         self.g1.t = t
         bc1 = DirichletBC(V, self.g1, InflowBoundary())
 
