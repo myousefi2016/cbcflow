@@ -32,13 +32,14 @@ class OutflowBoundary(SubDomain):
 
 # Define the aneurysm region, everything outside the cylinder
 class AneurysmCutoff(Expression):
-        def eval(self, values, x):
-            r = sqrt(x[2]**2 + x[1]**2)
-            if r < 0.002 + 0.0001:
-		values[0] = 0.0
-            else:
-        	values[0] = 1.0
+    def eval(self, values, x):
+        r = sqrt(x[2]**2 + x[1]**2)
+        if r < 0.002 + 0.0001:
+            values[0] = 0.0
+        else:
+            values[0] = 1.0
 
+# Define symmetric gradient
 def epsilon(u):
     return 0.5*(grad(u) + (grad(u).T))
 
@@ -133,8 +134,7 @@ class Problem(ProblemBase):
         self.file = File("wss.pvd")
 
         # Plot shear stress
-        assemble(self.wss_plot_form, tensor=self.wss_plot.vector(), mesh = self.mesh)
-#        plot(self.wss_plot)
+        assemble(self.wss_plot_form, tensor=self.wss_plot.vector(), mesh=self.mesh)
         self.file << self.wss_plot
 
         # Compute shear stress

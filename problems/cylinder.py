@@ -38,22 +38,6 @@ class OutflowBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and x[0] > xmax - bmarg
 
-# Define the Cylinder region
-class CylinderCutoff(Expression):
-	def eval(self, values, x):
-
-            dx = x[0] - xcenter
-            dy = x[1] - ycenter
-            r = sqrt(dx*dx + dy*dy)
-            if (r <= radius + bmarg ):
-		values[0] = 1.0
-            else:
-        	values[0] = 0.0
-
-# Calculate symmetric gradient of the velocity field
-def epsilon(u):
-    return 0.5*(grad(u) + transpose(grad(u)))
-
 # Problem definition
 class Problem(ProblemBase):
 
@@ -64,6 +48,8 @@ class Problem(ProblemBase):
         refinement_level = options["refinement_level"]
         if refinement_level > 6:
             raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
+
+        # FIXME: Which mesh should we use?
         self.mesh = Mesh("data/cylinder_%d.xml.gz" % refinement_level)
         #self.mesh = Mesh("data/cylinder_new_%d.xml.gz" % refinement_level)
 
@@ -78,13 +64,6 @@ class Problem(ProblemBase):
 
         # Set end time
         self.T  = 8.0
-
-	self.scalar = FunctionSpace(self.mesh, "CG", 1)
-	self.cutoff = CylinderCutoff(V=self.scalar)
-	self.First = True
-
-        # Option : Compute lift and drag forces on cylinder
-        self.comp_forces = True
 
     def initial_conditions(self, V, Q):
 
@@ -101,7 +80,6 @@ class Problem(ProblemBase):
         self.g0.ymax = ymax
         self.g0.PI   = DOLFIN_PI
         self.g0.t = t
-        print 'Time in bc is:', t
 	self.b0 = InflowBoundary()
         bc0 = DirichletBC(V, self.g0, self.b0)
 
@@ -123,22 +101,16 @@ class Problem(ProblemBase):
 
     def update(self, t, u, p):
 	self.g0.t = t
-	pass
 
     def functional(self, t, u, p):
-         if t < self.T:
-             return 0
-         else:
-             x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
-             x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
 
-             x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
-             x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
-             values1 = array((0.0))
-             values2 = array((0.0))
-             p.eval(values1, x1)
-             p.eval(values2, x2)
-         return values1 - values2
+         if t < self.T:
+             return 0.0
+
+         x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
+         x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
+
+         return p(x1) - p(x2)
 
     def reference(self, t):
         return 0.0
