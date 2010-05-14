@@ -128,7 +128,7 @@ class SolverBase:
             plot(u, title="Velocity", rescale=True)
             plot(p, title="Pressure", rescale=True)
 
-        # Chech memory usage
+        # Check memory usage
         if self.options["check_mem_usage"]:
             if (self._timestep - 1) % self.options["check_frequency"] == 0:
                 print 'Memory usage is:' , self.getMyMemoryUsage()
@@ -145,6 +145,17 @@ class SolverBase:
 
     def eval(self):
         "Return last functional value and maximum error in functional value on [0, T]"
+
+        # Plot values
+        if self.options["plot_functional"]:
+            from pylab import *
+            plot(self._t, self._M)
+            xlabel('t')
+            ylabel('Functional')
+            grid(True)
+            show()
+
+        # Return value
         if self._e[0] is None:
             return self._M[-1], None
         else:

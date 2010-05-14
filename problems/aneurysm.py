@@ -56,7 +56,7 @@ class Problem(ProblemBase):
         self.U = 2.0
 
         # Set end-time
-        self.T = DOLFIN_PI/60.0
+        self.T = 0.05
         self.First = True
 
     def initial_conditions(self, V, Q):
@@ -103,6 +103,9 @@ class Problem(ProblemBase):
         self.g1.t = t
 
     def functional(self, t, u, p):
+        return u((0.025, -0.006, 0.0))[0]
+
+    def old_functional(self, t, u, p):
 
         # Only compute functional at end-time
         if t < self.T:
