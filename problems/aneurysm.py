@@ -11,29 +11,21 @@ from scipy import *
 from numpy import array
 from math import pi
 
-# Margin for boundary conditions (DOLFIN_EPS misses some vertices)
-bmargin = 1e-6
-
-# No-slip boundary (including inflow which will be overridden)
-class NoslipBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        r = sqrt(x[1]**2 + x[2]**2)
-        return on_boundary and r > 0.002 - bmargin
-
 # Inflow boundary
-class InflowBoundary(SubDomain):
+class Inflow(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and x[0] < DOLFIN_EPS
 
 # Inflow boundary
-class OutflowBoundary(SubDomain):
+class Outflow(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and x[0] > 0.05 - DOLFIN_EPS
 
 # Define the aneurysm region, everything outside the cylinder
 class AneurysmCutoff(Expression):
     def eval(self, values, x):
-        r = sqrt(x[2]**2 + x[1]**2)
+        r = sqrt(x[1]**2 + x[2]**2)
+        # FIXME: Is this well-defined?
         if r < 0.002 + 0.0001:
             values[0] = 0.0
         else:
@@ -60,7 +52,7 @@ class Problem(ProblemBase):
         self.f = Constant((0, 0, 0))
 
 	# Set viscosity
-        self.nu = 3.5/(1.025e6)
+        self.nu = 3.5 / 1.025e6
         self.U = 2.0
 
         # Set end-time
@@ -68,17 +60,22 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
-
         u0 = Constant((0, 0, 0))
         p0 = Constant(0)
-
         return u0, p0
 
     def boundary_conditions(self, V, Q, t):
 
+        # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
+        boundary_markers = MeshFunction("uint", V.mesh(), 2)
+        boundary_markers.set_all(3)
+        DomainBoundary().mark(boundary_markers, 0)
+        Inflow().mark(boundary_markers, 1)
+        Outflow().mark(boundary_markers, 2)
+
         # Create no-slip boundary condition for velocity
         self.g0 = Constant((0, 0, 0))
-        bc0 = DirichletBC(V, self.g0, NoslipBoundary())
+        bc0 = DirichletBC(V, self.g0, boundary_markers, 0)
 
          # Create inflow boundary condition for velocity
         self.g1 = Expression(('norm0*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))',
@@ -87,11 +84,11 @@ class Problem(ProblemBase):
                              defaults = {'norm0': 1.0, 'norm1': 0.0, 'norm2': 0.0,  'r': 0.002},
                              degree=3)
         self.g1.t = t
-        bc1 = DirichletBC(V, self.g1, InflowBoundary())
+        bc1 = DirichletBC(V, self.g1, boundary_markers, 1)
 
         # Create outflow boundary condition for pressure
 	self.g2 = Constant(0)
-        bc2 = DirichletBC(Q, self.g2, OutflowBoundary())
+        bc2 = DirichletBC(Q, self.g2, boundary_markers, 2)
 
         # Collect boundary conditions
         bcu = [bc0, bc1]
