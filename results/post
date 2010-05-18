@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+
+from pylab import *
+
+filename = "final_results.log" 
+text = open(filename, "r").read()
+data = {}
+
+# Extract data
+for line in text.split("\n"):
+	
+	# Read data
+	if not "," in line:
+		continue
+	date, problem, solver, num_dof, cputime, wct,func, dt_ref, error= line.split(",")
+	date = date.strip()
+	problem = problem.strip()
+	solver = solver.strip()
+	num_dof = int(num_dof)
+	cputime = float(cputime)
+	func = (float(func))
+	error =float(error)
+	
+	# Save data
+	if not problem in data:
+		data[problem] = {}
+	if not solver in data[problem]:
+		data[problem][solver] = []
+	data[problem][solver].append((num_dof, cputime, error,func))
+
+# Plot data
+for (i, problem) in enumerate(data):
+
+	solvers = []
+	
+	# Create new plot window
+	figure(i)
+	title(problem,fontsize=15, color='black')
+	
+	
+	# Plot results for each solver
+	for solver in data[problem]:
+		
+		datapoints = data[problem][solver]
+		num_dofs = [num_dof    for (num_dof, cputime, error,func) in datapoints]
+		cputimes = [cputime    for (num_dof, cputime, error,func) in datapoints]
+		errors   = [error      for (num_dof, cputime, error,func) in datapoints]
+		funcs    = [func       for (num_dof, cputime, error,func) in datapoints]
+		
+		#print solver
+		if solver == "Chorin":
+			tags = 'r-v'
+		if solver == "CSS1":
+			tags = 'y-^'
+		if solver == "CSS2":
+			tags = 'g-D'
+		if solver == "IPCS":
+			tags = 'c-o'
+		if solver == "GRPC":
+			tags = 'k-D'
+		if solver == "GRPCtol_m_12":
+			tags = 'm-o'
+		if solver == "GRPCtol_m_9":
+			tags = 'b-v'
+		if solver == "G2":
+			tags = 'b-D'
+		
+		
+		if problem[0:5] == 'Cylin':
+			subplot(211)
+			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("CPU time",fontsize=15, color='black')
+			grid(True)
+			
+			subplot(212)
+			subplot(223)
+			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("Functional",fontsize=15, color='black')
+			grid(True)
+		
+			subplot(224)
+			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("Functional",fontsize=15, color='black')
+			grid(True)
+			
+			
+		if problem[0:5] == 'Simul':
+			subplot(211)
+			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("CPU time",fontsize=15, color='black')
+			grid(True)
+			
+			subplot(212)
+			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("Functional",fontsize=15, color='black')
+			grid(True)
+
+			
+		else:
+			subplot(211)
+			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("CPU time",fontsize=15, color='black')
+			grid(True)
+			
+			subplot(212)
+			loglog(num_dofs, errors, tags, linewidth=3, ms=10, alpha=1.0)
+			xlabel("Degrees of freedom",fontsize=15, color='black')
+			ylabel("Errors",fontsize=15, color='black')
+			grid(True)
+	
+		solvers.append(solver)
+		
+	subplot(211)
+	legend(solvers, loc=2)
+	subplot(212)
+	legend(solvers, loc=3)
+	
+show()

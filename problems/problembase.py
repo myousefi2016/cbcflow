@@ -61,8 +61,10 @@ class ProblemBase:
 
     def tolerance(self, problem):
         "Return tolerance (used as local convergence criterion)."
-        if str(problem) == 'Channel' or str(problem) == 'Cylinder':
-            return 1e-9
+        if str(problem) == 'Channel':
+            return 1e-12
+        elif str(problem) == 'Cylinder':
+            return 1e-8
         else:
             return 1e-6
 
