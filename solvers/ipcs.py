@@ -65,8 +65,8 @@ class Solver(SolverBase):
         L1 = rhs(F1)
 
         # Pressure correction
-        a2 = inner(grad(q), k*grad(p))*dx
-        L2 = inner(grad(q), k*grad(p0))*dx - q*div(u1)*dx
+        a2 = inner(grad(q), grad(p))*dx
+        L2 = inner(grad(q), grad(p0))*dx - (1.0/k)*q*div(u1)*dx
 
         # Velocity correction
         a3 = inner(v, u)*dx
