@@ -11,7 +11,10 @@ __license__  = "GNU GPL version 3 or any later version"
 from pylab import *
 
 # Results file
-filename = "results.log"
+filename = "results/results.log"
+
+# Tags for solvers
+tags = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
 
 # Extract data from file
 data = {}
@@ -33,7 +36,7 @@ for line in [line for line in open(filename, "r").read().split("\n") if "," in l
     data[problem][solver][3].append(float(func))
 
 # Plot data
-for (i, problem) in enumerate(data):
+for (i, problem) in []: #enumerate(data):
 
     # Create new plot window
     figure(i)
@@ -45,7 +48,6 @@ for (i, problem) in enumerate(data):
        	num_dofs, cputimes, errors, funcs = data[problem][solver]
 
         # Set tag
-        tags = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
         tag = tags[solver]
 
         # Plot
@@ -94,5 +96,45 @@ for (i, problem) in enumerate(data):
     subplot(211)
     title(problem, fontsize=15, color='black')
     legend(data[problem], loc=2)
+
+# Extract scatter plot data for CPU time vs error
+points = {}
+#data = {"Channel": data["Channel"]}
+for problem in data:
+
+    # Get maximum for scaling
+    max_num_levels = max([len(data[problem][s][0]) for s in data[problem]])
+    error_scale = [0.0 for i in range(max_num_levels)]
+    cputime_scale = [0.0 for i in range(max_num_levels)]
+    num_entries = [0 for i in range(max_num_levels)]
+    for solver in data[problem]:
+        num_dofs, cputimes, errors, funcs = data[problem][solver]
+        for i in range(len(num_dofs)):
+            error_scale[i] += errors[i] / num_dofs[i]
+            cputime_scale[i] += cputimes[i] / num_dofs[i]
+            num_entries[i] += 1
+    error_scale = [error_scale[i] / num_entries[i] for i in range(max_num_levels)]
+    cputime_scale = [cputime_scale[i] / num_entries[i] for i in range(max_num_levels)]
+
+    # Get scaled values
+    for solver in data[problem]:
+        num_dofs, cputimes, errors, funcs = data[problem][solver]
+        num_levels = len(num_dofs)
+        if not solver in points:
+            points[solver] = [[], []]
+        points[solver][0] += [log(cputimes[i] / num_dofs[i] / cputime_scale[i]) for i in range(num_levels)]
+        points[solver][1] += [log(errors[i] / num_dofs[i] / error_scale[i]) for i in range(num_levels)]
+
+# Create scatter plot of CPU time vs error
+figure(6)
+hold(True)
+grid(True)
+xlabel("Scaled CPU time")
+ylabel("Scaled error")
+for solver in points:
+    c = tags[solver][0]
+    scatter(points[solver][0], points[solver][1], c=c, s=500.0, alpha=0.75)
+title("Solver performance", fontsize=15, color='black')
+legend([solver for solver in points], loc=3)
 
 show()
