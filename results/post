@@ -2,8 +2,10 @@
 
 from pylab import *
 
-filename = "final_results.log" 
+filename = "results.log" 
+
 text = open(filename, "r").read()
+
 data = {}
 
 # Extract data
@@ -12,6 +14,7 @@ for line in text.split("\n"):
 	# Read data
 	if not "," in line:
 		continue
+	
 	date, problem, solver, num_dof, cputime, wct,func, dt_ref, error= line.split(",")
 	date = date.strip()
 	problem = problem.strip()
@@ -31,12 +34,11 @@ for line in text.split("\n"):
 # Plot data
 for (i, problem) in enumerate(data):
 
-	solvers = []
-	
+		
 	# Create new plot window
 	figure(i)
 	title(problem,fontsize=15, color='black')
-	
+	solvers = []
 	
 	# Plot results for each solver
 	for solver in data[problem]:
@@ -57,46 +59,37 @@ for (i, problem) in enumerate(data):
 		if solver == "IPCS":
 			tags = 'c-o'
 		if solver == "GRPC":
-			tags = 'k-D'
-		if solver == "GRPCtol_m_12":
-			tags = 'm-o'
-		if solver == "GRPCtol_m_9":
-			tags = 'b-v'
+			tags = 'k-s'
 		if solver == "G2":
-			tags = 'b-D'
-		
-		
+			tags = 'b-p'
+
+
 		if problem[0:5] == 'Cylin':
 			subplot(211)
 			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("CPU time",fontsize=15, color='black')
 			grid(True)
 			
 			subplot(212)
 			subplot(223)
 			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("Functional",fontsize=15, color='black')
 			grid(True)
 		
 			subplot(224)
 			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("Functional",fontsize=15, color='black')
 			grid(True)
 			
 			
-		if problem[0:5] == 'Simul':
+		elif problem[0:5] == 'Aneur':
 			subplot(211)
 			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("CPU time",fontsize=15, color='black')
 			grid(True)
 			
 			subplot(212)
-			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
+			loglog(num_dofs, errors, tags, linewidth=3, ms=10, alpha=1.0)
 			ylabel("Functional",fontsize=15, color='black')
 			grid(True)
 
@@ -104,21 +97,37 @@ for (i, problem) in enumerate(data):
 		else:
 			subplot(211)
 			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("CPU time",fontsize=15, color='black')
 			grid(True)
 			
 			subplot(212)
 			loglog(num_dofs, errors, tags, linewidth=3, ms=10, alpha=1.0)
-			xlabel("Degrees of freedom",fontsize=15, color='black')
 			ylabel("Errors",fontsize=15, color='black')
 			grid(True)
+			
+		xlabel("Degrees of freedom",fontsize=15, color='black')
+
+		if False:
+
+			ref_start = 1
+			ref_stop  = 4
+			foc = 10000*array(num_dofs[ref_start:ref_stop])**-1.0
+			loglog(num_dofs[ref_start:ref_stop], foc, 'k')
+			soc = 10000*array(num_dofs[ref_start:ref_stop])**-2.0
+			loglog(num_dofs[ref_start:ref_stop], soc, 'k')
+			toc = 10000*array(num_dofs[ref_start:ref_stop])**-3.0
+			loglog(num_dofs[ref_start:ref_stop], toc, 'k')								
 	
 		solvers.append(solver)
 		
-	subplot(211)
-	legend(solvers, loc=2)
-	subplot(212)
-	legend(solvers, loc=3)
+		
+
+			
+		subplot(211)
+		legend(solvers, loc=2)
+		subplot(212)
+		legend(solvers, loc=3)
+	
+#print data
 	
 show()
