@@ -15,11 +15,12 @@ if ".." not in os.environ['PYTHONPATH']:
     os.environ['PYTHONPATH'] = "..:" + os.environ['PYTHONPATH']
 jobs = []
 	  
-solvers = ["chorin", "css1", "css2", "projection", "g2", "grpc"] 
+solvers = ["chorin", "css1", "css2", "ipcs", "g2", "grpc"] 
 problems = ["drivencavity", "channel", "periodic", "beltrami", "cylinder", "aneurysm"]
 
+
 # Number of refinement levels
-refinements = [0,1,2,3,4,5,6,7,8,9,10,11]
+refinements = [0,1,2,3,4,5,6,7,8,9,10]
 
 # See output on screen
 to_screen = True
@@ -44,7 +45,7 @@ for i in range(len(solvers)):
             print ''
             print 'Submitted jobs:' , len(jobs)
             print ''
-            sleep(1)
+            sleep(5)
 
 
 
