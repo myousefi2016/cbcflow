@@ -20,7 +20,7 @@ class Problem(ProblemBase):
         # We start with a UnitCube and modify it to get the mesh we
         # want: (-1, 1) x (-1, 1) x (-1, 1)
 
-        mesh_sizes = [5, 8, 11, 16, 23, 32, 45]
+        mesh_sizes = [5, 8, 11, 16, 23, 32]
         level = options["refinement_level"]
         N = int(mesh_sizes[level])
 
