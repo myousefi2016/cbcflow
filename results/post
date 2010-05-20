@@ -1,133 +1,98 @@
 #!/usr/bin/env python
 
+__author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
+__date__ = "2010-05-20"
+__copyright__ = "Copyright (C) 2010 " + __author__
+__license__  = "GNU GPL version 3 or any later version"
+
+# Modified by Anders Logg, 2010.
+# Last changed: 2010-05-20
+
 from pylab import *
 
-filename = "results.log" 
+# Results file
+filename = "results.log"
 
-text = open(filename, "r").read()
-
+# Extract data from file
 data = {}
+for line in [line for line in open(filename, "r").read().split("\n") if "," in line]:
 
-# Extract data
-for line in text.split("\n"):
-	
-	# Read data
-	if not "," in line:
-		continue
-	
-	date, problem, solver, num_dof, cputime, wct,func, dt_ref, error= line.split(",")
-	date = date.strip()
-	problem = problem.strip()
-	solver = solver.strip()
-	num_dof = int(num_dof)
-	cputime = float(cputime)
-	func = (float(func))
-	error =float(error)
-	
-	# Save data
-	if not problem in data:
-		data[problem] = {}
-	if not solver in data[problem]:
-		data[problem][solver] = []
-	data[problem][solver].append((num_dof, cputime, error,func))
+    # Extract data
+    date, problem, solver, num_dof, cputime, wct,func, dt_ref, error = line.split(",")
+    problem = problem.strip()
+    solver = solver.strip()
+
+    # Save data
+    if not problem in data:
+        data[problem] = {}
+    if not solver in data[problem]:
+        data[problem][solver] = ([], [], [], [])
+    data[problem][solver][0].append(int(num_dof))
+    data[problem][solver][1].append(float(cputime))
+    data[problem][solver][2].append(float(error))
+    data[problem][solver][3].append(float(func))
 
 # Plot data
 for (i, problem) in enumerate(data):
 
-		
-	# Create new plot window
-	figure(i)
-	title(problem,fontsize=15, color='black')
-	solvers = []
-	
-	# Plot results for each solver
-	for solver in data[problem]:
-		
-		datapoints = data[problem][solver]
-		num_dofs = [num_dof    for (num_dof, cputime, error,func) in datapoints]
-		cputimes = [cputime    for (num_dof, cputime, error,func) in datapoints]
-		errors   = [error      for (num_dof, cputime, error,func) in datapoints]
-		funcs    = [func       for (num_dof, cputime, error,func) in datapoints]
-		
-		#print solver
-		if solver == "Chorin":
-			tags = 'r-v'
-		if solver == "CSS1":
-			tags = 'y-^'
-		if solver == "CSS2":
-			tags = 'g-D'
-		if solver == "IPCS":
-			tags = 'c-o'
-		if solver == "GRPC":
-			tags = 'k-s'
-		if solver == "G2":
-			tags = 'b-p'
+    # Create new plot window
+    figure(i)
 
+    # Plot results for each solver
+    for solver in data[problem]:
 
-		if problem[0:5] == 'Cylin':
-			subplot(211)
-			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("CPU time",fontsize=15, color='black')
-			grid(True)
-			
-			subplot(212)
-			subplot(223)
-			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("Functional",fontsize=15, color='black')
-			grid(True)
-		
-			subplot(224)
-			plot(num_dofs, funcs, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("Functional",fontsize=15, color='black')
-			grid(True)
-			
-			
-		elif problem[0:5] == 'Aneur':
-			subplot(211)
-			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("CPU time",fontsize=15, color='black')
-			grid(True)
-			
-			subplot(212)
-			loglog(num_dofs, errors, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("Functional",fontsize=15, color='black')
-			grid(True)
+        # Get data
+       	num_dofs, cputimes, errors, funcs = data[problem][solver]
 
-			
-		else:
-			subplot(211)
-			loglog(num_dofs, cputimes, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("CPU time",fontsize=15, color='black')
-			grid(True)
-			
-			subplot(212)
-			loglog(num_dofs, errors, tags, linewidth=3, ms=10, alpha=1.0)
-			ylabel("Errors",fontsize=15, color='black')
-			grid(True)
-			
-		xlabel("Degrees of freedom",fontsize=15, color='black')
+        # Set tag
+        tags = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
+        tag = tags[solver]
 
-		if False:
+        # Plot
+        if problem[0:5] == 'Cylin':
+            subplot(211)
+            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("CPU time", fontsize=15, color='black')
+            grid(True)
 
-			ref_start = 1
-			ref_stop  = 4
-			foc = 10000*array(num_dofs[ref_start:ref_stop])**-1.0
-			loglog(num_dofs[ref_start:ref_stop], foc, 'k')
-			soc = 10000*array(num_dofs[ref_start:ref_stop])**-2.0
-			loglog(num_dofs[ref_start:ref_stop], soc, 'k')
-			toc = 10000*array(num_dofs[ref_start:ref_stop])**-3.0
-			loglog(num_dofs[ref_start:ref_stop], toc, 'k')								
-	
-		solvers.append(solver)
-		
-		
+            subplot(212)
+            subplot(223)
+            plot(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("Functional", fontsize=15, color='black')
+            grid(True)
 
-			
-		subplot(211)
-		legend(solvers, loc=2)
-		subplot(212)
-		legend(solvers, loc=3)
-	
-#print data
-	
+            subplot(224)
+            plot(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("Functional", fontsize=15, color='black')
+            grid(True)
+
+        elif problem[0:5] == 'Aneur':
+            subplot(211)
+            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("CPU time", fontsize=15, color='black')
+            grid(True)
+
+            subplot(212)
+            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("Functional", fontsize=15, color='black')
+            grid(True)
+
+        else:
+            subplot(211)
+            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("CPU time", fontsize=15, color='black')
+            grid(True)
+
+            subplot(212)
+            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("Errors", fontsize=15, color='black')
+            grid(True)
+
+            xlabel("Degrees of freedom", fontsize=15, color='black')
+
+    # Set title and legend
+    subplot(211)
+    title(problem, fontsize=15, color='black')
+    legend(data[problem], loc=2)
+
 show()
