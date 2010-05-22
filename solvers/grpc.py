@@ -23,6 +23,12 @@ class Solver(SolverBase):
         # Parameters for Uzawa iteration
         tol = problem.tolerance(problem)
 
+        if str(problem)=="Aneurysm":                                                                                                                                             
+            pc = "jacobi"                                                                                                                                                                     
+        else:                                                                                                                                                            
+            pc = "ilu"  
+
+
         #FIXME, channel want go further down.
 #        tol = 1.0e-6 # slightly stricter critera to avoid drivencavity to dance
         maxiter = 100
@@ -118,7 +124,7 @@ class Solver(SolverBase):
                 rx = assemble(Ru)
                 [bc.apply(rx, x) for bc in bcu]
                 delta_x.zero()
-                solve(Kx, delta_x, rx, 'gmres', 'ilu') # FIXME: Need to be 'jacobi' to run with aneurysm
+                solve(Kx, delta_x, rx, 'gmres', pc)
                 x.axpy(-1.0, delta_x)
 
                 # Pressure update
