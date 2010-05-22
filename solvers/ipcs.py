@@ -59,7 +59,7 @@ class Solver(SolverBase):
         U = 0.5*(u0 + u)
         F1 = (1/k)*inner(v, u - u0)*dx + inner(v, grad(u0)*u0)*dx \
             + inner(epsilon(v), sigma(U, p0, nu))*dx \
-            + inner(v,p0*n)*ds - inner(v, f)*dx - beta*nu*inner(grad(U).T*n, v)*ds \
+            + inner(v,p0*n)*ds - beta*nu*inner(grad(U).T*n, v)*ds \
             - inner(v, f)*dx
         a1 = lhs(F1)
         L1 = rhs(F1)
