@@ -49,9 +49,8 @@ class Problem(ProblemBase):
         if refinement_level > 6:
             raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
 
-        # FIXME: Which mesh should we use?
         self.mesh = Mesh("data/cylinder_%d.xml.gz" % refinement_level)
-        #self.mesh = Mesh("data/cylinder_new_%d.xml.gz" % refinement_level)
+
 
         # Create right-hand side function
         self.f =  Constant((0, 0))
@@ -60,7 +59,7 @@ class Problem(ProblemBase):
         self.nu = 1.0 / 1000.0
 
         # Characteristic velocity in the domain (used to determinde timestep)
-        self.U = 2.0
+        self.U = 3.5
 
         # Set end time
         self.T  = 8.0
