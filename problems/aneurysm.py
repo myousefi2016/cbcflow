@@ -105,46 +105,25 @@ class Problem(ProblemBase):
     def functional(self, t, u, p):
         return u((0.025, -0.006, 0.0))[0]
 
-    def old_functional(self, t, u, p):
-
-        # Only compute functional at end-time
-        if t < self.T:
-            return 0
-
-        # Cutoff and scaling functions
-        self.DG0 = FunctionSpace(self.mesh, "DG", 0)
-        self.cutoff = AneurysmCutoff(V=self.DG0)
-        self.scaling = FacetArea(self.mesh)
-
-        # Tangent vector
-        n = FacetNormal(self.mesh)
-        t = as_vector([-n[1], n[0], 0])
-
-        # Tangential component of shear stress
-        sigma = 2.0*self.nu*epsilon(u)
-        wss = inner(sigma*n, t)
-
-        # Average tangential shear stress
-        self.wss = self.cutoff/self.scaling*wss*ds
-
-        # Function for plotting/debugging
-        v = TestFunction(self.DG0)
-        self.wss_plot = Function(self.DG0)
-        self.wss_plot_form = v*self.cutoff/self.scaling*wss*ds
-        self.file = File("wss.pvd")
-
-        # Plot shear stress
-        assemble(self.wss_plot_form, tensor=self.wss_plot.vector(), mesh=self.mesh)
-        self.file << self.wss_plot
-
-        # Compute shear stress
-        wss = assemble(self.wss, mesh=self.mesh)
-        print "WSS: %f" % wss
-
-        return wss
-
     def reference(self, t):
-        return 0.0
+        """The reference value was computed using on a fine mesh
+        (level 6). Values obtained for different refinement levels
+        are listed below for Chorin and IPCS.
+
+              Chorin                 IPCS
+        ----------------------------------------
+        -0.0325040608617000  -0.0333250879034000
+        -0.0470001557641000  -0.0458749339862000
+        -0.0370348732066000  -0.0364138324117000
+        -0.0359768558469000  -0.0358236703894000
+        -0.0356064894317000  -0.0354277722246000
+        -0.0355250220872000  -0.0353312047875000
+        -0.0356105862451000  -0.0354251625379000
+
+        The reference value is taken as the average of the values
+        for Chorin and IPCS on the finest mesh.
+        """
+        return -0.0355
 
     def __str__(self):
         return "Aneurysm"
