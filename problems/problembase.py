@@ -84,8 +84,7 @@ class ProblemBase:
             dt =  0.25*h**2 / (U*(nu + h*U))
             n  = self.options["max_steps"]
             T  = n*dt
-            t_range = linspace(0,T,n+1)[1:]
-
+            t_range = linspace(0, T, n + 1)[1:]
         else:
 
             if self.options["dt_division"] is not 0 and not problem.dt is None:
@@ -94,20 +93,21 @@ class ProblemBase:
                 dt = T / n
                 print 'Using problem.dt and time step refinements'
 
-        # Use time step specified in problem if available
+            # Use time step specified in problem if available
             elif not problem.dt is None:
                 dt = problem.dt
                 print dt
                 n  = int(T / dt)
                 print 'Using problem.dt'
-        # Otherwise, base time step on mesh size
+
+            # Otherwise, base time step on mesh size
             elif self.options["dt_division"] is not 0:
                 dt =  0.25*h**2 / (U*(nu + h*U))/int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
                 print 'Computing time step according to stability criteria and time step refinements'
 
-        # Otherwise, base time step on mesh size
+            # Otherwise, base time step on mesh size
             else:
                 dt =  0.25*h**2 / (U*(nu + h*U))
                 n  = int(T / dt + 1.0)

@@ -3,12 +3,13 @@ __date__ = "2009-01-01"
 __copyright__ = "Copyright (C) 2009 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
+# Modified by Anders Logg, 2010.
+
 from problembase import *
 from numpy import array
 
 # Constants related to the geometry
 bmarg = 1.e-3 + DOLFIN_EPS
-
 xmin = 0.0;
 xmax = 2.1;
 ymin = 0.0;
@@ -37,10 +38,11 @@ class CylinderBoundary(SubDomain):
 # Outflow boundary
 class OutflowBoundary(SubDomain):
     def inside(self, x, on_boundary):
-        return on_boundary  and (x[0] > (xmax - bmarg))
+        return on_boundary  and x[0] > (xmax - bmarg)
 
 # No-slip boundary value for velocity
 class InflowBoundaryTopBottomBoundaryValue(Expression):
+
     def eval(self, values, x):
         if x[0] < bmarg:
 		values[0] = 1.0
@@ -51,6 +53,9 @@ class InflowBoundaryTopBottomBoundaryValue(Expression):
         	values[1] = 0.0
         	values[2] = 0.0
 
+    def dim(self):
+        return 3
+
 # Problem definition
 class Problem(ProblemBase):
     "Unicorn test problem unicorn-0.1.0/ucsolver/icns/bench2D3D."
@@ -59,7 +64,7 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-	self.mesh = Mesh("../../data/meshes/cylinder/cylinder_3d_bmk.xml.gz")
+	self.mesh = Mesh("data/cylinder_3d_bmk.xml.gz")
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 3900.0
@@ -71,29 +76,29 @@ class Problem(ProblemBase):
 	self.T = 0.2
 
 	# Create right-hand side function
-        self.f =  Constant(self.mesh, (0, 0, 0))
+        self.f =  Constant((0, 0, 0))
 
     def initial_conditions(self, V, Q):
 
-        u0 = Constant(self.mesh, (0, 0, 0))
-        p0 = Constant(self.mesh, 0)
+        u0 = Constant((0, 0, 0))
+        p0 = Constant(0)
 
         return u0, p0
 
     def boundary_conditions(self, V, Q, t):
 
         # Create inflow boundary condition for velocity
-        self.b0 = InflowBoundaryTopBottomBoundaryValue(V=V)
+        self.b0 = InflowBoundaryTopBottomBoundaryValue()
         bc0 = DirichletBC(V, self.b0, InflowBoundaryTopBottomBoundary())
 
         # Create no-slip boundary condition
         self.b1 = CylinderBoundary()
-        self.g1 = Constant(self.mesh, (0, 0, 0))
+        self.g1 = Constant((0, 0, 0))
         bc1 = DirichletBC(V, self.g1, self.b1)
 
         # Create outflow boundary condition for pressure
         self.b2 = OutflowBoundary()
-	self.g2 = Constant(self.mesh, 0.0)
+	self.g2 = Constant(0)
         bc2 = DirichletBC(Q, self.g2, self.b2)
 
         # Collect boundary conditions
@@ -115,5 +120,5 @@ class Problem(ProblemBase):
             return 106.583962337 + 38.2586340271
         return 0.0
 
-    def info(self):
+    def __str__(self):
         return "G2ref"

@@ -42,10 +42,11 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from g2cppcode import *
+from numpy import linspace
 
 # Use same form compiler options as Unicorn to get comparable timings
-parameters["ffc_representation"] = "tensor"
-parameters["optimize"] = True
+parameters["form_compiler"]["representation"] = "tensor"
+parameters["form_compiler"]["cpp_optimize"] = True
 
 class Solver(SolverBase):
     "G2 (stabilized cG(1)cG(1)) by Hoffman and Johnson."
@@ -55,20 +56,14 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        # Validate initial/boundary values
-        #validate(problem)
-
         # Get problem parameters
         mesh = problem.mesh
-        # FIXME: Move this somewhere else
-        if mesh.topology().dim() == 2:
-            shape = triangle
-        else:
-            shape = tetrahedron
 
+        # FIXME: Is this correct Kristian?
         # Set time step
-        h = CellSize(mesh)
-        dt, t_range = problem.timestep(problem)
+        dt = 0.021650635094
+        t_range = linspace(0, 10*dt, 10)[1:]
+        t = dt
 
         # Set parameters for method
         tol = 1.0e-2
@@ -77,12 +72,12 @@ class Solver(SolverBase):
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
-        DG = FunctionSpace(mesh, "DG", 0)
+        DG = FiniteElement("DG", "tetrahedron", 0)
         DGv = VectorFunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
         u0, p0 = problem.initial_conditions(V, Q)
-        bcu, bcp = problem.boundary_conditions(V, Q)
+        bcu, bcp = problem.boundary_conditions(V, Q, t)
 
         # Test and trial functions
         v = TestFunction(V)
@@ -93,26 +88,23 @@ class Solver(SolverBase):
         w = TrialFunction(DGv)
 
         # Functions
-        u0 = interpolate(u0, V) 	# velocity at previous time step
-        u1 = Function(V) 		# current velocity
-        p1 = interpolate(p0, Q) 	# current pressure
-        W  = Function(DGv) 		# cell mean linearized velocity
-        nu = Constant(mesh, problem.nu) # kinematic viscosity
-        k  = Constant(mesh, dt)		# time step
-        f  = problem.f			# body forces
+        u0 = interpolate(u0, V)   # velocity at previous time step
+        u1 = Function(V)          # current velocity
+        p1 = interpolate(p0, Q)   # current pressure
+        W  = Function(DGv)        # cell mean linearized velocity
+        nu = Constant(problem.nu) # kinematic viscosity
+        k  = Constant(dt)         # time step
+        f  = problem.f            # body forces
 
 	# Stabilization parameters
 	C1  = 4.0
 	C2  = 2.0
-
-        d1 = Expression(cpp_code_d1 % mesh.geometry().dim(), V=DG)
-        d2 = Expression(cpp_code_d2 % mesh.geometry().dim(), V=DG)
+        d1 = Expression(cppcode_d1, element=DG)
+        d2 = Expression(cppcode_d2, element=DG)
 
         # Update stabilization parameters
         d1.update(u0, problem.nu, dt, C1)
         d2.update(u0, problem.nu, dt, C2)
-        dd1 = interpolate(d1, DG); print 'd1 vector norm' , norm(dd1.vector())
-        dd2 = interpolate(d2, DG); print 'd2 vector norm' , norm(dd2.vector())
 
         # Velocity system
         U = 0.5*(u0 + u)
@@ -129,33 +121,24 @@ class Solver(SolverBase):
         aw = inner(z, w)*dx
         Lw = inner(z, u1)*dx
 
-
         # Assemble matrices
         Av = assemble(av)
         Ap = assemble(ap)
         Aw = assemble(aw)
 
-        time_step = 0
-
         # Time loop
         self.start_timing()
-        for t in t_range:
-#            dt = 0.021650635094
+        for (time_step, t) in enumerate(t_range):
             print "============================================================================="
     	    print "Starting time step %d, t = %g and dt = %g" % (time_step, t, dt)
             print
 
-
             # Solve nonlinear system by fixed-point iteration
-	    time_step += 1
-
             for iter in range(maxiter):
                 # Update stabilization parameters
                 cputime = time()
                 d1.update(u0, problem.nu, dt, C1)
                 d2.update(u0, problem.nu, dt, C2)
-                dd1 = interpolate(d1, DG); print 'd1 vector norm' , norm(dd1.vector())
-                dd2 = interpolate(d2, DG); print 'd2 vector norm' , norm(dd2.vector())
                 print "Computed stabilization in:", time() - cputime
                 print
 
@@ -227,6 +210,7 @@ class Solver(SolverBase):
             # Update
             self.update(problem, t, u1, p1)
 	    u0.assign(u1)
+
         return u1, p1
 
     def __str__(self):
