@@ -44,7 +44,7 @@ class Problem(ProblemBase):
 
         # Load mesh
         refinement_level = options["refinement_level"]
-        if refinement_level > 6:
+        if refinement_level > 4:
             raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
         self.mesh = Mesh("data/aneurysm_%d.xml.gz" % refinement_level)
 
@@ -53,7 +53,7 @@ class Problem(ProblemBase):
 
 	# Set viscosity
         self.nu = 3.5 / 1.025e6
-        self.U = 2.0
+        self.U = 2.5
 
         # Set end-time
         self.T = 0.05
