@@ -103,6 +103,9 @@ class Problem(ProblemBase):
         self.g1.t = t
 
     def functional(self, t, u, p):
+         if t < self.T:                                                                                                                                                    
+             return 0.0
+
         return u((0.025, -0.006, 0.0))[0]
 
     def reference(self, t):
