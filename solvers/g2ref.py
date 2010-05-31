@@ -14,7 +14,7 @@ __license__  = "GNU GPL version 3 or any later version"
 #
 #   ./ns g2ref g2ref
 #
-# The following reference values are obtained at T = 0.2:
+# The following reference values are obtained after 10 time steps:
 #
 # Norm of velocity vector: 106.5839601025451   (Unicorn, Kristian)
 # Norm of velocity vector: 106.5839601165444   (Unicorn, Anders)
@@ -58,12 +58,7 @@ class Solver(SolverBase):
 
         # Get problem parameters
         mesh = problem.mesh
-
-        # FIXME: Is this correct Kristian?
-        # Set time step
-        dt = 0.021650635094
-        t_range = linspace(0, 10*dt, 10)[1:]
-        t = dt
+        dt, t, t_range = problem.timestep(problem)
 
         # Set parameters for method
         tol = 1.0e-2
@@ -128,7 +123,8 @@ class Solver(SolverBase):
 
         # Time loop
         self.start_timing()
-        for (time_step, t) in enumerate(t_range):
+        time_step = 1
+        for t in t_range: 
             print "============================================================================="
     	    print "Starting time step %d, t = %g and dt = %g" % (time_step, t, dt)
             print
@@ -202,11 +198,11 @@ class Solver(SolverBase):
 
                 if r < tol: break
                 if iter == maxiter - 1: raise RuntimeError, "Fixed-point iteration did not converge."
-
+            time_step +=1
 	    print 'Norm of velocity vector:' , norm(u1.vector())
 	    print 'Norm of pressure vector:' , norm(p1.vector())
             print
-
+            
             # Update
             self.update(problem, t, u1, p1)
 	    u0.assign(u1)
