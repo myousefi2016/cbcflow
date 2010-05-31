@@ -70,10 +70,10 @@ class Problem(ProblemBase):
         self.nu = 1.0 / 3900.0
 
         # Set time step
-        self.dt = 0.25*self.mesh.hmin()
+        self.dt = 0.021650635094
 
         # Set end time
-	self.T = 0.2
+	self.T = 10*0.021650635094
 
 	# Create right-hand side function
         self.f =  Constant((0, 0, 0))
