@@ -42,7 +42,6 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from g2cppcode import *
-from numpy import linspace
 
 # Use same form compiler options as Unicorn to get comparable timings
 parameters["form_compiler"]["representation"] = "tensor"
@@ -56,18 +55,19 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
+        # Check if we should use reference implementation (Unicorn)
+        g2ref = str(problem) == "G2ref"
+
         # Get problem parameters
         mesh = problem.mesh
-        dt, t, t_range = problem.timestep(problem)
 
-        # Set parameters for method
-        tol = 1.0e-2
-        maxiter = 50
+        # Set time step
+        dt, t, t_range = problem.timestep(problem)
 
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
-        DG = FiniteElement("DG", "tetrahedron", 0)
+        DG = FiniteElement("DG", None, 0)
         DGv = VectorFunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
@@ -83,13 +83,14 @@ class Solver(SolverBase):
         w = TrialFunction(DGv)
 
         # Functions
-        u0 = interpolate(u0, V)   # velocity at previous time step
-        u1 = Function(V)          # current velocity
-        p1 = interpolate(p0, Q)   # current pressure
-        W  = Function(DGv)        # cell mean linearized velocity
-        nu = Constant(problem.nu) # kinematic viscosity
-        k  = Constant(dt)         # time step
-        f  = problem.f            # body forces
+        u0 = interpolate(u0, V)
+        u1 = Function(V)
+        p1 = interpolate(p0, Q)
+        W  = Function(DGv)
+        nu = Constant(problem.nu)
+        k  = Constant(dt)
+        f  = problem.f
+        n  = FacetNormal(mesh)
 
 	# Stabilization parameters
 	C1  = 4.0
@@ -97,24 +98,44 @@ class Solver(SolverBase):
         d1 = Expression(cppcode_d1, element=DG)
         d2 = Expression(cppcode_d2, element=DG)
 
-        # Update stabilization parameters
-        d1.update(u0, problem.nu, dt, C1)
-        d2.update(u0, problem.nu, dt, C2)
+        # Remove boundary stress term if problem is periodic
+        if is_periodic(bcp):
+            beta = Constant(0)
+        else:
+            beta = Constant(1)
+
+        # FIXME: This should be moved to problem.boundary_conditions()
+        pbar = problem.pressure_bc(Q)
 
         # Velocity system
         U = 0.5*(u0 + u)
-        Fv = inner(v, u - u0) + k*inner(v, grad(U)*W) + k*nu*inner(grad(v), grad(U))  - k*inner(div(v), p1) - k*inner(v, f) + \
-             d1*k*inner(grad(v)*W, grad(U)*W) + d2*k*div(v)*div(U)
-        av = lhs(Fv*dx)
-        Lv = rhs(Fv*dx)
+        P = p1
+        if g2ref:
+            stress_terms = k*nu*inner(grad(v), grad(U))*dx  - k*inner(div(v), P)*dx
+        else:
+            stress_terms = k*inner(epsilon(v), sigma(U, P, nu))*dx \
+                         - beta*k*nu*inner(v, grad(U).T*n)*ds + k*inner(v, pbar*n)*ds
+        Fv = inner(v, u - u0)*dx + k*inner(v, grad(U)*W)*dx \
+           + stress_terms - k*inner(v, f)*dx \
+           + d1*k*inner(grad(v)*W, grad(U)*W)*dx + d2*k*div(v)*div(U)*dx
+        av = lhs(Fv)
+        Lv = rhs(Fv)
 
         # Pressure system
-        ap = d1*inner(grad(q), grad(p))*dx
-        Lp = - q*div(u1)*dx
+        if g2ref:
+            ap = d1*inner(grad(q), grad(p))*dx
+            Lp = -q*div(u1)*dx
+        else:
+            ap = inner(grad(q), grad(p))*dx
+            Lp = -(1/d1)*q*div(u1)*dx
 
         # Projection of velocity
         aw = inner(z, w)*dx
         Lw = inner(z, u1)*dx
+
+        # Update stabilization parameters
+        d1.update(u0, problem.nu, dt, C1)
+        d2.update(u0, problem.nu, dt, C2)
 
         # Assemble matrices
         Av = assemble(av)
@@ -123,59 +144,50 @@ class Solver(SolverBase):
 
         # Time loop
         self.start_timing()
-        time_step = 1
-        for t in t_range: 
-            print "============================================================================="
-    	    print "Starting time step %d, t = %g and dt = %g" % (time_step, t, dt)
-            print
+        for t in t_range:
+
+            # FIXME: Update boundary conditions here in all solvers
+            # Update boundary conditions
+            bcu, bcp = problem.boundary_conditions(V, Q, t)
+
+            # Update stabilization parameters
+            if not g2ref:
+                d1.update(u0, problem.nu, dt, C1)
+                d2.update(u0, problem.nu, dt, C2)
 
             # Solve nonlinear system by fixed-point iteration
             for iter in range(maxiter):
-                # Update stabilization parameters
-                cputime = time()
-                d1.update(u0, problem.nu, dt, C1)
-                d2.update(u0, problem.nu, dt, C2)
-                print "Computed stabilization in:", time() - cputime
-                print
 
-                print "-----------------------------------------------------------------------------"
-                print "Starting iteration", iter
-                print
+                # Update stabilization parameters
+                if g2ref:
+                    d1.update(u0, problem.nu, dt, C1)
+                    d2.update(u0, problem.nu, dt, C2)
 
                 # Compute pressure
-		cputime = time()
                 bp = assemble(Lp)
-                if len(bcp) == 0: normalize(bp)
+                if len(bcp) == 0 or is_periodic(bcp): normalize(bp)
                 [bc.apply(Ap, bp) for bc in bcp]
-		print "Assembled pressure RHS in:", time() - cputime
-		cputime = time()
-                solve(Ap, p1.vector(), bp, "gmres", "amg_hypre")
-                if len(bcp) == 0: normalize(p1.vector())
-		print "Solved pressure in: ", time() - cputime
+                if is_periodic(bcp):
+                    solve(Ap, p1.vector(), bp)
+                else:
+                    solve(Ap, p1.vector(), bp, "gmres", "amg_hypre")
+                if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 		print "Pressure norm =", norm(p1.vector())
-		print
 
                 # Compute velocity
-		cputime = time()
 		bv = assemble(Lv)
 		[bc.apply(Av, bv) for bc in bcu]
-		print "Assembled velocity RHS in:", time() - cputime
-		cputime = time()
 		solve(Av, u1.vector(), bv, "gmres", "ilu")
-		print "Solved velocity in:", time() - cputime
 		print "Velocity norm =", norm(u1.vector())
-                print
 
                 # Compute projection of u1 onto piecewise constants (mean-value on each cell)
                 bw = assemble(Lw)
 		solve(Aw, W.vector(), bw, "gmres", "ilu")
 
                 # Reassemble velocity system
-		cputime = time()
                 Av = assemble(av)
                 bv = assemble(Lv)
                 [bc.apply(Av, bv) for bc in bcu]
-		print "Assembled velocity LSH and RHS in:" , time() - cputime
 
                 # Reassemble pressure system
                 bp = assemble(Lp)
@@ -183,26 +195,21 @@ class Solver(SolverBase):
                 [bc.apply(Ap, bp) for bc in bcp]
 
                 # Compute residuals
-		cputime = time()
                 rv = residual(Av, u1.vector(), bv)
-		print "Computed residual for velocity in:" , time() - cputime
-		cputime = time()
                 rp = residual(Ap, p1.vector(), bp)
-		print "Computed residual for pressure in:" , time() - cputime
-                r = sqrt(rv*rv + rp*rp)
-                print
+                r = sqrt(rv**2 + rp**2)
 
-                # Check convergence
-                print "Residual =", r
-		print ""
+                # Check for convergence
+                if g2ref:
+                    if has_converged(r, iter, "Fixed-point", tolerance=1e-2): break
+                else:
+                    if has_converged(r, iter, "Fixed-point"): break
 
-                if r < tol: break
-                if iter == maxiter - 1: raise RuntimeError, "Fixed-point iteration did not converge."
-            time_step +=1
-	    print 'Norm of velocity vector:' , norm(u1.vector())
-	    print 'Norm of pressure vector:' , norm(p1.vector())
-            print
-            
+            # Print norms for comparison with reference implementation (Unicorn)
+            if g2ref:
+                print 'Norm of velocity vector:' , norm(u1.vector())
+                print 'Norm of pressure vector:' , norm(p1.vector())
+
             # Update
             self.update(problem, t, u1, p1)
 	    u0.assign(u1)
