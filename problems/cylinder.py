@@ -46,7 +46,7 @@ class Problem(ProblemBase):
 
         # Load mesh
         refinement_level = options["refinement_level"]
-        if refinement_level > 6:
+        if refinement_level > 5:
             raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
 
         self.mesh = Mesh("data/cylinder_%d.xml.gz" % refinement_level)
@@ -112,7 +112,7 @@ class Problem(ProblemBase):
          return p(x1) - p(x2)
 
     def reference(self, t):
-        return 0.0
+        return -0.111444953719
 
     def __str__(self):
         return "Cylinder"
