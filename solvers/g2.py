@@ -156,13 +156,11 @@ class Solver(SolverBase):
                 else:
                     solve(Ap, p1.vector(), bp, "gmres", "amg_hypre")
                 if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-		print "Pressure norm =", norm(p1.vector())
 
                 # Compute velocity
 		bv = assemble(Lv)
 		[bc.apply(Av, bv) for bc in bcu]
 		solve(Av, u1.vector(), bv, "gmres", "ilu")
-		print "Velocity norm =", norm(u1.vector())
 
                 # Compute projection of u1 onto piecewise constants (mean-value on each cell)
                 bw = assemble(Lw)
