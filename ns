@@ -99,12 +99,10 @@ def main(args):
 
     # Set global DOLFIN parameters
     parameters["optimize"] = True
+    parameters["form_compiler"]["cpp_optimize"] = True
     parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
     parameters["krylov_solver"]["relative_tolerance"] = options["krylov_solver_relative_tolerance"]
     parameters["krylov_solver"]["monitor_convergence"] = options["krylov_solver_monitor_convergence"]
-
-    # FIXME: Should we use this option?
-    #parameters["form_compiler"]["cpp_optimize"] = True
 
     # Set debug level
     logging(options["debug"])
