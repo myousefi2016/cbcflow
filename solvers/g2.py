@@ -8,7 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 # This file contains two different versions of the G2 method.
 #
 # 1. One version which is tailored to produce the exact same results
-# as the Unicorn 0.1.0 for the 3D benchmark problem available in the
+# as Unicorn 0.1.0 for the 3D benchmark problem available in the
 # directory unicorn-0.1.0/ucsolver/icns/bench2D3D.
 #
 # 2. Another version which differs from the reference implementation
@@ -21,7 +21,7 @@ __license__  = "GNU GPL version 3 or any later version"
 # to either True or False (default). The flag is automatically set to
 # True for the 'g2ref' test problem.
 #
-# Reference results obtained with Unicorn 0.1.0
+# Reference results obtained with Unicorn 0.1.0:
 #
 # Norm of velocity vector: 106.5839601165444  (Unicorn, Anders)
 # Norm of velocity vector: 106.5839601025451  (Unicorn, Kristian)
@@ -30,10 +30,6 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from g2cppcode import *
-
-# Use same form compiler options as Unicorn to get comparable timings
-#parameters["form_compiler"]["representation"] = "tensor"
-parameters["form_compiler"]["cpp_optimize"] = True
 
 class Solver(SolverBase):
     "G2 (stabilized cG(1)cG(1)) by Hoffman and Johnson."
