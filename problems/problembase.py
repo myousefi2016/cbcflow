@@ -62,9 +62,9 @@ class ProblemBase:
     def tolerance(self, problem):
         "Return tolerance (used as local convergence criterion)."
         if str(problem) == 'Channel':
-            return 1e-12
+            return 1e-11
         elif str(problem) == 'Cylinder':
-            return 1e-8
+            return 1e-7
         else:
             return 1e-6
 
@@ -109,7 +109,8 @@ class ProblemBase:
 
             # Otherwise, base time step on mesh size
             else:
-                dt =  0.25*h**2 / (U*(nu + h*U))
+#                dt =  0.25*h**2 / (U*(nu + h*U))
+                dt =  0.2*(h / U)
                 n  = int(T / dt + 1.0)
                 dt = T / n
                 print 'Computing time step accoring to stability criteria'
