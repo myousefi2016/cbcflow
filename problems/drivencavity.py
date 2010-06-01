@@ -31,7 +31,7 @@ class Problem(ProblemBase):
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 1000.0
-	self.U = 1.5
+	self.U = 1.0
 
         # Set end-time
         self.T = 2.5
