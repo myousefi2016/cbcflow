@@ -7,7 +7,7 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2009-2010.
 
 from solverbase import *
-
+from numpy import linspace
 class Solver(SolverBase):
     "cG(2/1)cG(1) with generalized Richardson iteration on the Schur complement."
 
@@ -23,10 +23,10 @@ class Solver(SolverBase):
 
         if str(problem) == "Channel":                                                                                                                                              
             dt /= 3.0;                                                                                                                                                             
-            n = int(t_range[-1] / dt + 1.0)                                                                                                                                  
-            dt = t_range[-1] / n                                                                                                                                           
+            n = int(trange[-1] / dt + 1.0)                                                                                                                                  
+            dt = trange[-1] / n                                                                                                                                           
             t = dt                                                                                                                                                       
-            t_range = linspace(0,t_range[-1],n+1)[1:]
+            trange = linspace(0,trange[-1],n+1)[1:]
 
 
         # Parameters for Uzawa iteration
