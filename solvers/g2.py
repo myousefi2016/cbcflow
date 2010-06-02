@@ -198,7 +198,7 @@ class Solver(SolverBase):
         return u1, p1
 
     def __str__(self):
-        return "G2ref"
+        return "G2"
 
 def check_g2(u, p):
     "Compare solution with reference implementation (Unicorn)."
