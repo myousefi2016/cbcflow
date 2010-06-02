@@ -15,8 +15,10 @@ if ".." not in os.environ['PYTHONPATH']:
     os.environ['PYTHONPATH'] = "..:" + os.environ['PYTHONPATH']
 jobs = []
 	  
+
 solvers = ["chorin", "css1", "css2", "ipcs", "g2", "grpc"] 
-problems = ["drivencavity", "channel", "periodic", "beltrami", "cylinder", "aneurysm"]
+problems = ["drivencavity"  , "channel", "periodic", "beltrami", "cylinder", "aneurysm"]
+
 
 
 # Number of refinement levels
@@ -28,11 +30,10 @@ to_screen = True
 #Max number of runtime days
 days = 10
 
-
-for i in range(len(solvers)):
+for k in range(len(refinements)):
 	for j in range(len(problems)):
             jobs = []
-            for k in range(len(refinements)):
+            for i in range(len(solvers)):
                 if to_screen==True:
                     print "python ns " + problems[j], solvers[i], "refinement_level=" +str(refinements[k]), ">&", problems[j] + "_" + solvers[i] + "_" + str(refinements[k])
                     jobs.append(("python ns " + problems[j] + " "+ solvers[i] + " " + "refinement_level=" +str(refinements[k]) + " "+ "debug=True" + ">&" + " " + problems[j]  + solvers[i] + "_" + str(refinements[k])))
