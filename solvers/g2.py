@@ -30,6 +30,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from g2cppcode import *
+from numpy import linspace 
 
 class Solver(SolverBase):
     "G2 (stabilized cG(1)cG(1)) by Hoffman and Johnson."
@@ -47,6 +48,13 @@ class Solver(SolverBase):
 
         # Set time step
         dt, t, t_range = problem.timestep(problem)
+        if str(problem) == "Channel":
+            dt /= 3.0; 
+            n = int(t_range[-1] / dt + 1.0)
+            dt = t_range[-1] / n
+            t = dt
+            t_range = linspace(0,t_range[-1],n+1)[1:]
+
 
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 1)
