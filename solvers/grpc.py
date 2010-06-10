@@ -23,10 +23,10 @@ class Solver(SolverBase):
         # Parameters for Uzawa iteration
         tol = problem.tolerance(problem)
 
-        if str(problem)=="Aneurysm":                                                                                                                                             
-            pc = "jacobi"                                                                                                                                                                     
-        else:                                                                                                                                                            
-            pc = "ilu"  
+        if str(problem)=="Aneurysm":
+            pc = "jacobi"
+        else:
+            pc = "ilu"
 
 
         #FIXME, channel want go further down.
@@ -116,7 +116,9 @@ class Solver(SolverBase):
         # Time loop
         self.start_timing()
         for t in trange:
+
             bcu, bcp = problem.boundary_conditions(V, Q, t)
+
             # GRPC iteration
             for iter in range(maxiter):
 
