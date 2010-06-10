@@ -75,7 +75,7 @@ class Solver(SolverBase):
 
         # Pressure update
         a3 = q*p*dx
-        L3 = q*ps*dx + q*psi*dx - nu*q*div(u1)*dx
+        L3 = q*(ps + psi - nu*div(u1))*dx
 
         # Assemble matrices
         A1 = assemble(a1)

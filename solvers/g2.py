@@ -95,13 +95,13 @@ class Solver(SolverBase):
         U = 0.5*(u0 + u)
         P = p1
         if g2ref:
-            stress_terms = k*nu*inner(grad(v), grad(U))*dx - k*inner(div(v), P)*dx
+            stress_terms = nu*inner(grad(v), grad(U))*dx - inner(div(v), P)*dx
         else:
-            stress_terms = k*inner(epsilon(v), sigma(U, P, nu))*dx \
-                         - beta*k*nu*inner(v, grad(U).T*n)*ds + k*inner(v, pbar*n)*ds
-        Fv = inner(v, u - u0)*dx + k*inner(v, grad(U)*W)*dx \
-           + stress_terms - k*inner(v, f)*dx \
-           + d1*k*inner(grad(v)*W, grad(U)*W)*dx + d2*k*div(v)*div(U)*dx
+            stress_terms = inner(epsilon(v), sigma(U, P, nu))*dx \
+                         - beta*nu*inner(v, grad(U).T*n)*ds + inner(v, pbar*n)*ds
+        Fv = (1/k)*inner(v, u - u0)*dx + inner(v, grad(U)*W)*dx \
+           + stress_terms - inner(v, f)*dx \
+           + d1*inner(grad(v)*W, grad(U)*W)*dx + d2*div(v)*div(U)*dx
         av = lhs(Fv)
         Lv = rhs(Fv)
 
