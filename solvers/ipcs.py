@@ -70,7 +70,7 @@ class Solver(SolverBase):
 
         # Velocity correction
         a3 = inner(v, u)*dx
-        L3 = inner(v, u1)*dx + inner(v, k*grad(p0 - p1))*dx
+        L3 = inner(v, u1)*dx - k*inner(v, grad(p1 - p0))*dx
 
         # Assemble matrices
         A1 = assemble(a1)
