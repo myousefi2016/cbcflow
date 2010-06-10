@@ -54,7 +54,7 @@ class Solver(SolverBase):
 
         # Poisson problem for the pressure
         a2 = inner(grad(q), grad(p))*dx
-        L2 = -(1.0/k)*q*div(us)*dx
+        L2 = -(1/k)*q*div(us)*dx
 
         # Velocity update
         a3 = inner(v, u)*dx

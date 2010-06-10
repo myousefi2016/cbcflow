@@ -59,14 +59,14 @@ class Solver(SolverBase):
         U = 0.5*(u0 + u)
         F1 = (1/k)*inner(v, u - u0)*dx + inner(v, grad(u0)*u0)*dx \
             + inner(epsilon(v), sigma(U, p0, nu))*dx \
-            + inner(v,p0*n)*ds - beta*nu*inner(grad(U).T*n, v)*ds \
+            + inner(v, p0*n)*ds - beta*nu*inner(grad(U).T*n, v)*ds \
             - inner(v, f)*dx
         a1 = lhs(F1)
         L1 = rhs(F1)
 
         # Pressure correction
         a2 = inner(grad(q), grad(p))*dx
-        L2 = inner(grad(q), grad(p0))*dx - (1.0/k)*q*div(u1)*dx
+        L2 = inner(grad(q), grad(p0))*dx - (1/k)*q*div(u1)*dx
 
         # Velocity correction
         a3 = inner(v, u)*dx
