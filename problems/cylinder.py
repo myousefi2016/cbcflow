@@ -103,15 +103,19 @@ class Problem(ProblemBase):
 
     def functional(self, t, u, p):
 
-         if t < self.T:
-             return 0.0
+        if t < self.T:
+            return 0.0
 
-         x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
-         x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
+        x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
+        x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
 
-         return p(x1) - p(x2)
+        return p(x1) - p(x2)
 
     def reference(self, t):
+        
+        if t < self.T:
+            return 0.0
+        
         return -0.111444953719
 
     def __str__(self):

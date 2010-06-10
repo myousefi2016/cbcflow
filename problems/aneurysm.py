@@ -126,6 +126,9 @@ class Problem(ProblemBase):
         The reference value is taken as the average of the values
         for Chorin and IPCS on the finest mesh.
         """
+        if t < self.T:
+            return 0.0
+
         return -0.0355
 
     def __str__(self):
