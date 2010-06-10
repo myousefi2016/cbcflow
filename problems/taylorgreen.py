@@ -106,4 +106,4 @@ class Problem(ProblemBase):
             return 0.5*norm(self.exact_u,  mesh=self.mesh)**2
 
     def __str__(self):
-        return "Periodic"
+        return "Taylor-Green"

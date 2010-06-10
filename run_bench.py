@@ -1,4 +1,3 @@
-
 # Script for running benchmark on cluster.
 # Important: Must run combination of solver/problem to compile
 # before submitting jobs on a higher refinement level.
@@ -14,10 +13,9 @@ from time import *
 if ".." not in os.environ['PYTHONPATH']:
     os.environ['PYTHONPATH'] = "..:" + os.environ['PYTHONPATH']
 jobs = []
-	  
-solvers = ["chorin", "css1", "css2", "ipcs", "g2", "grpc"] 
-problems = ["drivencavity", "channel", "periodic", "beltrami", "cylinder", "aneurysm"]
 
+solvers = ["chorin", "css1", "css2", "ipcs", "g2", "grpc"]
+problems = ["drivencavity", "channel", "taylorgreen", "beltrami", "cylinder", "aneurysm"]
 
 # Number of refinement levels
 refinements = [0,1,2,3,4,5,6,7,8,9,10]
