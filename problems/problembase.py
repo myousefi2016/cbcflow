@@ -87,7 +87,7 @@ class ProblemBase:
             t_range = linspace(0, T, n + 1)[1:]
         else:
 
-            if self.options["dt_division"] is not 0 and not problem.dt is None:
+            if self.options["dt_division"] != 0 and problem.dt is not None:
                 dt =  (problem.dt)/int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
@@ -101,7 +101,7 @@ class ProblemBase:
                 print 'Using problem.dt'
 
             # Otherwise, base time step on mesh size
-            elif self.options["dt_division"] is not 0:
+            elif self.options["dt_division"] != 0:
                 dt =  0.25*h**2 / (U*(nu + h*U))/int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
