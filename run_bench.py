@@ -28,7 +28,7 @@ to_screen = True
 days = 10
 
 for k in range(len(refinements)):
-	for j in range(len(problems)):
+        for j in range(len(problems)):
             jobs = []
             for i in range(len(solvers)):
                 if to_screen==True:

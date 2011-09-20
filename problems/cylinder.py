@@ -79,7 +79,7 @@ class Problem(ProblemBase):
         self.g0.ymax = ymax
         self.g0.PI   = DOLFIN_PI
         self.g0.t = t
-	self.b0 = InflowBoundary()
+        self.b0 = InflowBoundary()
         bc0 = DirichletBC(V, self.g0, self.b0)
 
         # Create no-slip boundary condition
@@ -89,7 +89,7 @@ class Problem(ProblemBase):
 
         # Create outflow boundary condition for pressure
         self.b2 = OutflowBoundary()
-	self.g2 = Constant(0)
+        self.g2 = Constant(0)
         bc2     = DirichletBC(Q, self.g2, self.b2)
 
         # Collect boundary conditions
@@ -99,7 +99,7 @@ class Problem(ProblemBase):
         return bcu, bcp
 
     def update(self, t, u, p):
-	self.g0.t = t
+        self.g0.t = t
 
     def functional(self, t, u, p):
 

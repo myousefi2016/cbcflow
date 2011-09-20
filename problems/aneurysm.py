@@ -51,7 +51,7 @@ class Problem(ProblemBase):
         # The body force term
         self.f = Constant((0, 0, 0))
 
-	# Set viscosity
+        # Set viscosity
         self.nu = 3.5 / 1.025e6
         self.U = 2.5
 
@@ -87,7 +87,7 @@ class Problem(ProblemBase):
         bc1 = DirichletBC(V, self.g1, boundary_markers, 1)
 
         # Create outflow boundary condition for pressure
-	self.g2 = Constant(0)
+        self.g2 = Constant(0)
         bc2 = DirichletBC(Q, self.g2, boundary_markers, 2)
 
         # Collect boundary conditions

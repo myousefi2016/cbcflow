@@ -91,7 +91,7 @@ class SolverBase:
 
             # Save velocity and pressure
             frequency = self.options["save_frequency"]
-	    refinement = self.options["refinement_level"]
+            refinement = self.options["refinement_level"]
             if (self._timestep - 1) % frequency == 0:
                 # Create files for saving
                 if self._ufile is None:

@@ -45,7 +45,7 @@ public:
       if (h/nu > 1.0 || nu < 1.0e-10)
         _values[i] = C1 * (0.5/sqrt(1.0/(dt*dt) + (U/h)*(U/h)));
       else
-      	_values[i] = C1*h*h;
+        _values[i] = C1*h*h;
     }
   }
 
@@ -81,7 +81,7 @@ public:
       if (h/nu > 1.0 || nu < 1.0e-10)
         _values[i] = C2*h;
       else
-      	_values[i] = C2*h*h;
+        _values[i] = C2*h*h;
     }
   }
 

@@ -34,7 +34,7 @@ class Problem(ProblemBase):
         # Set the kinematic viscosity (nu = eta/rho)
         self.nu = 1.0
 
-	# Set final time
+        # Set final time
         self.T = 0.5
 
         # The analytical solution
@@ -47,7 +47,7 @@ class Problem(ProblemBase):
         self.analytical_p = \
             ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*etabyrho))')
 
-	# Common parameters pertinent to the functional forms above
+        # Common parameters pertinent to the functional forms above
         self.commonparams = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
 
     def initial_conditions(self, V, Q):
@@ -83,7 +83,7 @@ class Problem(ProblemBase):
             return errornorm(self.exact_u, u) / norm(self.exact_u, mesh=self.mesh)
 
     def reference(self, t):
-	return 0.0
+        return 0.0
 
     def __str__(self):
         return "Beltrami"

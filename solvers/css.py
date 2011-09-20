@@ -19,7 +19,7 @@ class Solver(SolverBase):
 
         # Get problem data
         mesh = problem.mesh
-	dt,t ,t_range = problem.timestep(problem)
+        dt,t ,t_range = problem.timestep(problem)
 
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 2)
@@ -51,7 +51,7 @@ class Solver(SolverBase):
         p2  = interpolate(p0, Q)
         nu  = Constant(problem.nu)
         k   = Constant(dt)
-	n   = FacetNormal(mesh)
+        n   = FacetNormal(mesh)
         f   = problem.f
         psi = Function(Q)
 
@@ -89,7 +89,7 @@ class Solver(SolverBase):
             # Get boundary conditions
             bcu, bcp = problem.boundary_conditions(V, Q, t)
 
-	    # Compute tentative velocity step
+            # Compute tentative velocity step
             b = assemble(L1)
             [bc.apply(A1, b) for bc in bcu]
             solve(A1, u1.vector(), b, "gmres", "ilu")
@@ -104,15 +104,15 @@ class Solver(SolverBase):
                 solve(A2, psi.vector(), b, "gmres", "amg_hypre")
             if len(bcp) == 0 or is_periodic(bcp): normalize(psi.vector())
 
-	    # Compute updated pressure
+            # Compute updated pressure
             b = assemble(L3)
-	    if len(bcp) == 0: normalize(b)
-	    [bc.apply(A3, b) for bc in bcp]
+            if len(bcp) == 0: normalize(b)
+            [bc.apply(A3, b) for bc in bcp]
             solve(A3, p2.vector(), b, "gmres", "ilu")
 
             # Update
             self.update(problem, t, u1, p1)
-	    u0.assign(u1)
+            u0.assign(u1)
             p0.assign(p1)
             p1.assign(p2)
 

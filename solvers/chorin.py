@@ -92,7 +92,7 @@ class Solver(SolverBase):
 
             # Update
             self.update(problem, t, u1, p1)
-	    u0.assign(u1)
+            u0.assign(u1)
 
         return u1, p1
 

@@ -23,7 +23,7 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Create mesh
-	N = options["N"]
+        N = options["N"]
         self.mesh = UnitSquare(N, N)
 
         # Create right-hand side function
@@ -31,7 +31,7 @@ class Problem(ProblemBase):
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 1000.0
-	self.U = 1.0
+        self.U = 1.0
 
         # Set end-time
         self.T = 2.5
@@ -39,7 +39,7 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
 
         u0 = Constant((0, 0))
-	p0 = Constant(0)
+        p0 = Constant(0)
 
         return u0, p0
 

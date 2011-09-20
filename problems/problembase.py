@@ -45,11 +45,11 @@ class ProblemBase:
         self.p = p
 
         # Call problem-specific update
-	self.update(t, u, p)
+        self.update(t, u, p)
 
     def update(self, t, u, p):
-	"Problem-speficic update at time t"
-	pass
+        "Problem-speficic update at time t"
+        pass
 
     def functional(self, t, u, p):
         "Return value of functional of interest"
@@ -124,7 +124,7 @@ class ProblemBase:
         print 'Size of timestep:' , dt
         print " "
 
-	return dt, t_range[0], t_range
+        return dt, t_range[0], t_range
 
     # FIXME: Remove this and merge with boundary_condition()
     def pressure_bc(self, Q):

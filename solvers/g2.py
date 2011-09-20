@@ -84,9 +84,9 @@ class Solver(SolverBase):
         f  = problem.f
         n  = FacetNormal(mesh)
 
-	# Stabilization parameters
-	C1  = 4.0
-	C2  = 2.0
+        # Stabilization parameters
+        C1  = 4.0
+        C2  = 2.0
         d1 = Expression(cppcode_d1, element=DG)
         d2 = Expression(cppcode_d2, element=DG)
 
@@ -166,13 +166,13 @@ class Solver(SolverBase):
                 if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 
                 # Compute velocity
-		bv = assemble(Lv)
-		[bc.apply(Av, bv) for bc in bcu]
-		solve(Av, u1.vector(), bv, "gmres", "ilu")
+                bv = assemble(Lv)
+                [bc.apply(Av, bv) for bc in bcu]
+                solve(Av, u1.vector(), bv, "gmres", "ilu")
 
                 # Compute projection of u1 onto piecewise constants (mean-value on each cell)
                 bw = assemble(Lw)
-		solve(Aw, W.vector(), bw, "gmres", "ilu")
+                solve(Aw, W.vector(), bw, "gmres", "ilu")
 
                 # Reassemble velocity system
                 Av = assemble(av)
@@ -197,7 +197,7 @@ class Solver(SolverBase):
 
             # Update
             self.update(problem, t, u1, p1)
-	    u0.assign(u1)
+            u0.assign(u1)
 
         # Compare solution with reference implementation (Unicorn)
         if g2ref:

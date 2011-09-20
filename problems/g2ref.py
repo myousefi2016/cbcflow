@@ -24,8 +24,8 @@ radius = 0.05;
 class InflowBoundaryTopBottomBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return bool(on_boundary and x[0] < xmax - bmarg and x[0]< bmarg \
-    		or x[1] < ymin + bmarg or x[1]  > ymax - bmarg \
-		or x[2] < zmin + bmarg or x[2]  > zmax - bmarg)
+                    or x[1] < ymin + bmarg or x[1]  > ymax - bmarg \
+                or x[2] < zmin + bmarg or x[2]  > zmax - bmarg)
 
 # Cylinder Boundary
 class CylinderBoundary(SubDomain):
@@ -45,13 +45,13 @@ class InflowBoundaryTopBottomBoundaryValue(Expression):
 
     def eval(self, values, x):
         if x[0] < bmarg:
-		values[0] = 1.0
-        	values[1] = 0.0
-        	values[2] = 0.0
-	else:
-		values[0] = 0.0
-        	values[1] = 0.0
-        	values[2] = 0.0
+                values[0] = 1.0
+                values[1] = 0.0
+                values[2] = 0.0
+        else:
+                values[0] = 0.0
+                values[1] = 0.0
+                values[2] = 0.0
 
     def dim(self):
         return 3
@@ -64,7 +64,7 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-	self.mesh = Mesh("data/cylinder_3d_bmk.xml.gz")
+        self.mesh = Mesh("data/cylinder_3d_bmk.xml.gz")
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 3900.0
@@ -73,9 +73,9 @@ class Problem(ProblemBase):
         self.dt = 0.021650635094
 
         # Set end time
-	self.T = 10*0.021650635094
+        self.T = 10*0.021650635094
 
-	# Create right-hand side function
+        # Create right-hand side function
         self.f =  Constant((0, 0, 0))
 
     def initial_conditions(self, V, Q):
@@ -98,7 +98,7 @@ class Problem(ProblemBase):
 
         # Create outflow boundary condition for pressure
         self.b2 = OutflowBoundary()
-	self.g2 = Constant(0)
+        self.g2 = Constant(0)
         bc2 = DirichletBC(Q, self.g2, self.b2)
 
         # Collect boundary conditions
