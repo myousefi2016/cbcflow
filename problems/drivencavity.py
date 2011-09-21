@@ -97,7 +97,10 @@ def StreamFunction(u):
     bc = DirichletBC(V, g, DomainBoundary())
 
     # Compute solution
-    problem = VariationalProblem(a, L, bc)
-    psi = problem.solve()
+    #problem = VariationalProblem(a, L, bc)
+    #psi = problem.solve()
+    V2 = V.collapse()
+    psi = Function(V2)
+    solve(a == L, psi, bc)
 
     return psi
