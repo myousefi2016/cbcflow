@@ -6,7 +6,7 @@ __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 import sys, time
-from dolfin import logging, parameters, summary
+from dolfin import set_log_active, parameters, summary
 
 from problems import Problem, problems
 from solvers import Solver, solvers
@@ -49,7 +49,7 @@ def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_divisio
     print "Error      |", error
 
     # Print DOLFIN summary
-    logging(True)
+    set_log_active(True)
     summary()
 
     # Append to file
@@ -105,7 +105,7 @@ def main(args):
     parameters["krylov_solver"]["monitor_convergence"] = options["krylov_solver_monitor_convergence"]
 
     # Set debug level
-    logging(options["debug"])
+    set_log_active(options["debug"])
 
     # Set refinement level
     options["N"] = mesh_sizes[options["refinement_level"]]
