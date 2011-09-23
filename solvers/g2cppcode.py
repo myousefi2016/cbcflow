@@ -10,14 +10,18 @@ public:
 
   Delta1() : Expression() {}
 
-  void eval(Array<double>& values, const Data& data) const
+  //void eval(Array<double>& values, const Data& data) const
+  void eval(Array<double>& values, const Array<double>& x,  const ufc::cell& cell) const
   {
-    values[0] = _values[data.cell().index()];
+    const uint D = cell.topological_dimension;
+    const uint cell_index = cell.entity_indices[D][0];
+    values[0] = _values[cell_index];
+    //values[0] = _values[data.cell().index()];
   }
 
   void update(boost::shared_ptr<dolfin::Function> u, double nu, double dt, double C1)
   {
-    const Mesh& mesh = u->function_space().mesh();
+    const Mesh& mesh = *u->function_space().mesh();
     if (_values.size() != mesh.num_cells())
       _values.resize(mesh.num_cells());
 
@@ -62,14 +66,18 @@ public:
 
   Delta2() : Expression() {}
 
-  void eval(Array<double>& values, const Data& data) const
+  //void eval(Array<double>& values, const Data& data) const
+  void eval(Array<double>& values, const Array<double>& x,  const ufc::cell& cell) const
   {
-    values[0] = _values[data.cell().index()];
+    const uint D = cell.topological_dimension;
+    const uint cell_index = cell.entity_indices[D][0];
+    values[0] = _values[cell_index];
+    //values[0] = _values[data.cell().index()];
   }
 
   void update(boost::shared_ptr<dolfin::Function> u, double nu, double dt, double C2)
   {
-    const Mesh& mesh = u->function_space().mesh();
+    const Mesh& mesh = *u->function_space().mesh();
     if (_values.size() != mesh.num_cells())
       _values.resize(mesh.num_cells());
 

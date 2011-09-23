@@ -59,7 +59,7 @@ class Solver(SolverBase):
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
-        DG = FiniteElement("DG", None, 0)
+        DG = FiniteElement("DG", mesh.ufl_cell(), 0)
         DGv = VectorFunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
