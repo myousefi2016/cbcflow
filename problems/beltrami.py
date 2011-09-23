@@ -48,16 +48,14 @@ class Problem(ProblemBase):
             ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*etabyrho))')
 
         # Common parameters pertinent to the functional forms above
-        self.commonparams = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
+        self.u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,             'etabyrho': 1.0, 't': 0.0}
+        self.p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
 
     def initial_conditions(self, V, Q):
 
         # Use analytical solutions at t = 0 as initial values
-        params = dict(self.commonparams)
-        params['t'] = 0.0
-        params['degree'] = 3
-        self.exact_u = Expression(self.analytical_u, **params)
-        self.exact_p = Expression(self.analytical_p, **params)
+        self.exact_u = Expression(self.analytical_u, degree=3, **self.u_params)
+        self.exact_p = Expression(self.analytical_p, degree=3, **self.p_params)
 
         return self.exact_u, self.exact_p
 
