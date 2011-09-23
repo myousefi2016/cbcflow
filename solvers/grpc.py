@@ -20,14 +20,12 @@ class Solver(SolverBase):
         mesh = problem.mesh
         dt, t, trange = problem.timestep(problem)
 
-
-        if str(problem) == "Channel":                                                                                                                                              
-            dt /= 3.0;                                                                                                                                                             
-            n = int(trange[-1] / dt + 1.0)                                                                                                                                  
-            dt = trange[-1] / n                                                                                                                                           
-            t = dt                                                                                                                                                       
+        if str(problem) == "Channel":
+            dt /= 3.0
+            n = int(trange[-1] / dt + 1.0)
+            dt = trange[-1] / n
+            t = dt
             trange = linspace(0,trange[-1],n+1)[1:]
-
 
         # Parameters for Uzawa iteration
         tol = problem.tolerance(problem)
