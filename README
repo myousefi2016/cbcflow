@@ -25,7 +25,7 @@ problems:
   ./bench problem
   ./bench solver
 
-This version of NSbench requires DOLFIN version 0.9.7.
+This version of NSbench requires DOLFIN version 1.0-beta.
 
 NSbench is written by
 
@@ -34,9 +34,10 @@ NSbench is written by
   Kent-Andre Mardal
   Harish Narayanan
   Mikael Mortensen
+  Martin Sandve Alnæs
 
 and is licensed under the GNU GPL, version 3 or (at your option) any
 later version.
 
 Simula Research Laboratory
-Oslo, 2010
+Oslo, 2011
