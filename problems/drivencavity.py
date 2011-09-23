@@ -86,7 +86,7 @@ def StreamFunction(u):
         error("Stream-function can only be computed in 2D.")
 
     # Define variational problem
-    V   = u.function_space().sub(0)
+    V   = u.function_space().sub(0).collapse()
     q   = TestFunction(V)
     psi = TrialFunction(V)
     a   = dot(grad(q), grad(psi))*dx
@@ -97,10 +97,7 @@ def StreamFunction(u):
     bc = DirichletBC(V, g, DomainBoundary())
 
     # Compute solution
-    #problem = VariationalProblem(a, L, bc)
-    #psi = problem.solve()
-    V2 = V.collapse()
-    psi = Function(V2)
+    psi = Function(V)
     solve(a == L, psi, bc)
 
     return psi
