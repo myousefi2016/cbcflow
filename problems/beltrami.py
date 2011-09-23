@@ -53,8 +53,11 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
 
         # Use analytical solutions at t = 0 as initial values
-        self.exact_u = Expression(self.analytical_u, self.commonparams, degree=3)
-        self.exact_p = Expression(self.analytical_p, self.commonparams, degree=3)
+        params = dict(self.commonparams)
+        params['t'] = 0.0
+        params['degree'] = 3
+        self.exact_u = Expression(self.analytical_u, **params)
+        self.exact_p = Expression(self.analytical_p, **params)
 
         return self.exact_u, self.exact_p
 
