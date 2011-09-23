@@ -96,7 +96,7 @@ class Solver(SolverBase):
             if is_periodic(bcp):
                 solve(A2, p1.vector(), b)
             else:
-                solve(A2, p1.vector(), b, 'gmres', 'amg_hypre')
+                solve(A2, p1.vector(), b, 'gmres', 'hypre_amg')
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 
             # Velocity correction

@@ -144,7 +144,7 @@ class Solver(SolverBase):
                 if is_periodic(bcp):
                     solve(Ky1, delta_y, ry)
                 else:
-                    solve(Ky1, delta_y, ry, 'cg', 'amg_hypre')
+                    solve(Ky1, delta_y, ry, 'cg', 'hypre_amg')
                 if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
                 y.axpy(-tau_y1, delta_y)
 
