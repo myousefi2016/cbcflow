@@ -74,8 +74,8 @@ class Problem(ProblemBase):
     def boundary_conditions(self, V, Q, t):
 
         # Create inflow boundary condition
-        self.g0 = Expression(('4*Um*(x[1]*(ymax-x[1]))*sin(PI*t/8.0)/(ymax*ymax)', '0.0'),
-                             Um=1.5, ymax=ymax, PI=DOLFIN_PI, t=t)
+        self.g0 = Expression(('4*Um*(x[1]*(ymax-x[1]))*sin(pi*t/8.0)/(ymax*ymax)', '0.0'),
+                             Um=1.5, ymax=ymax, t=t)
         self.b0 = InflowBoundary()
         bc0 = DirichletBC(V, self.g0, self.b0)
 
