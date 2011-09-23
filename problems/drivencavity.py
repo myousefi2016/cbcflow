@@ -7,6 +7,8 @@ from problembase import *
 
 # Boundary value
 class BoundaryValue(Expression):
+    def value_shape(self):
+        return (2,)
     def eval(self, values, x):
         if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
             values[0] = 1.0

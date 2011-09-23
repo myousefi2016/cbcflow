@@ -42,7 +42,8 @@ class OutflowBoundary(SubDomain):
 
 # No-slip boundary value for velocity
 class InflowBoundaryTopBottomBoundaryValue(Expression):
-
+    def value_shape(self):
+        return (3,)
     def eval(self, values, x):
         if x[0] < bmarg:
                 values[0] = 1.0
@@ -52,9 +53,6 @@ class InflowBoundaryTopBottomBoundaryValue(Expression):
                 values[0] = 0.0
                 values[1] = 0.0
                 values[2] = 0.0
-
-    def dim(self):
-        return 3
 
 # Problem definition
 class Problem(ProblemBase):
