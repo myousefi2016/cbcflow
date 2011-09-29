@@ -64,11 +64,13 @@ class Solver(SolverBase):
         f  = problem.f
         n  = FacetNormal(mesh)
 
+        # FIXME, include also pressure term
+#            + inner(epsilon(v), sigma(Ux, p0, nu))*dx \
+
         # Tentative velocity step
         Ux = 0.5*(ux0 + ux)
         Fx1 = (1/k)*inner(v, ux - ux0)*dx +  v*(ux0*ux0.dx(0) + uy0*ux0.dx(1) + uz0*ux0.dx(2))*dx \
-#            + inner(epsilon(v), sigma(Ux, p0, nu))*dx \
-            + inner(grad(v), grad(Ux))*dx \   # FIXME, include also pressure term
+            + inner(grad(v), grad(Ux))*dx \
             + inner(v, p0*n[0])*ds \
             - v*f[0]*dx
         ax1 = lhs(Fx1)
@@ -76,8 +78,7 @@ class Solver(SolverBase):
 
         Uy = 0.5*(uy0 + uy)
         Fy1 = (1/k)*inner(v, uy - uy0)*dx +  v*(ux0*uy0.dx(0) + uy0*uy0.dx(1) + uz0*uy0.dx(2))*dx \
-#            + inner(epsilon(v), sigma(Uy, p0, nu))*dx \
-            + inner(grad(v), grad(Uy))*dx \   # FIXME, include also pressure term
+            + inner(grad(v), grad(Uy))*dx \
             + inner(v, p0*n[0])*ds \
             - v*f[1]*dx
         ay1 = lhs(Fy1)
@@ -85,8 +86,7 @@ class Solver(SolverBase):
 
         Uz = 0.5*(uz0 + uz)
         Fz1 = (1/k)*inner(v, uz - uz0)*dx +  v*(ux0*uz0.dx(0) + uy0*uz0.dx(1) + uz0*uz0.dx(2))*dx \
-#            + inner(epsilon(v), sigma(Uz, p0, nu))*dx \
-            + inner(grad(v), grad(Uz))*dx \   # FIXME, include also pressure term
+            + inner(grad(v), grad(Uz))*dx \
             + inner(v, p0*n[0])*ds \
             - v*f[2]*dx
         az1 = lhs(Fz1)
@@ -98,14 +98,16 @@ class Solver(SolverBase):
         L2 = inner(grad(q), grad(p0))*dx - (1/k)*q*(ux1.dx(0) + uy1.dx(1) + uz1.dx(2))*dx
 
         # Velocity correction
-        a3 = inner(v, u)*dx
-        L3 = inner(v, u1)*dx - k*inner(v, grad(p1 - p0))*dx
+        a3 = inner(v, ux)*dx
+        Lx3 = v*ux1*dx - k*inner(v, grad(p1 - p0)[0])*dx
+        Ly3 = v*uy1*dx - k*inner(v, grad(p1 - p0)[1])*dx
+        Lz3 = v*uz1*dx - k*inner(v, grad(p1 - p0)[2])*dx
 
         # Assemble matrices
         # FIXME, in this case all matrices are equal!!!
-        Ax1 = assemble(a1)
-        Ay1 = assemble(a1)
-        Az1 = assemble(a1)
+        Ax1 = assemble(ax1)
+        Ay1 = Ax1  
+        Az1 = Ax1  
 
         A2 = assemble(a2)
         A3 = assemble(a3)
@@ -115,21 +117,21 @@ class Solver(SolverBase):
         for t in t_range:
 
             # Get boundary conditions
-            bcux, bcuy, bcuz, bcp = problem.boundary_conditions(V, Q, t)
+            bcux, bcuy, bcuz, bcp = problem.boundary_conditions(V, Q, t, segregated)
 
             # Compute tentative velocity step
             bx = assemble(Lx1)
             by = assemble(Ly1)
             bz = assemble(Lz1)
 
-            [bc.apply(Ax1, b) for bc in bcux]
-            solve(Ax1, ux1.vector(), b, "gmres", "ilu")
+            [bc.apply(Ax1, bx) for bc in bcux]
+            solve(Ax1, ux1.vector(), bx, "gmres", "ilu")
 
-            [bc.apply(Ay1, b) for bc in bcuy]
-            solve(Ay1, uy1.vector(), b, "gmres", "ilu")
+            [bc.apply(Ay1, by) for bc in bcuy]
+            solve(Ay1, uy1.vector(), by, "gmres", "ilu")
 
-            [bc.apply(Az1, b) for bc in bcuz]
-            solve(Az1, uz1.vector(), b, "gmres", "ilu")
+            [bc.apply(Az1, bz) for bc in bcuz]
+            solve(Az1, uz1.vector(), bz, "gmres", "ilu")
 
 
             # Pressure correction
@@ -143,13 +145,26 @@ class Solver(SolverBase):
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 
             # Velocity correction
-            b = assemble(L3)
-            [bc.apply(A3, b) for bc in bcu]
-            solve(A3, u1.vector(), b, "gmres", pc)
+            bx = assemble(Lx3)
+            by = assemble(Ly3)
+            bz = assemble(Lz3)
+            [bc.apply(A3, bx) for bc in bcux]
+            solve(A3, ux1.vector(), bx, "gmres", pc)
+            [bc.apply(A3, by) for bc in bcuy]
+            solve(A3, uy1.vector(), by, "gmres", pc)
+            [bc.apply(A3, bz) for bc in bcuz]
+            solve(A3, uz1.vector(), bz, "gmres", pc)
 
+
+
+            VV = VectorFunctionSpace(mesh, "Lagrange", 1) 
+            # FIXME test slicing .... 
+            u1 = Function(VV)
+           
             # Update
             self.update(problem, t, u1, p1)
-            u0.assign(u1)
+# FIXME        
+#            u0.assign(u1)
             p0.assign(p1)
 
         return u1, p1

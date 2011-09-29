@@ -90,6 +90,7 @@ class InflowComp(Expression):
 
 	t = self.problem.t
 	val = splev(t - int(t/self.t_period)*self.t_period, self.inflow)
+        comp = self.comp
         if comp == 0:
 	    values[0] = -n.x()*val
         elif comp == 1: 
@@ -193,7 +194,14 @@ class Problem(ProblemBase):
         return 0
 
     def update(self, t, u, p):
-        self.g1.t = t
+        #FIXME place the segregated variable an appropriate place 
+        segregated = True
+        if segregated:
+             self.gx1.t = t
+             self.gy1.t = t
+             self.gz1.t = t
+        else:
+             self.g1.t = t
 
     def functional(self, t, u, p):
          if t < self.T:
