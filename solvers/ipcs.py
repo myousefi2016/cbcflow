@@ -25,7 +25,7 @@ class Solver(SolverBase):
         dt, t, t_range = problem.timestep(problem)
 
         # Define function spaces
-        V = VectorFunctionSpace(mesh, "CG", 2)
+        V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
         DG = FunctionSpace(mesh, "DG", 0)
 

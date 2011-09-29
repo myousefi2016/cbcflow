@@ -6,7 +6,13 @@ from scipy.interpolate import splrep, splev
 
 class Inflow(Expression):
   
-    def __init__(self):
+    def __init__(self, V, problem):
+
+        self.V = V
+        self.mesh = V.mesh() 
+        self.problem = problem
+        self.t_period = 1 
+
 	t  = array([    0.,    27.,    42.,    58.,    69.,    88.,   110.,   130.,                                                                    
          136.,   168.,   201.,   254.,   274.,   290.,   312.,   325.,                                                                                      
          347.,   365.,   402.,   425.,   440.,   491.,   546.,   618.,                                                                                      
@@ -27,13 +33,11 @@ class Inflow(Expression):
 
 
     def eval_cell(self, values, x, ufc_cell):
-	n = cell.normal()
         cell = Cell(self.mesh, ufc_cell.index)
         n = cell.normal(ufc_cell.local_facet)
 
 	t = self.problem.t
-	val = splev(t - int(t/self.t_period)*self.t_period,
-	self.bc_func)
+	val = splev(t - int(t/self.t_period)*self.t_period, self.inflow)
 	values[0] = -n.x()*val
 	values[1] = -n.y()*val
 	values[2] = -n.z()*val
@@ -67,8 +71,8 @@ class Problem(ProblemBase):
         self.f = Constant((0, 0, 0))
 
         # Set viscosity
-        self.nu = 3.5 / 1.025e6
-        self.U = 2.5
+        self.nu = 3.5 
+        self.U = 1000 
 
         # Set end-time
         self.T = 0.05
@@ -86,7 +90,7 @@ class Problem(ProblemBase):
         bc0 = DirichletBC(V, self.g0, 0)
 
          # Create inflow boundary condition for velocity
-        self.g1 = Inflow()        
+        self.g1 = Inflow(V, self)        
         bc1 = DirichletBC(V, self.g1, 1)
 
         # Create outflow boundary condition for pressure
