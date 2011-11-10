@@ -5,22 +5,20 @@ from numpy import array
 from math import pi
 from scipy.interpolate import splrep, splev
 
-class Inflow(Expression):
-
+class InflowData(object):
     def __init__(self, V, problem):
-        self.V = V
         self.mesh = V.mesh()
         self.problem = problem
         self.t_period = 1
 
-	t  = array([0.  ,    27.,    42.,    58.,    69.,    88.,   110.,   130.,
+        t  = array([0.  ,    27.,    42.,    58.,    69.,    88.,   110.,   130.,
                     136.,   168.,   201.,   254.,   274.,   290.,   312.,   325.,
                     347.,   365.,   402.,   425.,   440.,   491.,   546.,   618.,
                     703.,   758.,   828.,   897.,  1002.]) / (75/60.0) / 1000
 
-	scale = 750
-	#Create interpolated mean velocity in time
-	v = array([390.        ,  398.76132931,  512.65861027,  642.32628399,
+        scale = 750
+        #Create interpolated mean velocity in time
+        v = array([390.        ,  398.76132931,  512.65861027,  642.32628399,
                    710.66465257,  770.24169184,  779.00302115,  817.55287009,
                    877.12990937,  941.96374622,  970.        ,  961.2386707 ,
                    910.42296073,  870.12084592,  843.83685801,  794.7734139 ,
@@ -29,68 +27,29 @@ class Inflow(Expression):
                    486.37462236,  474.10876133,  456.58610272,  432.05438066,
                    390.]) / 574.211239628 * scale
 
-        self.inflow = splrep(t, v)
+        self.inflow_spline = splrep(t, v)
 
-    def eval_cell(self, values, x, ufc_cell):
+    def __call__(self, x, ufc_cell):
+        val = splev(self.problem.t % self.t_period, self.inflow_spline)
+
         cell = Cell(self.mesh, ufc_cell.index)
         n = cell.normal(ufc_cell.local_facet)
+        return [-n.x()*val, -n.y()*val, -n.z()*val]
 
-	t = self.problem.t
-	val = splev(t - int(t/self.t_period)*self.t_period, self.inflow)
-	values[0] = -n.x()*val
-	values[1] = -n.y()*val
-	values[2] = -n.z()*val
-
+class InflowVec(Expression):
+    def __init__(self, V, problem):
+        self.data = InflowData(V, problem)
+    def eval_cell(self, values, x, ufc_cell):
+        values[:] = self.data(x, ufc_cell)
     def value_shape(self):
-        return (3,)
+        return 3,
 
 class InflowComp(Expression):
-
-    def __init__(self, V, problem, comp):
-        self.V = V
-        self.mesh = V.mesh()
-        self.problem = problem
-        self.t_period = 1
-        self.comp = comp
-
-	t  = array([0.  ,    27.,    42.,    58.,    69.,    88.,   110.,   130.,
-                    136.,   168.,   201.,   254.,   274.,   290.,   312.,   325.,
-                    347.,   365.,   402.,   425.,   440.,   491.,   546.,   618.,
-                    703.,   758.,   828.,   897.,  1002.]) / (75/60.0) / 1000
-
-	scale = 750
-	#Create interpolated mean velocity in time
-	v = array([390.        ,  398.76132931,  512.65861027,  642.32628399,
-                   710.66465257,  770.24169184,  779.00302115,  817.55287009,
-                   877.12990937,  941.96374622,  970.        ,  961.2386707 ,
-                   910.42296073,  870.12084592,  843.83685801,  794.7734139 ,
-                   694.89425982,  714.16918429,  682.62839879,  644.07854985,
-                   647.58308157,  589.75830816,  559.96978852,  516.16314199,
-                   486.37462236,  474.10876133,  456.58610272,  432.05438066,
-                   390.]) / 574.211239628 * scale
-
-
-        self.inflow = splrep(t, v)
-
+    def __init__(self, V, problem, component):
+        self.data = InflowData(V, problem)
+        self.component = component
     def eval_cell(self, values, x, ufc_cell):
-        cell = Cell(self.mesh, ufc_cell.index)
-        n = cell.normal(ufc_cell.local_facet)
-
-	t = self.problem.t
-	val = splev(t - int(t/self.t_period)*self.t_period, self.inflow)
-        comp = self.comp
-        if comp == 0:
-	    values[0] = -n.x()*val
-        elif comp == 1:
-	    values[0] = -n.y()*val
-        elif comp == 2:
-	    values[0] = -n.z()*val
-
-
-# Define symmetric gradient
-def epsilon(u):
-    return grad(u)
-#    return 0.5*(grad(u) + (grad(u).T))
+        values[0] = self.data(x, ufc_cell)[self.component]
 
 # Problem definition
 class Problem(ProblemBase):
@@ -100,9 +59,6 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-        refinement_level = options["refinement_level"]
-        if refinement_level > 4:
-            raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
         self.mesh = Mesh("data/Aneurysm.xml.gz")
 
         # The body force term
@@ -117,11 +73,11 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
+        zero = Constant(0)
         if self.options['segregated']:
-            zero = Constant(0)
             return (zero, zero, zero), zero
         else:
-            return Constant((0, 0, 0)), Constant(0)
+            return Constant((0, 0, 0)), zero
 
     def boundary_conditions(self, V, Q, t):
         if self.options['segregated']:
@@ -141,7 +97,7 @@ class Problem(ProblemBase):
 	    bc_noslip = DirichletBC(V, self.g_noslip, 0)
 
 	     # Create inflow boundary condition for velocity
-	    self.g_inflow = Inflow(V, self)
+	    self.g_inflow = InflowVec(V, self)
 	    bc_inflow = DirichletBC(V, self.g_inflow, 1)
 
             bc_u = (bc_noslip, bc_inflow)

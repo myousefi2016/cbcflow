@@ -134,7 +134,7 @@ class Solver(SolverBase):
             if is_periodic(bcp):
                 iter = solve(A_p_corr, p1.vector(), b)
             else:
-                iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'amg')
+                iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'ml_amg')
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
             self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
 
