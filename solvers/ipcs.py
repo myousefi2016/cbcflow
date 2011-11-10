@@ -17,11 +17,6 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        if str(problem)=="Aneurysm":
-            pc = "jacobi"
-        else:
-            pc = "ilu"
-
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = problem.timestep(problem)
@@ -32,7 +27,7 @@ class Solver(SolverBase):
         else:
             V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
-        DG = FunctionSpace(mesh, "DG", 0)
+        #DG = FunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
         u0, p0 = problem.initial_conditions(V, Q)
@@ -70,26 +65,28 @@ class Solver(SolverBase):
         n  = FacetNormal(mesh)
 
         # Tentative velocity step
-        F_u_tent = []
-        for d in dims:
-            u_avg = 0.5 * (u + u0_[d])
-            u_diff = (u - u0_[d])
-            if self.options['segregated']:
-                # FIXME, include also pressure term
-                #            + inner(epsilon(v), sigma(Ux, p0, nu))*dx
-                F_u_tent.append((1/k) * inner(v, u_diff) * dx
-                                + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
-                                + inner(grad(v), grad(u_avg)) * dx
-                                + inner(v, p0*n[d]) * ds
-                                - v * f[d] * dx)
-            else:
-                F_u_tent.append((1/k) * inner(v, u_diff) * dx
-                                + inner(v, grad(u0)*u0) * dx
-                                + inner(epsilon(v), sigma(u_avg, p0, nu))*dx
-                                + inner(v, p0*n)*ds
-                                - beta*nu*inner(grad(u_avg).T*n, v)*ds
-                                - inner(v, f)*dx
-                                )
+        if self.options['segregated']:
+            F_u_tent = []
+            for d in dims:
+                u_mean = 0.5 * (u + u0[d])
+                u_diff = (u - u0[d])
+                # FIXME, include also pressure term epsilon:sigma
+                F_u_tent += [(1/k) * inner(v, u_diff) * dx
+                             + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
+                             # + inner(epsilon(v), sigma(Ux, p0, nu))*dx
+                             + nu * inner(grad(v), grad(u_mean)) * dx
+                             + inner(v, p0*n[d]) * ds
+                             - v * f[d] * dx]
+        else:
+            u_mean = 0.5 * (u + u0)
+            u_diff = (u - u0)
+            F_u_tent = [(1/k) * inner(v, u_diff) * dx
+                        + inner(v, grad(u0)*u0) * dx
+                        + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx
+                        - beta * nu * inner(grad(u_mean).T*n, v) * ds
+                        + inner(v, p0*n) * ds
+                        - inner(v, f) * dx]
+
         a_u_tent = [lhs(F) for F in F_u_tent]
         L_u_tent = [rhs(F) for F in F_u_tent]
 
@@ -105,63 +102,57 @@ class Solver(SolverBase):
         if self.options['segregated']:
             L_u_corr = [v*u1[r]*dx - k*inner(v, grad(p1-p0)[r])*dx for r in dims]
         else:
-            L_u_corr = [inner(v, u1)*dx - k*inner(v, grad(p1 - p0))*dx]
+            L_u_corr = [inner(v, u1)*dx - k*inner(v, grad(p1-p0))*dx]
 
         # Assemble matrices
         A_u_tent = [assemble(a) for a in a_u_tent]
         A_p_corr = assemble(a_p_corr)
         A_u_corr = [assemble(a) for a in a_u_corr]
 
+
         # Time loop
         self.start_timing()
         for t in t_range:
             # Get boundary conditions
             bcu, bcp = problem.boundary_conditions(V, Q, t)
+            self.timer("fetch bc")
 
             # Compute tentative velocity step
-            for A, L, _u1, _bcu in zip(A_u_tent, L_u_tent, u1_, bcu_):
+            for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1_, bcu_):
                 b = assemble(L)
-                for bc in _bcu: bc.apply(A, b)
-                solve(A, _u1.vector(), b, "gmres", "ilu")
-            self.timer("u1")
+                self.timer("u1 assemble")
+                for bc in bcu_comp: bc.apply(A, b)
+                self.timer("u1 bc")
+                iter = solve(A, u1_comp.vector(), b, "gmres", "jacobi")
+                self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
 
             # Pressure correction
             b = assemble(L_p_corr)
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp: bc.apply(A_p_corr, b)
+            self.timer("p assemble & bc")
             if is_periodic(bcp):
-                solve(A_p_corr, p1.vector(), b)
+                iter = solve(A_p_corr, p1.vector(), b)
             else:
-                solve(A_p_corr, p1.vector(), b, 'gmres', 'hypre_amg')
+                iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'amg')
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p")
+            self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
 
             # Velocity correction
-            for A, L, _u1, _bcu in zip(A_u_corr, L_u_corr, u1_, bcu_):
+            for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1_, bcu_):
                 b = assemble(L)
-                for bc in _bcu: bc.apply(A, b)
-                solve(A, _u1.vector(), b, "gmres", pc)
-            self.timer("u2")
-
-            # Copy component-velocities into a vector field
-            if self.options['segregated']:
-                VV = VectorFunctionSpace(mesh, "Lagrange", 1)
-                u1_v = Function(VV)
-                for r in dims:
-                    # FIXME: Depends on u1_v layout
-                    n = len(u1[0].vector())
-                    u1_v.vector()[r*n:r*n+n] = u1[r].vector()
-            else:
-                u1_v = u1
-            self.timer("copy")
+                for bc in bcu_comp: bc.apply(A, b)
+                self.timer("u2 assemble & bc")
+                iter = solve(A, u1_comp.vector(), b, "bicgstab", "ilu")
+                self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
 
             # Update
-            self.update(problem, t, u1_v, p1)
+            self.update(problem, t, u1, p1)
             for r in dims: u0_[r].assign(u1_[r])
             p0.assign(p1)
-            self.timer("upd")
+            self.timer("update")
 
-        return u1_v, p1
+        return u1, p1
 
     def __str__(self):
         return "IPCS"

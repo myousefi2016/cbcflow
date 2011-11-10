@@ -163,7 +163,11 @@ class Problem(ProblemBase):
          if t < self.T:
              return 0.0
 
-         return u((0.025, -0.006, 0.0))[0]
+         x = (0.025, -0.006, 0.0)
+         if self.options['segregated']:
+             return u[0](x)
+         else:
+             return u(x)[0]
 
     def reference(self, t):
         """The reference value was computed using on a fine mesh

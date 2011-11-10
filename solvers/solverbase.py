@@ -44,8 +44,9 @@ class SolverBase:
         return mymemory
 
     def timer(self, msg):
-        print msg, (time()-self._timer)*1000, 'ms'
-        self._timer = time()
+        if self.options['timer']:
+            print "%10.0f ms: %s"%((time()-self._timer)*1000, msg)
+            self._timer = time()
 
     def start_timing(self):
         """Start timing, will be paused automatically during update
