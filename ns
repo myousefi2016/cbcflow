@@ -6,7 +6,7 @@ __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 import sys, time
-from dolfin import set_log_active, parameters, summary
+from dolfin import set_log_active, parameters, list_timings
 
 from problems import Problem, problems
 from solvers import Solver, solvers
@@ -30,6 +30,7 @@ OPTIONS = {"refinement_level": 0,
            "compute_divergence": False,
   	   "debug": False,
   	   "max_steps": None,
+           "segregated": False,
            "krylov_solver_absolute_tolerance": 1e-25,
            "krylov_solver_relative_tolerance": 1e-12,
            "krylov_solver_monitor_convergence": False}
@@ -50,7 +51,7 @@ def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_divisio
 
     # Print DOLFIN summary
     set_log_active(True)
-    summary()
+    list_timings()
 
     # Append to file
     filename = "results/results.log"

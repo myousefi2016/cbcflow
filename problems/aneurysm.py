@@ -16,7 +16,7 @@ class Inflow(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and x[0] < DOLFIN_EPS
 
-# Inflow boundary
+# Outflow boundary
 class Outflow(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and x[0] > 0.05 - DOLFIN_EPS
@@ -60,9 +60,11 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
-        u0 = Constant((0, 0, 0))
-        p0 = Constant(0)
-        return u0, p0
+        zero = Constant(0)
+        if self.options['segregated']:
+            return (zero, zero, zero), zero
+        else:
+            return Constant((0, 0, 0)), zero
 
     def boundary_conditions(self, V, Q, t):
 
@@ -74,24 +76,34 @@ class Problem(ProblemBase):
         Outflow().mark(boundary_markers, 2)
 
         # Create no-slip boundary condition for velocity
-        self.g0 = Constant((0, 0, 0))
-        bc0 = DirichletBC(V, self.g0, boundary_markers, 0)
+        if self.options['segregated']:
+            self.g_noslip = Constant(0)
+            bc_noslip = [DirichletBC(V, self.g_noslip, boundary_markers, 0) for d in range(3)]
+        else:
+            self.g_noslip = Constant((0, 0, 0))
+            bc_noslip = DirichletBC(V, self.g_noslip, boundary_markers, 0)
 
-         # Create inflow boundary condition for velocity
-        self.g1 = Expression(('norm0*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))',
-                              'norm1*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))',
-                              'norm2*(sin(30*t))*(1.0 - (x[1]*x[1] + x[2]*x[2]) / (r*r))'),
-                             norm0=1.0, norm1=0.0, norm2=0.0, r=0.002, t=t,
-                             degree=3)
-        bc1 = DirichletBC(V, self.g1, boundary_markers, 1)
+        # Create inflow boundary condition for velocity
+        inflow_exprs = ('1.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
+                        '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
+                        '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))')
+        if self.options['segregated']:
+            self.g_inflow = [Expression(e, r=0.002, t=t, degree=3) for e in inflow_exprs]
+            bc_inflow = [DirichletBC(V, g, boundary_markers, 1) for g in self.g_inflow]
+        else:
+            self.g_inflow = Expression(inflow_exprs, r=0.002, t=t, degree=3)
+            bc_inflow = DirichletBC(V, self.g_inflow, boundary_markers, 1)
 
         # Create outflow boundary condition for pressure
-        self.g2 = Constant(0)
-        bc2 = DirichletBC(Q, self.g2, boundary_markers, 2)
+        self.g_outflow = Constant(0)
+        bc_outflow = DirichletBC(Q, self.g_outflow, boundary_markers, 2)
 
         # Collect boundary conditions
-        bcu = [bc0, bc1]
-        bcp = [bc2]
+        if self.options['segregated']:
+            bcu = zip(bc_noslip, bc_inflow)
+        else:
+            bcu = (bc_noslip, bc_inflow)
+        bcp = (bc_outflow,)
 
         return bcu, bcp
 
@@ -99,7 +111,10 @@ class Problem(ProblemBase):
         return 0
 
     def update(self, t, u, p):
-        self.g1.t = t
+        try:
+            self.g_inflow.t = t
+        except:
+            for g in self.g_inflow: g.t = t
 
     def functional(self, t, u, p):
          if t < self.T:

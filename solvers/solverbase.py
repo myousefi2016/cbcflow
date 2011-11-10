@@ -36,15 +36,22 @@ class SolverBase:
         self._m = []
         self._e = []
 
+        self._timer = None
+
     def getMyMemoryUsage(self):
         mypid = getpid()
         mymemory = getoutput("ps -o rss %s" % mypid).split()[1]
         return mymemory
 
+    def timer(self, msg):
+        print msg, (time()-self._timer)*1000, 'ms'
+        self._timer = time()
+
     def start_timing(self):
         """Start timing, will be paused automatically during update
         and stopped when the end-time is reached."""
         self._time = time()
+        self._timer = time()
 
     def solve(self, problem, dt, plot_solution=True):
         "Solve problem"
@@ -148,7 +155,7 @@ class SolverBase:
 
         # Plot values
         if self.options["plot_functional"]:
-            from pylab import *
+            from pylab import plot, xlabel, ylabel, grid, show
             plot(self._t, self._M)
             xlabel('t')
             ylabel('Functional')
