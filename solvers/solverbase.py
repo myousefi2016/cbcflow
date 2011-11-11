@@ -173,6 +173,14 @@ class SolverBase:
         "Return accumulated CPU time."
         return self._cputime
 
+    def _desegregate(self, u):
+        """Used to interface with external functions which may expect a single
+        function. This is of course only possible if u IS a single function."""
+        if self.options['segregated']:
+            return u
+        else:
+            return u[0]
+
 def epsilon(u):
     "Return symmetric gradient."
     if u.rank() == 1:

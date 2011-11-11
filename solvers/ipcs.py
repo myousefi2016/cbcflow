@@ -23,15 +23,16 @@ class Solver(SolverBase):
 
         # Define function spaces
         if self.options['segregated']:
-            V = FunctionSpace(mesh, "CG", 1)
+            V = FunctionSpace(mesh, "CG", self.options['u_order'])
         else:
-            V = VectorFunctionSpace(mesh, "CG", 1)
+            V = VectorFunctionSpace(mesh, "CG", self.options['u_order'])
         Q = FunctionSpace(mesh, "CG", 1)
-        #DG = FunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
-        u0, p0 = problem.initial_conditions(V, Q)
-        bcu, bcp = problem.boundary_conditions(V, Q, t)
+        ics = problem.initial_conditions(V, Q)
+        bcs = problem.boundary_conditions(V, Q, t)
+        u0, p0 = ics[:-1], ics[-1]
+        bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
         if is_periodic(bcp):
@@ -46,16 +47,13 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
 
         # Functions
-        if self.options['segregated']:
-            dims = range(len(u0));
-            u0 = [interpolate(_u0, V) for _u0 in u0]
-            u1 = [Function(V) for d in dims]
-            u0_, u1_, bcu_ = u0, u1, bcu
-        else:
-            dims = [0]
-            u0 = interpolate(u0, V)
-            u1 = Function(V)
-            u0_, u1_, bcu_ = [u0], [u1], [bcu]  # Always lists
+        dims = range(len(u0))
+        u0 = [interpolate(_u0, V) for _u0 in u0]
+        u1 = [Function(V) for _u0 in u0]
+        if not self.options['segregated']:
+            # To avoid indexing in non-segregated forms
+            u0_ = u0[0]
+            u1_ = u1[0]
 
         p0 = interpolate(p0, Q)
         p1 = interpolate(p0, Q)
@@ -78,10 +76,10 @@ class Solver(SolverBase):
                              + inner(v, p0*n[d]) * ds
                              - v * f[d] * dx]
         else:
-            u_mean = 0.5 * (u + u0)
-            u_diff = (u - u0)
+            u_mean = 0.5 * (u + u0_)
+            u_diff = (u - u0_)
             F_u_tent = [(1/k) * inner(v, u_diff) * dx
-                        + inner(v, grad(u0)*u0) * dx
+                        + inner(v, grad(u0_)*u0_) * dx
                         + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx
                         - beta * nu * inner(grad(u_mean).T*n, v) * ds
                         + inner(v, p0*n) * ds
@@ -95,14 +93,14 @@ class Solver(SolverBase):
         if self.options['segregated']:
             L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*sum(u1[r].dx(r) for r in dims)*dx
         else:
-            L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*div(u1)*dx
+            L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*div(u1_)*dx
 
         # Velocity correction
         a_u_corr = [inner(v, u)*dx for r in dims]
         if self.options['segregated']:
             L_u_corr = [v*u1[r]*dx - k*inner(v, grad(p1-p0)[r])*dx for r in dims]
         else:
-            L_u_corr = [inner(v, u1)*dx - k*inner(v, grad(p1-p0))*dx]
+            L_u_corr = [inner(v, u1_)*dx - k*inner(v, grad(p1-p0))*dx]
 
         # Assemble matrices
         A_u_tent = [assemble(a) for a in a_u_tent]
@@ -114,11 +112,12 @@ class Solver(SolverBase):
         self.start_timing()
         for t in t_range:
             # Get boundary conditions
-            bcu, bcp = problem.boundary_conditions(V, Q, t)
+            bcs = problem.boundary_conditions(V, Q, t)
+            bcu, bcp = bcs[:-1], bcs[-1]
             self.timer("fetch bc")
 
             # Compute tentative velocity step
-            for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1_, bcu_):
+            for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1, bcu):
                 b = assemble(L)
                 self.timer("u1 assemble")
                 for bc in bcu_comp: bc.apply(A, b)
@@ -139,7 +138,7 @@ class Solver(SolverBase):
             self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
 
             # Velocity correction
-            for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1_, bcu_):
+            for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1, bcu):
                 b = assemble(L)
                 for bc in bcu_comp: bc.apply(A, b)
                 self.timer("u2 assemble & bc")
@@ -147,12 +146,12 @@ class Solver(SolverBase):
                 self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
 
             # Update
-            self.update(problem, t, u1, p1)
-            for r in dims: u0_[r].assign(u1_[r])
+            self.update(problem, t, self._desegregate(u1), p1)
+            for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
             self.timer("update")
 
-        return u1, p1
+        return self._desegregate(u1), p1
 
     def __str__(self):
         return "IPCS"

@@ -63,11 +63,10 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
-        zero = Constant(0)
         if self.options['segregated']:
-            return (zero, zero, zero), zero
+            return [Constant(0)] * 4
         else:
-            return Constant((0, 0, 0)), zero
+            return Constant((0, 0, 0)), Constant(0)
 
     def boundary_conditions(self, V, Q, t):
 
@@ -84,7 +83,7 @@ class Problem(ProblemBase):
             bc_noslip = [DirichletBC(V, self.g_noslip, boundary_markers, 0) for d in range(3)]
         else:
             self.g_noslip = Constant((0, 0, 0))
-            bc_noslip = DirichletBC(V, self.g_noslip, boundary_markers, 0)
+            bc_noslip = [DirichletBC(V, self.g_noslip, boundary_markers, 0)]
 
         # Create inflow boundary condition for velocity
         inflow_exprs = ('1.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
@@ -95,20 +94,17 @@ class Problem(ProblemBase):
             bc_inflow = [DirichletBC(V, g, boundary_markers, 1) for g in self.g_inflow]
         else:
             self.g_inflow = Expression(inflow_exprs, r=0.002, t=t, degree=3)
-            bc_inflow = DirichletBC(V, self.g_inflow, boundary_markers, 1)
+            bc_inflow = [DirichletBC(V, self.g_inflow, boundary_markers, 1)]
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
         bc_outflow = DirichletBC(Q, self.g_outflow, boundary_markers, 2)
 
         # Collect boundary conditions
-        if self.options['segregated']:
-            bcu = zip(bc_noslip, bc_inflow)
-        else:
-            bcu = (bc_noslip, bc_inflow)
-        bcp = (bc_outflow,)
+        bcu = zip(bc_noslip, bc_inflow)
+        bcp = [(bc_outflow,)]
 
-        return bcu, bcp
+        return bcu + bcp
 
     def pressure_bc(self, Q):
         return 0
@@ -122,6 +118,7 @@ class Problem(ProblemBase):
     def functional(self, t, u, p):
          if t < self.T:
              return 0.0
+
          x = (0.025, -0.006, 0.0)
          if self.options['segregated']:
              return u[0](x)

@@ -8,62 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2008-2010.
 
 from solverbase import *
-from ufl.form import Form
-
-class RhsGenerator(object):
-    """The instructions to create b."""
-    def __init__(self, space):
-        self.space = space
-        self.matvecs = []
-        self.forms = []
-        self.vecs = []
-
-    def __iadd__(self, ins):
-        if isinstance(ins, tuple):
-            A, x = ins
-            if isinstance(A, Form):
-                A = assemble(A)
-            self.matvecs.append((A, x, 1))
-        elif isinstance(ins, GenericVector):
-            self.vecs.append(ins)
-        elif isinstance(ins, Form):
-            self.forms.append(ins)
-        else:
-            raise RuntimeError, "Unknown RHS generator "+str(type(ins))
-        return self
-
-    def __isub__(self, ins):
-        if isinstance(ins, tuple):
-            A, x = ins
-            if isinstance(A, GenericMatrix):
-                self.matvecs.append((A, x, -1))
-                return self
-        raise RuntimeError, "Try '+=' instead"
-
-    def _as_vector(self, x):
-        if isinstance(x, GenericVector):
-            return x
-        if isinstance(x, Function):
-            return x.vector()
-        f = interpolate(x, self.space)
-        v = f.vector()
-        v._dummy = f # dolfin bug 889021
-        return v
-
-    def __call__(self):
-        f = Function(self.space)
-        b = f.vector()
-        b._dummy = f # dolfin bug 889021
-        for mat, x, alpha in self.matvecs:
-            b_ = mat * self._as_vector(x)
-            if alpha != 1:
-                b_ *= alpha
-            b += b_
-        for vec in self.vecs:
-            b += vec
-        for form in self.forms:
-            assemble(form, tensor=b, add_values=True, reset_sparsity=False)
-        return b
+from rhsgenerator import *
 
 class Solver(SolverBase):
     "Incremental pressure-correction scheme."
@@ -79,15 +24,16 @@ class Solver(SolverBase):
 
         # Define function spaces
         if self.options['segregated']:
-            V = FunctionSpace(mesh, "CG", 1)
+            V = FunctionSpace(mesh, "CG", self.options['u_order'])
         else:
-            V = VectorFunctionSpace(mesh, "CG", 1)
+            V = VectorFunctionSpace(mesh, "CG", self.options['u_order'])
         Q = FunctionSpace(mesh, "CG", 1)
-        #DG = FunctionSpace(mesh, "DG", 0)
 
         # Get initial and boundary conditions
-        u0, p0 = problem.initial_conditions(V, Q)
-        bcu, bcp = problem.boundary_conditions(V, Q, t)
+        ics = problem.initial_conditions(V, Q)
+        bcs = problem.boundary_conditions(V, Q, t)
+        u0, p0 = ics[:-1], ics[-1]
+        bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
         if is_periodic(bcp):
@@ -102,16 +48,13 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
 
         # Functions
-        if self.options['segregated']:
-            dims = range(len(u0));
-            u0 = [interpolate(_u0, V) for _u0 in u0]
-            u1 = [Function(V) for d in dims]
-            u0_, u1_, bcu_ = u0, u1, bcu
-        else:
-            dims = [0]
-            u0 = interpolate(u0, V)
-            u1 = Function(V)
-            u0_, u1_, bcu_ = [u0], [u1], [bcu]  # Always lists
+        dims = range(len(u0));
+        u0 = [interpolate(_u0, V) for _u0 in u0]
+        u1 = [Function(V) for d in dims]
+        if not self.options['segregated']:
+            # To avoid indexing in non-segregated forms
+            u0_ = u0[0]
+            u1_ = u1[0]
 
         p0 = interpolate(p0, Q)
         p1 = interpolate(p0, Q)
@@ -153,10 +96,10 @@ class Solver(SolverBase):
             rhs += (-inner(v, p*n) * ds
                      + inner(epsilon(v), p*Identity(u.cell().d)) * dx
                      , p0)
-            rhs += K1, u0
-            rhs -= K2, u0
+            rhs += K1, u0_
+            rhs -= K2, u0_
             rhs += M, f
-            rhs += inner(v, grad(u0)*u0) * dx
+            rhs += -inner(v, grad(u0_)*u0_) * dx
 
             A_u_tent, rhs_u_tent = [A], [rhs]
 
@@ -170,7 +113,7 @@ class Solver(SolverBase):
         else:
             rhs_p_corr = RhsGenerator(Q)
             rhs_p_corr += A_p_corr, p0
-            rhs_p_corr += -(1/k)*q*div(u)*dx, u1
+            rhs_p_corr += -(1/k)*q*div(u)*dx, u1_
 
         # Velocity correction
         K3 = assemble(inner(v, u) * dx)
@@ -187,7 +130,7 @@ class Solver(SolverBase):
         else:
             Kp = assemble(-k*inner(v, grad(p))*dx)
             rhs_u_corr = RhsGenerator(V)
-            rhs_u_corr += inner(v, u)*dx, u1
+            rhs_u_corr += inner(v, u)*dx, u1_
             rhs_u_corr += Kp, p1
             rhs_u_corr -= Kp, p0
             rhs_u_corr = [rhs_u_corr]
@@ -197,11 +140,12 @@ class Solver(SolverBase):
         self.start_timing()
         for t in t_range:
             # Get boundary conditions
-            bcu, bcp = problem.boundary_conditions(V, Q, t)
+            bcs = problem.boundary_conditions(V, Q, t)
+            bcu, bcp = bcs[:-1], bcs[-1]
             self.timer("fetch bc")
 
             # Compute tentative velocity step
-            for A, rhs, u1_comp, bcu_comp in zip(A_u_tent, rhs_u_tent, u1_, bcu_):
+            for A, rhs, u1_comp, bcu_comp in zip(A_u_tent, rhs_u_tent, u1, bcu):
                 b = rhs()
                 self.timer("u1 assemble")
                 for bc in bcu_comp: bc.apply(A, b)
@@ -222,7 +166,7 @@ class Solver(SolverBase):
             self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
 
             # Velocity correction
-            for A, rhs, u1_comp, bcu_comp in zip(A_u_corr, rhs_u_corr, u1_, bcu_):
+            for A, rhs, u1_comp, bcu_comp in zip(A_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(A, b)
                 self.timer("u2 assemble & bc")
@@ -230,12 +174,12 @@ class Solver(SolverBase):
                 self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
 
             # Update
-            self.update(problem, t, u1, p1)
-            for r in dims: u0_[r].assign(u1_[r])
+            self.update(problem, t, self._desegregate(u1), p1)
+            for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
             self.timer("update")
 
-        return u1, p1
+        return self._desegregate(u1), p1
 
     def __str__(self):
         return "IPCS"
