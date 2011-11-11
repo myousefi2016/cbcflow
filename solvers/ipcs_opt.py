@@ -8,29 +8,57 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2008-2010.
 
 from solverbase import *
+from ufl.form import Form
 
-class RHS(object):
-    """The "instructions" to create b_u_tent: A list of (matrix,function)s and maybe a form."""
-    def __init__(self):
+class RhsGenerator(object):
+    """The instructions to create b."""
+    def __init__(self, space):
+        self.space = space
         self.matvecs = []
         self.forms = []
         self.vecs = []
+
     def __iadd__(self, ins):
         if isinstance(ins, tuple):
-            form, func = ins
-            self.matvecs.append((assemble(form), func))
+            A, x = ins
+            if isinstance(A, Form):
+                A = assemble(A)
+            self.matvecs.append((A, x, 1))
         elif isinstance(ins, GenericVector):
             self.vecs.append(ins)
         elif isinstance(ins, Form):
             self.forms.append(ins)
         else:
-            raise RuntimeError, "Unknown RHS generator"
+            raise RuntimeError, "Unknown RHS generator "+str(type(ins))
         return self
+
+    def __isub__(self, ins):
+        if isinstance(ins, tuple):
+            A, x = ins
+            if isinstance(A, GenericMatrix):
+                self.matvecs.append((A, x, -1))
+                return self
+        raise RuntimeError, "Try '+=' instead"
+
+    def _as_vector(self, x):
+        if isinstance(x, GenericVector):
+            return x
+        if isinstance(x, Function):
+            return x.vector()
+        f = interpolate(x, self.space)
+        v = f.vector()
+        v._dummy = f # dolfin bug 889021
+        return v
+
     def __call__(self):
-        mat, func = self.matvecs[0]
-        b = mat * func.vector()
-        for mat, func in self.matvecs[1:]:
-            b += mat * func.vector()
+        f = Function(self.space)
+        b = f.vector()
+        b._dummy = f # dolfin bug 889021
+        for mat, x, alpha in self.matvecs:
+            b_ = mat * self._as_vector(x)
+            if alpha != 1:
+                b_ *= alpha
+            b += b_
         for vec in self.vecs:
             b += vec
         for form in self.forms:
@@ -93,73 +121,76 @@ class Solver(SolverBase):
         n  = FacetNormal(mesh)
 
         # Tentative velocity step
+        M  = assemble(inner(v, u) * dx)
+        K1 = assemble((1/k) * inner(v, u) * dx)
         if self.options['segregated']:
-            a_u_tent = []
+            K2 = assemble(inner(epsilon(v), nu*epsilon(u)) * dx
+                          + 0.5 * nu * inner(grad(v), grad(u)) * dx)
+            A_u_tent = []
             rhs_u_tent = []
             for d in dims:
-                # FIXME, include also pressure term epsilon:sigma
-                a_u_tent += [(1/k) * inner(v, u) * dx
-                             # + inner(epsilon(v), nu*epsilon(u)) * dx
-                             + nu * 0.5 * inner(grad(v), grad(u)) * dx]
-                rhs = RHS()
+                A = K1.copy()
+                A += K2
+
+                rhs = RhsGenerator(V)
                 rhs += (-inner(v, p*n[d]) * ds
-                         #- inner(epsilon(v), p*Indentity(u.cell().d)) * dx
+                         + v.dx(d) * p * dx
                          , p0)
-                rhs += (-nu * 0.5 * inner(grad(v), grad(u)) * dx
-                         #- inner(epsilon(v), nu*epsilon(u)) * dx
-                         + (1/k) * inner(v, u) * dx
-                         , u0[d])
-                rhs += v * f[d] * dx - v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
+                rhs += K1, u0[d]
+                rhs -= K2, u0[d]
+                rhs += M, f[d]
+                rhs += -v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
+
+                A_u_tent.append(A)
                 rhs_u_tent.append(rhs)
         else:
-            a_u_tent = ((1/k) * inner(v, u) * dx
-                        + inner(epsilon(v), nu*epsilon(u)) * dx
-                        - beta * nu * 0.5 * inner(grad(u).T*n, v) * ds)
-            rhs_u_tent = RHS()
-            rhs_u_tent += (-inner(v, p*n) * ds
-                           + inner(epsilon(v), p*Identity(u.cell().d)) * dx
-                            , p0)
-            rhs_u_tent += (beta * nu * 0.5 * inner(grad(u).T*n, v) * ds
-                           - inner(epsilon(v), nu*epsilon(u)) * dx
-                           + (1/k) * inner(v, u) * dx
-                           , u0)
-            rhs_u_tent += inner(v, f) * dx + inner(v, grad(u0)*u0) * dx
+            K2 = assemble(inner(epsilon(v), nu*epsilon(u)) * dx
+                          - 0.5 * beta * nu * inner(v, grad(u).T*n) * ds)
+            A = K1.copy()
+            A += K2
 
-            a_u_tent, rhs_u_tent = [a_u_tent], [rhs_u_tent]
+            rhs = RhsGenerator(V)
+            rhs += (-inner(v, p*n) * ds
+                     + inner(epsilon(v), p*Identity(u.cell().d)) * dx
+                     , p0)
+            rhs += K1, u0
+            rhs -= K2, u0
+            rhs += M, f
+            rhs += inner(v, grad(u0)*u0) * dx
+
+            A_u_tent, rhs_u_tent = [A], [rhs]
 
         # Pressure correction
-        a_p_corr = inner(grad(q), grad(p))*dx
+        A_p_corr = assemble(inner(grad(q), grad(p))*dx)
         if self.options['segregated']:
-            rhs_p_corr = RHS()
-            rhs_p_corr += inner(grad(q), grad(p)) * dx, p0
+            rhs_p_corr = RhsGenerator(Q)
+            rhs_p_corr += A_p_corr, p0
             for r in dims:
                 rhs_p_corr += -(1/k) * q * u.dx(r) * dx, u1[r]
         else:
-            rhs_p_corr = RHS()
-            rhs_p_corr += inner(grad(q), grad(p))*dx, p0
+            rhs_p_corr = RhsGenerator(Q)
+            rhs_p_corr += A_p_corr, p0
             rhs_p_corr += -(1/k)*q*div(u)*dx, u1
 
         # Velocity correction
-        a_u_corr = [inner(v, u)*dx for r in dims]
+        K3 = assemble(inner(v, u) * dx)
+        A_u_corr = [K3 for r in dims]
         if self.options['segregated']:
             rhs_u_corr = []
             for r in dims:
-                rhs = RHS()
-                rhs += v*u*dx, u1[r]
-                rhs += -k*inner(v, grad(p)[r])*dx, p1
-                rhs +=  k*inner(v, grad(p)[r])*dx, p0
+                Kp = assemble(-k*inner(v, grad(p)[r])*dx)
+                rhs = RhsGenerator(V)
+                rhs += M, u1[r]
+                rhs += Kp, p1
+                rhs -= Kp, p0
                 rhs_u_corr.append(rhs)
         else:
-            rhs_u_corr = RHS()
+            Kp = assemble(-k*inner(v, grad(p))*dx)
+            rhs_u_corr = RhsGenerator(V)
             rhs_u_corr += inner(v, u)*dx, u1
-            rhs_u_corr += -k*inner(v, grad(p))*dx, p1
-            rhs_u_corr +=  k*inner(v, grad(p))*dx, p0
+            rhs_u_corr += Kp, p1
+            rhs_u_corr -= Kp, p0
             rhs_u_corr = [rhs_u_corr]
-
-        # Assemble matrices
-        A_u_tent = [assemble(a) for a in a_u_tent]
-        A_p_corr = assemble(a_p_corr)
-        A_u_corr = [assemble(a) for a in a_u_corr]
 
 
         # Time loop

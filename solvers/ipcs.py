@@ -70,10 +70,10 @@ class Solver(SolverBase):
             for d in dims:
                 u_mean = 0.5 * (u + u0[d])
                 u_diff = (u - u0[d])
-                # FIXME, include also pressure term epsilon:sigma
                 F_u_tent += [(1/k) * inner(v, u_diff) * dx
                              + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
-                             # + inner(epsilon(v), sigma(Ux, p0, nu))*dx
+                             + inner(epsilon(v), 2*nu*epsilon(u_mean)) * dx
+                             - v.dx(d) * p0 * dx
                              + nu * inner(grad(v), grad(u_mean)) * dx
                              + inner(v, p0*n[d]) * ds
                              - v * f[d] * dx]

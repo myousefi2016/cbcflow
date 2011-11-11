@@ -49,7 +49,10 @@ class Problem(ProblemBase):
         self.mesh = Mesh("data/aneurysm_%d.xml.gz" % refinement_level)
 
         # The body force term
-        self.f = Constant((0, 0, 0))
+        if self.options['segregated']:
+            self.f = [Constant(0)] * 3
+        else:
+            self.f = Constant((0, 0, 0))
 
         # Set viscosity
         self.nu = 3.5 / 1.025e6
