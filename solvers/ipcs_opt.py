@@ -116,8 +116,7 @@ class Solver(SolverBase):
             rhs_p_corr += -(1/k)*q*div(u)*dx, u1_
 
         # Velocity correction
-        K3 = assemble(inner(v, u) * dx)
-        A_u_corr = [K3 for r in dims]
+        A_u_corr = [M.copy() for r in dims]
         if self.options['segregated']:
             rhs_u_corr = []
             for r in dims:
@@ -130,11 +129,17 @@ class Solver(SolverBase):
         else:
             Kp = assemble(-k*inner(v, grad(p))*dx)
             rhs_u_corr = RhsGenerator(V)
-            rhs_u_corr += inner(v, u)*dx, u1_
+            rhs_u_corr += M, u1_
             rhs_u_corr += Kp, p1
             rhs_u_corr -= Kp, p0
             rhs_u_corr = [rhs_u_corr]
 
+        # Apply BCs to matrices
+        for A, bcs in zip(A_u_tent, bcu) + zip(A_u_corr, bcu):
+            for bc in bcs:
+                bc.apply(A)
+        for bc in bcp:
+            bc.apply(A_p_corr)
 
         # Time loop
         self.start_timing()
@@ -142,24 +147,23 @@ class Solver(SolverBase):
             # Get boundary conditions
             bcs = problem.boundary_conditions(V, Q, t)
             bcu, bcp = bcs[:-1], bcs[-1]
-            self.timer("fetch bc")
+            self.timer("update & fetch bc")
 
             # Compute tentative velocity step
             for A, rhs, u1_comp, bcu_comp in zip(A_u_tent, rhs_u_tent, u1, bcu):
                 b = rhs()
-                self.timer("u1 assemble")
-                for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u1 bc")
-                iter = solve(A, u1_comp.vector(), b, "gmres", "jacobi")
+                for bc in bcu_comp: bc.apply(b)
+                self.timer("u1 assemble & bc")
+                iter = solve(A, u1_comp.vector(), b, "gmres", "ilu")
                 self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
-            for bc in bcp: bc.apply(A_p_corr, b)
+            for bc in bcp: bc.apply(b)
             self.timer("p assemble & bc")
             if is_periodic(bcp):
-                iter = solve(A_p_corr, p1.vector(), b)
+                iter = solve(A_p_corr, p1.vector(), b, "cg", "ilu")
             else:
                 iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'ml_amg')
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
@@ -168,16 +172,15 @@ class Solver(SolverBase):
             # Velocity correction
             for A, rhs, u1_comp, bcu_comp in zip(A_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
-                for bc in bcu_comp: bc.apply(A, b)
+                for bc in bcu_comp: bc.apply(b)
                 self.timer("u2 assemble & bc")
-                iter = solve(A, u1_comp.vector(), b, "bicgstab", "ilu")
+                iter = solve(A, u1_comp.vector(), b, "bicgstab", "jacobi")
                 self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
 
             # Update
             self.update(problem, t, self._desegregate(u1), p1)
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
-            self.timer("update")
 
         return self._desegregate(u1), p1
 

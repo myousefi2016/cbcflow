@@ -62,7 +62,10 @@ class Problem(ProblemBase):
         self.mesh = Mesh("data/Aneurysm.xml.gz")
 
         # The body force term
-        self.f = Constant((0, 0, 0))
+        if self.options['segregated']:
+            self.f = [Constant(0)] * 3
+        else:
+            self.f = Constant((0, 0, 0))
 
         # Set viscosity
         self.nu = 3.5
@@ -73,11 +76,10 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
-        zero = Constant(0)
         if self.options['segregated']:
-            return (zero, zero, zero), zero
+            return [Constant(0)] * 4
         else:
-            return Constant((0, 0, 0)), zero
+            return Constant((0, 0, 0)), Constant(0)
 
     def boundary_conditions(self, V, Q, t):
         if self.options['segregated']:
@@ -100,14 +102,14 @@ class Problem(ProblemBase):
 	    self.g_inflow = InflowVec(V, self)
 	    bc_inflow = DirichletBC(V, self.g_inflow, 1)
 
-            bc_u = (bc_noslip, bc_inflow)
+            bc_u = [(bc_noslip, bc_inflow)]
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
         bc_outflow = [DirichletBC(Q, self.g_outflow, subd) for subd in (2,3)]
-        bc_p = bc_outflow
+        bc_p = [bc_outflow]
 
-        return bc_u, bc_p
+        return bc_u + bc_p
 
     def pressure_bc(self, Q):
         return 0

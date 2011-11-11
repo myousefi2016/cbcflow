@@ -114,14 +114,13 @@ class Solver(SolverBase):
             # Get boundary conditions
             bcs = problem.boundary_conditions(V, Q, t)
             bcu, bcp = bcs[:-1], bcs[-1]
-            self.timer("fetch bc")
+            self.timer("update & fetch bc")
 
             # Compute tentative velocity step
             for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1, bcu):
                 b = assemble(L)
-                self.timer("u1 assemble")
                 for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u1 bc")
+                self.timer("u1 assemble & bc")
                 iter = solve(A, u1_comp.vector(), b, "gmres", "jacobi")
                 self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
 
@@ -131,7 +130,7 @@ class Solver(SolverBase):
             for bc in bcp: bc.apply(A_p_corr, b)
             self.timer("p assemble & bc")
             if is_periodic(bcp):
-                iter = solve(A_p_corr, p1.vector(), b)
+                iter = solve(A_p_corr, p1.vector(), b, "cg", "ilu")
             else:
                 iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'ml_amg')
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
@@ -149,7 +148,6 @@ class Solver(SolverBase):
             self.update(problem, t, self._desegregate(u1), p1)
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
-            self.timer("update")
 
         return self._desegregate(u1), p1
 
