@@ -141,6 +141,18 @@ class Solver(SolverBase):
         for bc in bcp:
             bc.apply(A_p_corr)
 
+        # Create solvers
+        S_u_tent = [LinearSolver("gmres", "ilu") for d in dims]
+        if is_periodic(bcp):
+            S_p_corr = LinearSolver("cg", "ilu")
+        else:
+            S_p_corr = LinearSolver("gmres", "ml_amg")
+        S_u_corr = [LinearSolver("bicgstab", "ilu") for d in dims]
+
+        for A,S in zip(A_u_tent, S_u_tent) + [(A_p_corr, S_p_corr)] + zip(A_u_corr, S_u_corr):
+            S.set_operator(A)
+            S.parameters['preconditioner']['reuse'] = True
+
         # Time loop
         self.start_timing()
         for t in t_range:
@@ -150,11 +162,11 @@ class Solver(SolverBase):
             self.timer("update & fetch bc")
 
             # Compute tentative velocity step
-            for A, rhs, u1_comp, bcu_comp in zip(A_u_tent, rhs_u_tent, u1, bcu):
+            for S, rhs, u1_comp, bcu_comp in zip(S_u_tent, rhs_u_tent, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
                 self.timer("u1 assemble & bc")
-                iter = solve(A, u1_comp.vector(), b, "gmres", "ilu")
+                iter = S.solve(u1_comp.vector(), b)
                 self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
 
             # Pressure correction
@@ -162,19 +174,16 @@ class Solver(SolverBase):
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp: bc.apply(b)
             self.timer("p assemble & bc")
-            if is_periodic(bcp):
-                iter = solve(A_p_corr, p1.vector(), b, "cg", "ilu")
-            else:
-                iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'ml_amg')
+            iter = S_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
             self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
 
             # Velocity correction
-            for A, rhs, u1_comp, bcu_comp in zip(A_u_corr, rhs_u_corr, u1, bcu):
+            for S, rhs, u1_comp, bcu_comp in zip(S_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
                 self.timer("u2 assemble & bc")
-                iter = solve(A, u1_comp.vector(), b, "bicgstab", "jacobi")
+                iter = S.solve(u1_comp.vector(), b)
                 self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
 
             # Update
