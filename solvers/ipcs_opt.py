@@ -71,6 +71,8 @@ class Solver(SolverBase):
                           + 0.5 * nu * inner(grad(v), grad(u)) * dx)
             A_u_tent = []
             rhs_u_tent = []
+            Dx = [assemble(-v * u.dx(r) * dx) for r in dims]
+            u0_grad_u0 = u0[0].vector().copy()
             for d in dims:
                 A = K1.copy()
                 A += K2
@@ -82,7 +84,7 @@ class Solver(SolverBase):
                 rhs += K1, u0[d]
                 rhs -= K2, u0[d]
                 rhs += M, f[d]
-                rhs += -v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
+                rhs += u0_grad_u0
 
                 A_u_tent.append(A)
                 rhs_u_tent.append(rhs)
@@ -162,29 +164,34 @@ class Solver(SolverBase):
             self.timer("update & fetch bc")
 
             # Compute tentative velocity step
-            for S, rhs, u1_comp, bcu_comp in zip(S_u_tent, rhs_u_tent, u1, bcu):
+            for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_tent, rhs_u_tent, u1, bcu):
+                if self.options['segregated']:
+                    u0_grad_u0[:] = u0[0].vector()
+                    u0_grad_u0 *= Dx[0] * u0[d].vector()
+                    for r in dims[1:]:
+                        u0_grad_u0 += u0[r].vector() * (Dx[r] * u0[d].vector())
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
-                self.timer("u1 assemble & bc")
+                self.timer("u0.%d assemble & bc"%d)
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
+                self.timer("u0.%d solve (%d, %d)"%(d, A.size(0), iter))
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp: bc.apply(b)
-            self.timer("p assemble & bc")
+            self.timer("p1 assemble & bc")
             iter = S_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
+            self.timer("p1 solve (%d, %d)"%(A_p_corr.size(0), iter))
 
             # Velocity correction
-            for S, rhs, u1_comp, bcu_comp in zip(S_u_corr, rhs_u_corr, u1, bcu):
+            for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
-                self.timer("u2 assemble & bc")
+                self.timer("u1.%d assemble & bc"%d)
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
+                self.timer("u1.%d solve (%d, %d)"%(d, A.size(0),iter))
 
             # Update
             self.update(problem, t, self._desegregate(u1), p1)
