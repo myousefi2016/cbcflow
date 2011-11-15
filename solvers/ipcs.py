@@ -17,6 +17,11 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
+        solver_u_tent      = "gmres", "jacobi"
+        solver_p_periodic  = "cg", "ilu"
+        solver_p_dirichlet = "gmres", "ml_amg"
+        solver_u_corr      = "bicgstab", "ilu"
+
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = problem.timestep(problem)
@@ -107,7 +112,6 @@ class Solver(SolverBase):
         A_p_corr = assemble(a_p_corr)
         A_u_corr = [assemble(a) for a in a_u_corr]
 
-
         # Time loop
         self.start_timing()
         for t in t_range:
@@ -120,29 +124,30 @@ class Solver(SolverBase):
             for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1, bcu):
                 b = assemble(L)
                 for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u1 assemble & bc")
-                iter = solve(A, u1_comp.vector(), b, "gmres", "jacobi")
-                self.timer("u1 solve (%d, %d)"%(A.size(0), iter))
+                self.timer("u1 construct rhs")
+                iter = solve(A, u1_comp.vector(), b, *solver_u_tent)
+                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_tent), A.size(0), iter))
 
             # Pressure correction
             b = assemble(L_p_corr)
-            if len(bcp) == 0 or is_periodic(bcp): normalize(b)
-            for bc in bcp: bc.apply(A_p_corr, b)
-            self.timer("p assemble & bc")
-            if is_periodic(bcp):
-                iter = solve(A_p_corr, p1.vector(), b, "cg", "ilu")
+            if len(bcp) == 0 or is_periodic(bcp):
+                solver_p = solver_p_periodic
+                normalize(b)
             else:
-                iter = solve(A_p_corr, p1.vector(), b, 'gmres', 'ml_amg')
+                solver_p = solver_p_dirichlet
+            for bc in bcp: bc.apply(A_p_corr, b)
+            self.timer("p construct rhs")
+            iter = solve(A_p_corr, p1.vector(), b, *solver_p)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p solve (%d, %d)"%(A_p_corr.size(0), iter))
+            self.timer("p solve (%s, %d, %d)"%(', '.join(solver_p), A_p_corr.size(0), iter))
 
             # Velocity correction
             for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1, bcu):
                 b = assemble(L)
                 for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u2 assemble & bc")
-                iter = solve(A, u1_comp.vector(), b, "bicgstab", "ilu")
-                self.timer("u2 solve (%d, %d)"%(A.size(0),iter))
+                self.timer("u2 construct rhs")
+                iter = solve(A, u1_comp.vector(), b, *solver_u_corr)
+                self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
 
             # Update
             self.update(problem, t, self._desegregate(u1), p1)

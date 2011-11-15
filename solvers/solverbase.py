@@ -143,7 +143,7 @@ class SolverBase:
 
         # Print progress
         print ""
-        s = "Time step %d finished in %g seconds, %g%% done (t = %g, T = %g)." \
+        s = "Time step %d finished in %.2f seconds, %.1f%% done (t = %g, T = %g)." \
             % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T)
         print s + "\n" + len(s)*"-"
 

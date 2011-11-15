@@ -68,8 +68,7 @@ class Problem(ProblemBase):
             self.f = Constant((0, 0, 0))
 
         # Set viscosity
-        self.nu = 3.5
-        self.U = 1000
+        self.nu = 0.00345
 
         # Set end-time
         self.T = 0.05

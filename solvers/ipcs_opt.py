@@ -15,15 +15,21 @@ class Solver(SolverBase):
 
     def __init__(self, options):
         SolverBase.__init__(self, options)
+        self.segregated = options['segregated']
 
     def solve(self, problem):
+
+        solver_u_tent      = "gmres", "jacobi"
+        solver_p_periodic  = "cg", "ilu"
+        solver_p_dirichlet = "gmres", "ml_amg"
+        solver_u_corr      = "bicgstab", "ilu"
 
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = problem.timestep(problem)
 
         # Define function spaces
-        if self.options['segregated']:
+        if self.segregated:
             V = FunctionSpace(mesh, "CG", self.options['u_order'])
         else:
             V = VectorFunctionSpace(mesh, "CG", self.options['u_order'])
@@ -51,7 +57,7 @@ class Solver(SolverBase):
         dims = range(len(u0));
         u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
-        if not self.options['segregated']:
+        if not self.segregated:
             # To avoid indexing in non-segregated forms
             u0_ = u0[0]
             u1_ = u1[0]
@@ -66,13 +72,14 @@ class Solver(SolverBase):
         # Tentative velocity step
         M  = assemble(inner(v, u) * dx)
         K1 = assemble((1/k) * inner(v, u) * dx)
-        if self.options['segregated']:
+        if self.segregated == 'hack':
+            Dx = [assemble(-v * u.dx(r) * dx) for r in dims]
+            sum_u0_Du0 = u0[0].vector().copy()
+        if self.segregated:
             K2 = assemble(inner(epsilon(v), nu*epsilon(u)) * dx
                           + 0.5 * nu * inner(grad(v), grad(u)) * dx)
             A_u_tent = []
             rhs_u_tent = []
-            Dx = [assemble(-v * u.dx(r) * dx) for r in dims]
-            u0_grad_u0 = u0[0].vector().copy()
             for d in dims:
                 A = K1.copy()
                 A += K2
@@ -84,7 +91,10 @@ class Solver(SolverBase):
                 rhs += K1, u0[d]
                 rhs -= K2, u0[d]
                 rhs += M, f[d]
-                rhs += u0_grad_u0
+                if self.segregated == 'hack':
+                    rhs += sum_u0_Du0
+                else:
+                    rhs += -v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
 
                 A_u_tent.append(A)
                 rhs_u_tent.append(rhs)
@@ -107,7 +117,7 @@ class Solver(SolverBase):
 
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx)
-        if self.options['segregated']:
+        if self.segregated:
             rhs_p_corr = RhsGenerator(Q)
             rhs_p_corr += A_p_corr, p0
             for r in dims:
@@ -119,7 +129,7 @@ class Solver(SolverBase):
 
         # Velocity correction
         A_u_corr = [M.copy() for r in dims]
-        if self.options['segregated']:
+        if self.segregated:
             rhs_u_corr = []
             for r in dims:
                 Kp = assemble(-k*inner(v, grad(p)[r])*dx)
@@ -144,12 +154,11 @@ class Solver(SolverBase):
             bc.apply(A_p_corr)
 
         # Create solvers
-        S_u_tent = [LinearSolver("gmres", "ilu") for d in dims]
-        if is_periodic(bcp):
-            S_p_corr = LinearSolver("cg", "ilu")
-        else:
-            S_p_corr = LinearSolver("gmres", "ml_amg")
-        S_u_corr = [LinearSolver("bicgstab", "ilu") for d in dims]
+        if is_periodic(bcp): solver_p = solver_p_periodic
+        else:                solver_p = solver_p_dirichlet
+        S_u_tent = [LinearSolver(*solver_u_tent) for d in dims]
+        S_p_corr = LinearSolver(*solver_p)
+        S_u_corr = [LinearSolver(*solver_u_corr) for d in dims]
 
         for A,S in zip(A_u_tent, S_u_tent) + [(A_p_corr, S_p_corr)] + zip(A_u_corr, S_u_corr):
             S.set_operator(A)
@@ -165,33 +174,32 @@ class Solver(SolverBase):
 
             # Compute tentative velocity step
             for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_tent, rhs_u_tent, u1, bcu):
-                if self.options['segregated']:
-                    u0_grad_u0[:] = u0[0].vector()
-                    u0_grad_u0 *= Dx[0] * u0[d].vector()
-                    for r in dims[1:]:
-                        u0_grad_u0 += u0[r].vector() * (Dx[r] * u0[d].vector())
+                if self.segregated == 'hack':
+                    sum_u0_Du0[:] = 0
+                    for r in dims:
+                        sum_u0_Du0 += u0[r].vector() * (Dx[r] * u0[d].vector())
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
-                self.timer("u0.%d assemble & bc"%d)
+                self.timer("u0 construct rhs")
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u0.%d solve (%d, %d)"%(d, A.size(0), iter))
+                self.timer("u0 solve (%s, %d, %d)"%(', '.join(solver_u_tent), A.size(0), iter))
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp: bc.apply(b)
-            self.timer("p1 assemble & bc")
+            self.timer("p1 construct rhs")
             iter = S_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p1 solve (%d, %d)"%(A_p_corr.size(0), iter))
+            self.timer("p1 solve (%s, %d, %d)"%(', '.join(solver_p), A_p_corr.size(0), iter))
 
             # Velocity correction
-            for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_corr, rhs_u_corr, u1, bcu):
+            for S, rhs, u1_comp, bcu_comp in zip(S_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
-                self.timer("u1.%d assemble & bc"%d)
+                self.timer("u1 construct rhs")
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u1.%d solve (%d, %d)"%(d, A.size(0),iter))
+                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
 
             # Update
             self.update(problem, t, self._desegregate(u1), p1)
