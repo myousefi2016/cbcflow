@@ -6,7 +6,7 @@ class RhsGenerator(object):
     def __init__(self, space):
         self.space = space
         self.matvecs = []
-        self.forms = []
+        self.form = None
         self.vecs = []
 
     def __iadd__(self, ins):
@@ -18,7 +18,10 @@ class RhsGenerator(object):
         elif isinstance(ins, GenericVector):
             self.vecs.append(ins)
         elif isinstance(ins, Form):
-            self.forms.append(ins)
+            if self.form is None:
+                self.form = ins
+            else:
+                self.form += ins
         else:
             raise RuntimeError, "Unknown RHS generator "+str(type(ins))
         return self
@@ -53,8 +56,8 @@ class RhsGenerator(object):
             b += b_
         for vec in self.vecs:
             b += vec
-        if self.forms:
-            assemble(sum(self.forms), tensor=b, add_values=True, reset_sparsity=False)
+        if self.form:
+            assemble(self.form, tensor=b, add_values=True, reset_sparsity=False)
         return b
 
 
