@@ -10,6 +10,10 @@ __license__  = "GNU GPL version 3 or any later version"
 from solverbase import *
 from rhsgenerator import *
 
+#parameters["linear_algebra_backend"] = "Epetra"
+#parameters["form_compiler"]["representation"] = "quadrature"
+#parameters["form_compiler"]["quadrature_degree"] = 1
+
 class Solver(SolverBase):
     "Incremental pressure-correction scheme."
 
@@ -19,10 +23,10 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        solver_u_tent      = "gmres", "jacobi"
-        solver_p_periodic  = "cg", "ilu"
+        solver_u_tent      = "gmres", "sor"
+        solver_p_periodic  = "cg", "hypre_euclid"
         solver_p_dirichlet = "gmres", "ml_amg"
-        solver_u_corr      = "bicgstab", "ilu"
+        solver_u_corr      = "bicgstab", "hypre_euclid"
 
         # Get problem parameters
         mesh = problem.mesh
@@ -84,12 +88,11 @@ class Solver(SolverBase):
                 A = K1.copy()
                 A += K2
 
+                K3 = assemble(-inner(v, p*n[d])*ds + v.dx(d)*p*dx)
                 rhs = RhsGenerator(V)
-                rhs += (-inner(v, p*n[d]) * ds
-                         + v.dx(d) * p * dx
-                         , p0)
                 rhs += K1, u0[d]
                 rhs -= K2, u0[d]
+                rhs += K3, p0
                 rhs += M, f[d]
                 if self.segregated == 'hack':
                     rhs += sum_u0_Du0
@@ -104,12 +107,11 @@ class Solver(SolverBase):
             A = K1.copy()
             A += K2
 
+            K3 = assemble(-inner(v, p*n)*ds + inner(epsilon(v), p*Identity(u.cell().d)) * dx)
             rhs = RhsGenerator(V)
-            rhs += (-inner(v, p*n) * ds
-                     + inner(epsilon(v), p*Identity(u.cell().d)) * dx
-                     , p0)
             rhs += K1, u0_
             rhs -= K2, u0_
+            rhs += K3, p0
             rhs += M, f
             rhs += -inner(v, grad(u0_)*u0_) * dx
 
@@ -121,11 +123,13 @@ class Solver(SolverBase):
             rhs_p_corr = RhsGenerator(Q)
             rhs_p_corr += A_p_corr, p0
             for r in dims:
-                rhs_p_corr += -(1/k) * q * u.dx(r) * dx, u1[r]
+                Ku = assemble(-(1/k)*q*u.dx(r)*dx)
+                rhs_p_corr += Ku, u1[r]
         else:
+            Ku = assemble(-(1/k)*q*div(u)*dx)
             rhs_p_corr = RhsGenerator(Q)
             rhs_p_corr += A_p_corr, p0
-            rhs_p_corr += -(1/k)*q*div(u)*dx, u1_
+            rhs_p_corr += Ku, u1_
 
         # Velocity correction
         A_u_corr = [M.copy() for r in dims]

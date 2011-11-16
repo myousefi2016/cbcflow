@@ -12,8 +12,7 @@ class RhsGenerator(object):
     def __iadd__(self, ins):
         if isinstance(ins, tuple):
             A, x = ins
-            if isinstance(A, Form):
-                A = assemble(A)
+            assert isinstance(A, GenericMatrix)
             self.matvecs.append((A, self._as_vector_or_timedep(x), 1))
         elif isinstance(ins, GenericVector):
             self.vecs.append(ins)
