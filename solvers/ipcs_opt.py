@@ -19,10 +19,10 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        solver_u_tent      = "gmres", "jacobi"
-        solver_p_periodic  = "cg", "ilu"
+        solver_u_tent      = "gmres", "hypre_euclid"
+        solver_p_periodic  = "cg", "hypre_euclid"
         solver_p_dirichlet = "gmres", "ml_amg"
-        solver_u_corr      = "bicgstab", "ilu"
+        solver_u_corr      = "bicgstab", "hypre_euclid"
 
         # Get problem parameters
         mesh = problem.mesh
