@@ -120,6 +120,8 @@ class Problem(ProblemBase):
          if t < self.T:
              return 0.0
 
+         return 0.0
+
          x = (0.025, -0.006, 0.0)
          if self.options['segregated']:
              return u[0](x)
