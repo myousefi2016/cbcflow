@@ -213,4 +213,9 @@ class Solver(SolverBase):
         return self._desegregate(u1), p1
 
     def __str__(self):
-        return "IPCS"
+        name = "IPCS_opt"
+        if self.segregated == "hack":
+            name += "_hack"
+        elif self.segregated:
+            name += "_seg"
+        return name
