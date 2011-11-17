@@ -55,10 +55,6 @@ class Solver(SolverBase):
         dims = range(len(u0))
         u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for _u0 in u0]
-        if not self.options['segregated']:
-            # To avoid indexing in non-segregated forms
-            u0_ = u0[0]
-            u1_ = u1[0]
 
         p0 = interpolate(p0, Q)
         p1 = interpolate(p0, Q)
@@ -66,6 +62,12 @@ class Solver(SolverBase):
         k  = Constant(dt)
         f  = problem.f
         n  = FacetNormal(mesh)
+
+        # To avoid indexing in non-segregated forms
+        if not self.options['segregated']:
+            u0_ = u0[0]
+            u1_ = u1[0]
+            f_  = f[0]
 
         # Tentative velocity step
         if self.options['segregated']:
@@ -75,9 +77,8 @@ class Solver(SolverBase):
                 u_diff = (u - u0[d])
                 F_u_tent += [(1/k) * inner(v, u_diff) * dx
                              + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
-                             + inner(epsilon(v), 2*nu*epsilon(u_mean)) * dx
-                             - v.dx(d) * p0 * dx
                              + nu * inner(grad(v), grad(u_mean)) * dx
+                             + inner(grad(v), 2*nu*grad(u_mean)) * dx - v.dx(d) * p0 * dx
                              + inner(v, p0*n[d]) * ds
                              - v * f[d] * dx]
         else:
@@ -88,7 +89,7 @@ class Solver(SolverBase):
                         + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx
                         - beta * nu * inner(grad(u_mean).T*n, v) * ds
                         + inner(v, p0*n) * ds
-                        - inner(v, f) * dx]
+                        - inner(v, f_) * dx]
 
         a_u_tent = [lhs(F) for F in F_u_tent]
         L_u_tent = [rhs(F) for F in F_u_tent]

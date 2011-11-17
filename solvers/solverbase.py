@@ -183,10 +183,7 @@ class SolverBase:
 
 def epsilon(u):
     "Return symmetric gradient."
-    if u.rank() == 1:
-        return 0.5*(grad(u) + grad(u).T)
-    else:
-        return grad(u)
+    return 0.5*(grad(u) + grad(u).T)
 
 def sigma(u, p, nu):
     "Return stress tensor."

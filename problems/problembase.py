@@ -129,3 +129,21 @@ class ProblemBase:
     # FIXME: Remove this and merge with boundary_condition()
     def pressure_bc(self, Q):
         return Constant(0)
+
+    def uConstant(self, values):
+        if isinstance(values, tuple) and self.options['segregated']:
+            return [Constant(v) for v in values]
+        else:
+            return [Constant(values)]
+
+    def uExpr(self, expr_strings, **kwargs):
+        if self.options['segregated']:
+            return [Expression(e, **kwargs) for e in expr_strings]
+        else:
+            return [Expression(expr_strings, **kwargs)]
+
+    def uEval(self, func, component, point):
+        if self.options['segregated']:
+            return func[component](point)
+        else:
+            return func(point)[component]

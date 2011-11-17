@@ -137,11 +137,16 @@ def main(args):
     else:
         num_dofs = u.vector().size() + p.vector().size()
 
-    # Get functional value and error
-    functional, error = solver.eval()
+    # May raise exception on some processors in parallel, it seems -- ignore.
+    try:
+        # Get functional value and error.
+        functional, error = solver.eval()
 
-    # Save results
-    save_results(problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
+        # Save results
+        save_results(problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
+    except:
+        print 'Exception getting functional/error, ignoring.'
+
 
     return 0
 

@@ -29,10 +29,7 @@ class Problem(ProblemBase):
         self.mesh.coordinates()[:, :] = self.scale
 
         # The body force term
-        if self.options['segregated']:
-            self.f = [Constant(0)] * 3
-        else:
-            self.f = Constant((0, 0, 0))
+        self.f = self.uConstant((0, 0, 0))
 
         # Set the kinematic viscosity (nu = eta/rho)
         self.nu = 1.0
@@ -57,48 +54,36 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
 
         # Use analytical solutions at t = 0 as initial values
-        if self.options['segregated']:
-            self.exact_u = [Expression(self.analytical_u[r], degree=3, **self.u_params) for r in range(3)]
-        else:
-            self.exact_u = [Expression(self.analytical_u, degree=3, **self.u_params)]
-        self.exact_p = Expression(self.analytical_p, degree=3, **self.p_params)
+        self.exact_u = self.uExpr(self.analytical_u, degree=3, **self.u_params)
+        self.exact_p = self.uExpr(self.analytical_p, degree=3, **self.p_params)
 
-        return self.exact_u + [self.exact_p]
+        return self.exact_u + self.exact_p
 
     def boundary_conditions(self, V, Q, t):
-        for exact_u in self.exact_u:
-            exact_u.t = t
-        self.exact_p.t = t
+        for expr in self.exact_u + self.exact_p:
+            expr.t = t
 
-        if self.options['segregated']:
-            bc0 = [DirichletBC(V, self.exact_u[r], DomainBoundary()) for r in range(3)]
-        else:
-            bc0 = [DirichletBC(V, self.exact_u[0], DomainBoundary())]
+        bc0 = [DirichletBC(V, expr, DomainBoundary()) for expr in self.exact_u]
 
         bcu   = zip(bc0)
-        bcp   = [()]
+        bcp   = zip([])
 
         return bcu + bcp
 
     def update(self, t, u, p):
         print 'Time in update is:', t
-        for exact_u in self.exact_u:
-            exact_u.t = t
-        self.exact_p.t = t
+        for expr in self.exact_u + self.exact_p:
+            expr.t = t
 
     def functional(self, t, u, p):
         print 'Time in functional is:', t
         if t < self.T:
             return 0.0
         else:
-            if self.options['segregated']:
-                error = 0
-                for exact_u, _u in zip(self.exact_u, u):
-                    error += errornorm(exact_u, _u) / norm(exact_u, mesh=self.mesh)
-                return error
-            else:
-                print u.vector().norm('l2')
-                return errornorm(self.exact_u[0], u) / norm(self.exact_u[0], mesh=self.mesh)
+            error = 0
+            for exact_u, calc_u in zip(self.exact_u, u):
+                error += errornorm(exact_u, calc_u) / norm(exact_u, mesh=self.mesh)
+            return error
 
     def reference(self, t):
         return 0.0

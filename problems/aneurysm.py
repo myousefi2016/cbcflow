@@ -31,10 +31,6 @@ class AneurysmCutoff(Expression):
         else:
             values[0] = 1.0
 
-# Define symmetric gradient
-def epsilon(u):
-    return 0.5*(grad(u) + (grad(u).T))
-
 # Problem definition
 class Problem(ProblemBase):
     "3D artery with a saccular aneurysm."
@@ -49,10 +45,7 @@ class Problem(ProblemBase):
         self.mesh = Mesh("data/aneurysm_%d.xml.gz" % refinement_level)
 
         # The body force term
-        if self.options['segregated']:
-            self.f = [Constant(0)] * 3
-        else:
-            self.f = Constant((0, 0, 0))
+        self.f = self.uConstant((0, 0, 0))
 
         # Set viscosity
         self.nu = 3.5 / 1.025e6
@@ -78,31 +71,23 @@ class Problem(ProblemBase):
         Outflow().mark(boundary_markers, 2)
 
         # Create no-slip boundary condition for velocity
-        if self.options['segregated']:
-            self.g_noslip = Constant(0)
-            bc_noslip = [DirichletBC(V, self.g_noslip, boundary_markers, 0) for d in range(3)]
-        else:
-            self.g_noslip = Constant((0, 0, 0))
-            bc_noslip = [DirichletBC(V, self.g_noslip, boundary_markers, 0)]
+        self.g_noslip = self.uConstant((0, 0, 0))
+        bc_noslip = [DirichletBC(V, g, boundary_markers, 0) for g in self.g_noslip]
 
         # Create inflow boundary condition for velocity
         inflow_exprs = ('1.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))')
-        if self.options['segregated']:
-            self.g_inflow = [Expression(e, r=0.002, t=t, degree=3) for e in inflow_exprs]
-            bc_inflow = [DirichletBC(V, g, boundary_markers, 1) for g in self.g_inflow]
-        else:
-            self.g_inflow = Expression(inflow_exprs, r=0.002, t=t, degree=3)
-            bc_inflow = [DirichletBC(V, self.g_inflow, boundary_markers, 1)]
+        self.g_inflow = self.uExpr(inflow_exprs, r=0.002, t=t, degree=3)
+        bc_inflow = [DirichletBC(V, g, boundary_markers, 1) for g in self.g_inflow]
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
-        bc_outflow = DirichletBC(Q, self.g_outflow, boundary_markers, 2)
+        bc_outflow = [DirichletBC(Q, self.g_outflow, boundary_markers, 2)]
 
         # Collect boundary conditions
         bcu = zip(bc_noslip, bc_inflow)
-        bcp = [(bc_outflow,)]
+        bcp = zip(bc_outflow)
 
         return bcu + bcp
 
@@ -110,20 +95,14 @@ class Problem(ProblemBase):
         return 0
 
     def update(self, t, u, p):
-        try:
-            self.g_inflow.t = t
-        except:
-            for g in self.g_inflow: g.t = t
+        for g in self.g_inflow:
+            g.t = t
 
     def functional(self, t, u, p):
          if t < self.T:
              return 0.0
 
-         x = (0.025, -0.006, 0.0)
-         if self.options['segregated']:
-             return u[0](x)
-         else:
-             return u(x)[0]
+         return self.uEval(u, 0, (0.025, -0.006, 0.0))
 
     def reference(self, t):
         """The reference value was computed using on a fine mesh

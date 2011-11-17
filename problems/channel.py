@@ -38,7 +38,7 @@ class Problem(ProblemBase):
         self.mesh = UnitSquare(N, N)
 
         # Create right-hand side function with pressure gradient as body force
-        self.f = Constant((0, 0))
+        self.f = self.uConstant((0, 0))
 
         # Set viscosity (Re = 8)
         self.nu = 1.0 / 8.0
@@ -48,24 +48,25 @@ class Problem(ProblemBase):
 
     def initial_conditions(self, V, Q):
 
-        u0 = Constant((0, 0))
-        p0 = Expression("1 - x[0]")
+        u0 = self.uConstant((0, 0))
+        p0 = [Expression("1 - x[0]")]
 
-        return u0, p0
+        return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
 
         # Create no-slip boundary condition for velocity
-        bv = DirichletBC(V, Constant((0.0, 0.0)), NoslipBoundary())
+        g_noslip = self.uConstant((0, 0))
+        bv = [DirichletBC(V, g, NoslipBoundary()) for g in g_noslip]
 
         # Create boundary conditions for pressure
-        bp0 = DirichletBC(Q, self.pressure_bc(Q), InflowBoundary())
-        bp1 = DirichletBC(Q, self.pressure_bc(Q),  OutflowBoundary())
+        bp0 = [DirichletBC(Q, self.pressure_bc(Q), InflowBoundary())]
+        bp1 = [DirichletBC(Q, self.pressure_bc(Q), OutflowBoundary())]
 
-        bcu   = [bv]
-        bcp   = [bp0, bp1]
+        bcu   = zip(bv)
+        bcp   = zip(bp0, bp1)
 
-        return bcu, bcp
+        return bcu + bcp
 
     def pressure_bc(self, Q):
         element = FiniteElement("CG", triangle, 1)
@@ -75,8 +76,10 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0
         else:
+            if self.options['segregated']:
+                u = u[0]
             x = array((1.0, 0.5))
-            values = array((0.0 , 0.0))
+            values = array((0.0, 0.0))
             u.eval(values, x)
             return values[0]
 

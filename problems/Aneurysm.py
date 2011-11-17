@@ -62,10 +62,7 @@ class Problem(ProblemBase):
         self.mesh = Mesh("data/Aneurysm.xml.gz")
 
         # The body force term
-        if self.options['segregated']:
-            self.f = [Constant(0)] * 3
-        else:
-            self.f = Constant((0, 0, 0))
+        self.f = self.uConstant((0, 0, 0))
 
         # Set viscosity
         self.nu = 0.00345
@@ -75,37 +72,25 @@ class Problem(ProblemBase):
         self.First = True
 
     def initial_conditions(self, V, Q):
-        if self.options['segregated']:
-            return [Constant(0)] * 4
-        else:
-            return Constant((0, 0, 0)), Constant(0)
+        return self.uConstant((0, 0, 0)) + [Constant(0)]
 
     def boundary_conditions(self, V, Q, t):
+        # Create no-slip boundary condition for velocity
+        self.g_noslip = self.uConstant((0, 0, 0))
+        bc_noslip = [DirichletBC(V, g, 0) for g in self.g_noslip]
+
+        # Create inflow boundary condition for velocity
         if self.options['segregated']:
-	    # Create no-slip boundary condition for velocity
-	    self.g_noslip = Constant(0)
-            bc_noslip = [DirichletBC(V, self.g_noslip, 0) for d in range(3)]
-
-	     # Create inflow boundary condition for velocity
             self.g_inflow = [InflowComp(V, self, d) for d in range(3)]
-            bc_inflow = [DirichletBC(V, g, 1) for g in self.g_inflow]
-
-            bc_u = zip(bc_noslip, bc_inflow)
-
         else:
-	    # Create no-slip boundary condition for velocity
-	    self.g_noslip = Constant((0, 0, 0))
-	    bc_noslip = DirichletBC(V, self.g_noslip, 0)
-
-	     # Create inflow boundary condition for velocity
-	    self.g_inflow = InflowVec(V, self)
-	    bc_inflow = DirichletBC(V, self.g_inflow, 1)
-
-            bc_u = [(bc_noslip, bc_inflow)]
+            self.g_inflow = [InflowVec(V, self)]
+        bc_inflow = [DirichletBC(V, g, 1) for g in self.g_inflow]
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
         bc_outflow = [DirichletBC(Q, self.g_outflow, subd) for subd in (2,3)]
+
+        bc_u = zip(bc_inflow)
         bc_p = [bc_outflow]
 
         return bc_u + bc_p
@@ -120,13 +105,7 @@ class Problem(ProblemBase):
          if t < self.T:
              return 0.0
 
-         return 0.0
-
-         x = (0.025, -0.006, 0.0)
-         if self.options['segregated']:
-             return u[0](x)
-         else:
-             return u(x)[0]
+         return self.uEval(u, 0, (0.025, -0.006, 0.0))
 
     def reference(self, t):
         """The reference value was computed using on a fine mesh

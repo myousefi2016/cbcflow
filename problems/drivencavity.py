@@ -6,16 +6,24 @@ __license__  = "GNU GPL version 3 or any later version"
 from problembase import *
 
 # Boundary value
-class BoundaryValue(Expression):
+def boundaryvalue(x):
+    if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
+        return = [1.0, 0.0]
+    else:
+        return = [0.0, 0.0]
+
+class BoundaryValueVec(Expression):
     def value_shape(self):
         return (2,)
     def eval(self, values, x):
-        if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
-            values[0] = 1.0
-            values[1] = 0.0
-        else:
-            values[0] = 0.0
-            values[1] = 0.0
+        values[:] = boundaryvalue(x)
+
+class BoundaryValueComp(Expression):
+    def __init__(self, component, **kwargs):
+        Expression.__init__(self, **kwargs)
+        self.component = component
+    def eval(self, values, x):
+        values[0] = boundaryvalue(x)[self.component]
 
 # Problem definition
 class Problem(ProblemBase):
@@ -29,7 +37,7 @@ class Problem(ProblemBase):
         self.mesh = UnitSquare(N, N)
 
         # Create right-hand side function
-        self.f = Constant((0, 0))
+        self.f = self.uConstant((0, 0))
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 1000.0
@@ -40,18 +48,21 @@ class Problem(ProblemBase):
 
     def initial_conditions(self, V, Q):
 
-        u0 = Constant((0, 0))
-        p0 = Constant(0)
+        u0 = self.uConstant((0, 0))
+        p0 = self.uConstant(0)
 
-        return u0, p0
+        return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
 
         element = VectorElement("CG", triangle, 1)
-        self.g = BoundaryValue(element=element)
-        bc = DirichletBC(V, self.g, DomainBoundary())
+        if self.options['segregated']:
+            self.g = [BoundaryValueComp(d, element=element) for d in range(2)]
+        else:
+            self.g = [BoundaryValueVec(element=element)]
+        bc = [DirichletBC(V, g, DomainBoundary()) for g in self.g]
 
-        return [bc], []
+        return zip(bc) + zip([])
 
     def functional(self, t, u, p):
 
@@ -59,7 +70,7 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0
         else:
-        # Compute stream function and report minimum
+            # Compute stream function and report minimum
             psi = StreamFunction(u)
             vals  = psi.vector().array()
             vmin = vals.min()
@@ -82,13 +93,17 @@ class Problem(ProblemBase):
 def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
+    # Fetch a scalar function (sub-)space
+    V = u.function_space()
+    if V.num_sub_spaces() > 0:
+        V = V.sub(0).collapse()
+
     # Check dimension
-    mesh = u.function_space().mesh()
+    mesh = V.mesh()
     if not mesh.topology().dim() == 2:
         error("Stream-function can only be computed in 2D.")
 
     # Define variational problem
-    V   = u.function_space().sub(0).collapse()
     q   = TestFunction(V)
     psi = TrialFunction(V)
     a   = dot(grad(q), grad(psi))*dx

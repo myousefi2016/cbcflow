@@ -53,7 +53,7 @@ class Problem(ProblemBase):
 
 
         # Create right-hand side function
-        self.f =  Constant((0, 0))
+        self.f = self.uConstant((0,0))
 
         # Set viscosity (Re = 1000)
         self.nu = 1.0 / 1000.0
@@ -65,38 +65,38 @@ class Problem(ProblemBase):
         self.T  = 8.0
 
     def initial_conditions(self, V, Q):
+        u0 = self.uConstant((0,0))
+        p0 = self.uConstant(0)
 
-        u0 = Constant((0, 0))
-        p0 = Constant(0)
-
-        return u0, p0
+        return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
 
         # Create inflow boundary condition
-        self.g0 = Expression(('4*Um*(x[1]*(ymax-x[1]))*sin(pi*t/8.0)/(ymax*ymax)', '0.0'),
+        b0 = InflowBoundary()
+        self.g0 = self.uExpr(('4*Um*(x[1]*(ymax-x[1]))*sin(pi*t/8.0)/(ymax*ymax)', '0.0'),
                              Um=1.5, ymax=ymax, t=t)
-        self.b0 = InflowBoundary()
-        bc0 = DirichletBC(V, self.g0, self.b0)
+        bc0 = [DirichletBC(V, g0, b0) for g0 in self.g0]
 
         # Create no-slip boundary condition
-        self.b1 = NoslipBoundary()
-        self.g1 = Constant((0, 0))
-        bc1     = DirichletBC(V, self.g1, self.b1)
+        b1 = NoslipBoundary()
+        self.g1 = self.uConstant((0, 0))
+        bc1     = [DirichletBC(v, g1, b1) for g1 in self.g1]
 
         # Create outflow boundary condition for pressure
-        self.b2 = OutflowBoundary()
+        b2 = OutflowBoundary()
         self.g2 = Constant(0)
-        bc2     = DirichletBC(Q, self.g2, self.b2)
+        bc2     = [DirichletBC(Q, self.g2, self.b2)]
 
         # Collect boundary conditions
-        bcu = [bc0, bc1]
-        bcp = [bc2]
+        bcu = zip(bc0, bc1)
+        bcp = zip(bc2)
 
-        return bcu, bcp
+        return bcu + bcp
 
     def update(self, t, u, p):
-        self.g0.t = t
+        for g0 in self.g0:
+            g0.t = t
 
     def functional(self, t, u, p):
 
