@@ -61,10 +61,6 @@ class Solver(SolverBase):
         dims = range(len(u0));
         u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
-        if not self.segregated:
-            # To avoid indexing in non-segregated forms
-            u0_ = u0[0]
-            u1_ = u1[0]
 
         p0 = interpolate(p0, Q)
         p1 = interpolate(p0, Q)
@@ -73,6 +69,12 @@ class Solver(SolverBase):
         f  = problem.f
         n  = FacetNormal(mesh)
 
+        if not self.segregated:
+            # To avoid indexing in non-segregated forms
+            u0_ = u0[0]
+            u1_ = u1[0]
+            f_  = f[0]
+
         # Tentative velocity step
         M  = assemble(inner(v, u) * dx)
         K1 = assemble((1/k) * inner(v, u) * dx)
@@ -80,8 +82,8 @@ class Solver(SolverBase):
             Dx = [assemble(-v * u.dx(r) * dx) for r in dims]
             sum_u0_Du0 = u0[0].vector().copy()
         if self.segregated:
-            K2 = assemble(inner(epsilon(v), nu*epsilon(u)) * dx
-                          + 0.5 * nu * inner(grad(v), grad(u)) * dx)
+            K2 = assemble(0.5 * inner(grad(v), nu*grad(u)) * dx
+                          - 0.5 * beta * nu * inner(dot(grad(u), n), v) * ds)
             A_u_tent = []
             rhs_u_tent = []
             for d in dims:
@@ -112,7 +114,7 @@ class Solver(SolverBase):
             rhs += K1, u0_
             rhs -= K2, u0_
             rhs += K3, p0
-            rhs += M, f
+            rhs += M, f_
             rhs += -inner(v, grad(u0_)*u0_) * dx
 
             A_u_tent, rhs_u_tent = [A], [rhs]

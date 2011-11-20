@@ -8,9 +8,9 @@ from problembase import *
 # Boundary value
 def boundaryvalue(x):
     if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
-        return = [1.0, 0.0]
+        return [1.0, 0.0]
     else:
-        return = [0.0, 0.0]
+        return [0.0, 0.0]
 
 class BoundaryValueVec(Expression):
     def value_shape(self):
@@ -55,14 +55,15 @@ class Problem(ProblemBase):
 
     def boundary_conditions(self, V, Q, t):
 
-        element = VectorElement("CG", triangle, 1)
         if self.options['segregated']:
+            element = FiniteElement("CG", triangle, 1)
             self.g = [BoundaryValueComp(d, element=element) for d in range(2)]
         else:
+            element = VectorElement("CG", triangle, 1)
             self.g = [BoundaryValueVec(element=element)]
         bc = [DirichletBC(V, g, DomainBoundary()) for g in self.g]
 
-        return zip(bc) + zip([])
+        return zip(bc) + [()]
 
     def functional(self, t, u, p):
 
@@ -94,9 +95,11 @@ def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
     # Fetch a scalar function (sub-)space
-    V = u.function_space()
-    if V.num_sub_spaces() > 0:
+    try:
+        V = u.function_space()
         V = V.sub(0).collapse()
+    except AttributeError:
+        V = u[0].function_space()
 
     # Check dimension
     mesh = V.mesh()

@@ -77,8 +77,10 @@ class Solver(SolverBase):
                 u_diff = (u - u0[d])
                 F_u_tent += [(1/k) * inner(v, u_diff) * dx
                              + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
-                             + nu * inner(grad(v), grad(u_mean)) * dx
-                             + inner(grad(v), 2*nu*grad(u_mean)) * dx - v.dx(d) * p0 * dx
+                             + inner(grad(v), nu*grad(u_mean)) * dx
+                             #+ inner(grad(v), 2*nu*grad(u_mean)) * dx
+                             - v.dx(d) * p0 * dx
+                             - beta * nu * inner(dot(grad(u_mean),n), v) * ds
                              + inner(v, p0*n[d]) * ds
                              - v * f[d] * dx]
         else:

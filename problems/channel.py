@@ -76,12 +76,7 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0
         else:
-            if self.options['segregated']:
-                u = u[0]
-            x = array((1.0, 0.5))
-            values = array((0.0, 0.0))
-            u.eval(values, x)
-            return values[0]
+            return self.uEval(u, 0, (1.0, 0.5))
 
     def reference(self, t):
         if t < self.T:

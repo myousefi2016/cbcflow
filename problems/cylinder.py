@@ -81,12 +81,12 @@ class Problem(ProblemBase):
         # Create no-slip boundary condition
         b1 = NoslipBoundary()
         self.g1 = self.uConstant((0, 0))
-        bc1     = [DirichletBC(v, g1, b1) for g1 in self.g1]
+        bc1     = [DirichletBC(V, g1, b1) for g1 in self.g1]
 
         # Create outflow boundary condition for pressure
         b2 = OutflowBoundary()
         self.g2 = Constant(0)
-        bc2     = [DirichletBC(Q, self.g2, self.b2)]
+        bc2     = [DirichletBC(Q, self.g2, b2)]
 
         # Collect boundary conditions
         bcu = zip(bc0, bc1)
