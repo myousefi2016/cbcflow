@@ -44,7 +44,7 @@ class Solver(SolverBase):
         p1 = interpolate(p0, Q)
         nu = Constant(problem.nu)
         k  = Constant(dt)
-        f  = problem.f
+        f  = problem.f[0]
 
         # Tentative velocity step
         F1 = (1/k)*inner(v, u - u0)*dx + inner(v, grad(u0)*u0)*dx \

@@ -137,7 +137,7 @@ class ProblemBase:
             return [Constant(values)]
 
     def uExpr(self, expr_strings, **kwargs):
-        if self.options['segregated']:
+        if self.options['segregated'] and isinstance(expr_strings, (tuple, list)):
             return [Expression(e, **kwargs) for e in expr_strings]
         else:
             return [Expression(expr_strings, **kwargs)]

@@ -66,7 +66,7 @@ class Problem(ProblemBase):
         bc0 = [DirichletBC(V, expr, DomainBoundary()) for expr in self.exact_u]
 
         bcu   = zip(bc0)
-        bcp   = zip([])
+        bcp   = [()]
 
         return bcu + bcp
 
@@ -80,10 +80,12 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0.0
         else:
+            if not self.options['segregated']:
+                u = [u]
             error = 0
             for exact_u, calc_u in zip(self.exact_u, u):
-                error += errornorm(exact_u, calc_u) / norm(exact_u, mesh=self.mesh)
-            return error
+                error += sqr(errornorm(exact_u, calc_u) / norm(exact_u, mesh=self.mesh))
+            return sqrt(error/len(u))
 
     def reference(self, t):
         return 0.0

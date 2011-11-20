@@ -151,7 +151,7 @@ class Solver(SolverBase):
                 self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
 
             # Update
-            self.update(problem, t, self._desegregate(u1), p1)
+            self.update(problem, t, u1, p1)
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
 

@@ -67,6 +67,8 @@ class SolverBase:
     def update(self, problem, t, u, p):
         "Update problem at time t"
 
+        u = self._desegregate(u)
+
         # Add to accumulated CPU time
         timestep_cputime = time() - self._time
         self._cputime += timestep_cputime
@@ -176,7 +178,7 @@ class SolverBase:
     def _desegregate(self, u):
         """Used to interface with external functions which may expect a single
         function. This is of course only possible if u IS a single function."""
-        if self.options['segregated']:
+        if self.options['segregated'] or not isinstance(u, (list, tuple)):
             return u
         else:
             return u[0]
