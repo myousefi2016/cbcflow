@@ -9,6 +9,7 @@ class Solver(SolverBase):
     "Original pressure-correction scheme by Chorin and Temam."
 
     def __init__(self, options):
+        assert not options['segregated']
         SolverBase.__init__(self, options)
 
     def solve(self, problem):

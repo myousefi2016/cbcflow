@@ -12,6 +12,7 @@ class Solver(SolverBase):
     "Consistent splitting scheme by Guermond and Shen."
 
     def __init__(self, options, order=2):
+        assert not options['segregated']
         SolverBase.__init__(self, options)
         self.order = order
 
@@ -52,7 +53,7 @@ class Solver(SolverBase):
         nu  = Constant(problem.nu)
         k   = Constant(dt)
         n   = FacetNormal(mesh)
-        f   = problem.f
+        f   = problem.f[0]
         psi = Function(Q)
 
         # Tentative pressure

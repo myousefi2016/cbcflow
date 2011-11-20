@@ -36,6 +36,7 @@ class Solver(SolverBase):
     "G2 (stabilized cG(1)cG(1)) by Hoffman and Johnson."
 
     def __init__(self, options):
+        assert not options['segregated']
         SolverBase.__init__(self, options)
 
     def solve(self, problem):
@@ -81,7 +82,7 @@ class Solver(SolverBase):
         W  = Function(DGv)
         nu = Constant(problem.nu)
         k  = Constant(dt)
-        f  = problem.f
+        f  = problem.f[0]
         n  = FacetNormal(mesh)
 
         # Stabilization parameters

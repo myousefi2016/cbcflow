@@ -12,6 +12,7 @@ class Solver(SolverBase):
     "cG(2/1)cG(1) with generalized Richardson iteration on the Schur complement."
 
     def __init__(self, options):
+        assert not options['segregated']
         SolverBase.__init__(self, options)
 
     def solve(self, problem):
@@ -80,7 +81,7 @@ class Solver(SolverBase):
         p01 = interpolate(p0, Q)
         k   = Constant(dt)
         n   = shape.n
-        f   = problem.f
+        f   = problem.f[0]
         nu  = problem.nu
 
         # FIXME: Compute residuals more efficiently by matrix-vector multiplication
