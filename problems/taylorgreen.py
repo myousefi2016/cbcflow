@@ -39,7 +39,7 @@ class Problem(ProblemBase):
         self.mesh.coordinates()[:, :] = self.scale
 
         # The body force term
-        self.f = Constant((0, 0))
+        self.f = self.uConstant((0, 0))
 
         # Set viscosity
 #        self.nu = 1.0 / 10.0 # A higher viscosity is used for the hk-refinement test to create a more time dependent solution.
@@ -58,10 +58,10 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
 
         # Use analytical solutions at t = 0 as initial values
-        self.exact_u = Expression(self.analytical_u, nu=self.nu, t=0.0, degree=3)
-        self.exact_p = Expression(self.analytical_p, nu=self.nu, t=0.0, degree=3)
+        self.exact_u = self.uExpr(self.analytical_u, nu=self.nu, t=0.0, degree=3)
+        self.exact_p = self.uExpr(self.analytical_p, nu=self.nu, t=0.0, degree=3)
 
-        return self.exact_u, self.exact_p
+        return self.exact_u + self.exact_p
 
     def boundary_conditions(self, V, Q, t):
 
@@ -72,19 +72,20 @@ class Problem(ProblemBase):
         # Periodic boundary conditions for velocity
         bux = PeriodicBC(V, px)
         buy = PeriodicBC(V, py)
-        bcu = [bux, buy]
+        bcu = [(bux, buy)]
+        if self.options['segregated']:
+            bcu *= 2
 
         # Periodic boundary conditions for pressure
         bpx = PeriodicBC(Q, px)
         bpy = PeriodicBC(Q, py)
-        bcp = [bpx, bpy]
+        bcp = [(bpx, bpy)]
 
-        return bcu, bcp
+        return bcu + bcp
 
     def update(self, t, u, p):
-        self.exact_u.t = t
-        self.exact_p.t = t
-        pass
+        for expr in self.exact_u + self.exact_p:
+            expr.t = t
 
 # Logg: One option is to subtract the reference from the functional and return 0 in the reference.
 
@@ -92,14 +93,22 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0
         else:
-            return 0.5*norm(u)**2
+            if not self.options['segregated']:
+                u = [u]
+            val = 0
+            for expr in u:
+                val += 0.5*sqr(norm(expr, mesh=self.mesh))
+            return val
 
     def reference(self, t):
         if t < self.T:
             return 0
         else:
-            self.exact_u.t = t
-            return 0.5*norm(self.exact_u,  mesh=self.mesh)**2
+            val = 0
+            for expr in self.exact_u:
+                expr.t = t
+                val += 0.5*sqr(norm(expr, mesh=self.mesh))
+            return val
 
     def __str__(self):
         return "Taylor-Green"

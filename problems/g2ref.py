@@ -54,6 +54,18 @@ class InflowBoundaryTopBottomBoundaryValue(Expression):
                 values[1] = 0.0
                 values[2] = 0.0
 
+def InflowBoundaryTopBottomBoundaryValueComponent(component):
+    if component > 0:
+        return Constant(0)
+    else:
+        class c(Expression):
+            def eval(self, values, x):
+                if x[0] < bmarg:
+                    values[0] = 1.0
+                else:
+                    values[0] = 0.0
+        return c()
+
 # Problem definition
 class Problem(ProblemBase):
     "Unicorn test problem unicorn-0.1.0/ucsolver/icns/bench2D3D."
@@ -74,41 +86,50 @@ class Problem(ProblemBase):
         self.T = 10*0.021650635094
 
         # Create right-hand side function
-        self.f =  Constant((0, 0, 0))
+        self.f =  self.uConstant((0, 0, 0))
 
     def initial_conditions(self, V, Q):
 
-        u0 = Constant((0, 0, 0))
-        p0 = Constant(0)
+        u0 = self.uConstant((0, 0, 0))
+        p0 = [Constant(0)]
 
-        return u0, p0
+        return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
 
         # Create inflow boundary condition for velocity
-        self.b0 = InflowBoundaryTopBottomBoundaryValue()
-        bc0 = DirichletBC(V, self.b0, InflowBoundaryTopBottomBoundary())
+        if self.options['segregated']:
+            b0 = [InflowBoundaryTopBottomBoundaryValueComponent(d) for d in range(3)]
+            bc0 = [DirichletBC(V, b, InflowBoundaryTopBottomBoundary()) for b in b0]
+        else:
+            b0 = InflowBoundaryTopBottomBoundaryValue()
+            bc0 = [DirichletBC(V, b0, InflowBoundaryTopBottomBoundary())]
 
         # Create no-slip boundary condition
-        self.b1 = CylinderBoundary()
-        self.g1 = Constant((0, 0, 0))
-        bc1 = DirichletBC(V, self.g1, self.b1)
+        b1 = CylinderBoundary()
+        g1 = self.uConstant((0, 0, 0))
+        bc1 = [DirichletBC(V, g, b1) for g in g1]
 
         # Create outflow boundary condition for pressure
-        self.b2 = OutflowBoundary()
-        self.g2 = Constant(0)
-        bc2 = DirichletBC(Q, self.g2, self.b2)
+        b2 = OutflowBoundary()
+        g2 = Constant(0)
+        bc2 = [DirichletBC(Q, g2, b2)]
 
         # Collect boundary conditions
-        bcu = [bc0, bc1]
-        bcp = [bc2]
+        bcu = zip(bc0, bc1)
+        bcp = zip(bc2)
 
-        return bcu, bcp
+        return bcu + bcp
 
     def functional(self, t, u, p):
         "Return value of functional of interest"
         if t > self.T - DOLFIN_EPS:
-            return norm(u.vector()) + norm(p.vector())
+            if not self.options['segregated']:
+                u = [u]
+            val = 0
+            for uc in u:
+                val += sqr(norm(uc.vector()))
+            return sqrt(val) + norm(p.vector())
         return 0.0
 
     def reference(self, t):
