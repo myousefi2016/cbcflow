@@ -49,6 +49,8 @@ class Problem(ProblemBase):
 
         # Set viscosity
         self.nu = 3.5 / 1.025e6
+
+        # Characteristic velocity in the domain (used to determine timestep)
         self.U = 2.5
 
         # Set end-time

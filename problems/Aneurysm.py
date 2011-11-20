@@ -67,6 +67,9 @@ class Problem(ProblemBase):
         # Set viscosity
         self.nu = 0.00345
 
+        # Characteristic velocity in the domain (used to determine timestep)
+        self.U = 500
+
         # Set end-time
         self.T = 0.05
         self.First = True
@@ -91,7 +94,7 @@ class Problem(ProblemBase):
         bc_outflow = [DirichletBC(Q, self.g_outflow, subd) for subd in (2,3)]
 
         bc_u = zip(bc_inflow)
-        bc_p = [bc_outflow]
+        bc_p = zip(bc_outflow)
 
         return bc_u + bc_p
 

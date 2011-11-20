@@ -160,4 +160,7 @@ class Solver(SolverBase):
         return self._desegregate(u1), p1
 
     def __str__(self):
-        return "IPCS"
+        if self.options['segregated']:
+            return "IPCS_seg"
+        else:
+            return "IPCS"
