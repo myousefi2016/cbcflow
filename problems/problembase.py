@@ -17,22 +17,6 @@ class ProblemBase:
         # Store options
         self.options = options
 
-        # Parameters must be defined by subclass
-        self.mesh = None
-        self.f    = None
-        self.bcu  = []
-        self.bcp  = []
-        self.nu   = None
-        self.t    = 0
-        self.T    = None
-        self.dt   = None
-        self.u0   = None
-        self.p0   = None
-        self.u    = None
-        self.p    = None
-        self.U    = 1.0
-        self.output_location = ''
-
         # FIXME: Temporary while testing
         self.bcpsi = []
 
@@ -94,7 +78,7 @@ class ProblemBase:
                 print 'Using problem.dt and time step refinements'
 
             # Use time step specified in problem if available
-            elif not problem.dt is None:
+            elif hasattr(problem, 'dt'):
                 dt = problem.dt
                 print dt
                 n  = int(T / dt)
@@ -113,7 +97,7 @@ class ProblemBase:
                 dt =  0.2*(h / U)
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Computing time step accoring to stability criteria'
+                print 'Computing time step according to stability criteria'
 
         # Compute range
         t_range = linspace(0,T,n+1)[1:] # FIXME: Comment out [1:] to run g2ref g2ref

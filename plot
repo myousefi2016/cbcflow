@@ -9,19 +9,28 @@ __license__  = "GNU GPL version 3 or any later version"
 # Last changed: 2010-05-20
 
 from pylab import *
+import sys
 
 # Results file
 filename = "results/results.log"
 
 # Tags for solvers
-tags = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
+def tags(solver):
+    t = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
+    if solver in t:
+        return t[solver]
+    print 'Unknown solver "%s"'%solver
+    return 'm-o'
 
 # Extract data from file
 data = {}
-for line in [line for line in open(filename, "r").read().split("\n") if "," in line]:
+for lno, line in enumerate(line for line in open(filename, "r").read().split("\n") if "," in line):
 
     # Extract data
     date, problem, solver, num_dof, cputime, wct,func, dt_ref, error = line.split(",")
+    if float(error) == 0:
+        print "Ignoring "+filename+":"+str(lno+1)+" -- error not recorded"
+        continue
     problem = problem.strip()
     solver = solver.strip()
 
@@ -36,7 +45,11 @@ for line in [line for line in open(filename, "r").read().split("\n") if "," in l
     data[problem][solver][3].append(float(func))
 
 # Plot data
-for (i, problem) in []: #enumerate(data):
+for (i, problem) in enumerate(data):
+
+    # If problem names are given on the command line, show only those
+    if len(sys.argv) > 1 and problem not in sys.argv[1:]:
+        continue
 
     # Create new plot window
     figure(i)
@@ -48,7 +61,7 @@ for (i, problem) in []: #enumerate(data):
        	num_dofs, cputimes, errors, funcs = data[problem][solver]
 
         # Set tag
-        tag = tags[solver]
+        tag = tags(solver)
 
         # Plot
         if problem[0:5] == 'Cylin':
@@ -59,12 +72,13 @@ for (i, problem) in []: #enumerate(data):
 
             subplot(212)
             subplot(223)
-            plot(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
-            ylabel("Functional", fontsize=15, color='black')
+            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            ylabel("Errors", fontsize=15, color='black')
             grid(True)
+            xlabel("Degrees of freedom", fontsize=15, color='black')
 
             subplot(224)
-            plot(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
+            semilogx(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
             ylabel("Functional", fontsize=15, color='black')
             grid(True)
 
@@ -90,7 +104,7 @@ for (i, problem) in []: #enumerate(data):
             ylabel("Errors", fontsize=15, color='black')
             grid(True)
 
-            xlabel("Degrees of freedom", fontsize=15, color='black')
+    xlabel("Degrees of freedom", fontsize=15, color='black')
 
     # Set title and legend
     subplot(211)
@@ -104,8 +118,8 @@ for problem in data:
 
     # Get maximum for scaling
     max_num_levels = max([len(data[problem][s][0]) for s in data[problem]])
-    error_scale = [0.0 for i in range(max_num_levels)]
-    cputime_scale = [0.0 for i in range(max_num_levels)]
+    error_scale = [0 for i in range(max_num_levels)]
+    cputime_scale = [0 for i in range(max_num_levels)]
     num_entries = [0 for i in range(max_num_levels)]
     for solver in data[problem]:
         num_dofs, cputimes, errors, funcs = data[problem][solver]
@@ -126,14 +140,14 @@ for problem in data:
         points[solver][1] += [log(errors[i] / num_dofs[i] / error_scale[i]) for i in range(num_levels)]
 
 # Create scatter plot of CPU time vs error
-figure(6)
+figure(len(data))
 hold(True)
 grid(True)
 xlabel("Scaled CPU time")
 ylabel("Scaled error")
 for solver in points:
-    c = tags[solver][0]
-    scatter(points[solver][0], points[solver][1], c=c, s=500.0, alpha=0.75)
+    c = tags(solver)[0]
+    scatter(points[solver][0], points[solver][1], c=c, s=150.0, alpha=0.75)
 title("Solver performance", fontsize=15, color='black')
 legend([solver for solver in points], loc=3)
 

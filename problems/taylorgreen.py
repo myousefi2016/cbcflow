@@ -51,6 +51,9 @@ class Problem(ProblemBase):
         # The time step may be fixed by setting self.dt=0.5 (Used to run hk-refinement)
 #        self.dt = 0.5
 
+        # Characteristic velocity in the domain (used to determine timestep if dt is not set)
+        self.U = 1.0
+
         self.analytical_u = ('-(cos(pi*(x[0]))*sin(pi*(x[1]))) * exp(-2.0*nu*pi*pi*t)',
                              ' (cos(pi*(x[1]))*sin(pi*(x[0]))) * exp(-2.0*nu*pi*pi*t)')
         self.analytical_p = '-0.25*(cos(2*pi*(x[0])) + cos(2*pi*(x[1]))) * exp(-4.0*nu*pi*pi*t)'

@@ -34,6 +34,9 @@ class Problem(ProblemBase):
         # Set the kinematic viscosity (nu = eta/rho)
         self.nu = 1.0
 
+        # Characteristic velocity in the domain (used to determine timestep)
+        self.U = 1.0
+
         # Set final time
         self.T = 0.5
 
