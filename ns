@@ -103,7 +103,6 @@ def main(args):
             print "Warning: Unhandled command-line argument", arg
 
     # Set global DOLFIN parameters
-    parameters["optimize"] = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
     parameters["krylov_solver"]["relative_tolerance"] = options["krylov_solver_relative_tolerance"]
