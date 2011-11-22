@@ -59,10 +59,10 @@ class ProblemBase:
 
         # FIXME: This looks very complex, should be cleaned up
 
-        T = problem.T
-        U = problem.U
-        nu =problem.nu
-        h  = self.mesh.hmin()
+        T  = problem.T
+        U  = problem.U
+        nu = problem.nu
+        h  = MPI.min(self.mesh.hmin())
         "Return time step and number of time steps for problem. Used for debugging / compilation only"
         if self.options["max_steps"] is not None:
             dt =  0.25*h**2 / (U*(nu + h*U))

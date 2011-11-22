@@ -55,7 +55,6 @@ class Problem(ProblemBase):
 
         # Set end-time
         self.T = 0.05
-        self.First = True
 
     def initial_conditions(self, V, Q):
         if self.options['segregated']:

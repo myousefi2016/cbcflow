@@ -16,7 +16,17 @@ filename = "results/results.log"
 
 # Tags for solvers
 def tags(solver):
-    t = {"Chorin": 'r-v', "CSS1": 'y-^', "CSS2": 'g-D', "IPCS": 'c-o', "GRPC": 'k-s', "G2": 'b-p'}
+    t = {"Chorin": 'r-v',
+         "CSS1"  : 'y-^',
+         "CSS2"  : 'g-D',
+         "GRPC"  : 'k-s',
+         "G2"    : 'b-p',
+         "IPCS"         : 'c-o',
+         "IPCS_p1p1"    : 'r-^',
+         "IPCS_p1p1_seg": 'y-D',
+         "IPCS_opt"     : 'g-s',
+         "IPCS_opt_seg" : 'k-p',
+         }
     if solver in t:
         return t[solver]
     print 'Unknown solver "%s"'%solver
@@ -34,6 +44,10 @@ for lno, line in enumerate(line for line in open(filename, "r").read().split("\n
     problem = problem.strip()
     solver = solver.strip()
 
+    # If problem names are given on the command line, show only those
+    if len(sys.argv) > 1 and problem not in sys.argv[1:]:
+        continue
+
     # Save data
     if not problem in data:
         data[problem] = {}
@@ -45,20 +59,17 @@ for lno, line in enumerate(line for line in open(filename, "r").read().split("\n
     data[problem][solver][3].append(float(func))
 
 # Plot data
-for (i, problem) in enumerate(data):
-
-    # If problem names are given on the command line, show only those
-    if len(sys.argv) > 1 and problem not in sys.argv[1:]:
-        continue
+plot_kwargs = dict(linewidth=2, ms=10, alpha=1.0)
+for i, (problem, problem_data) in enumerate(data.items()):
 
     # Create new plot window
     figure(i)
 
     # Plot results for each solver
-    for solver in data[problem]:
+    for solver, solver_data in problem_data.items():
 
         # Get data
-       	num_dofs, cputimes, errors, funcs = data[problem][solver]
+       	num_dofs, cputimes, errors, funcs = solver_data
 
         # Set tag
         tag = tags(solver)
@@ -66,41 +77,41 @@ for (i, problem) in enumerate(data):
         # Plot
         if problem[0:5] == 'Cylin':
             subplot(211)
-            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, cputimes, tag, **plot_kwargs)
             ylabel("CPU time", fontsize=15, color='black')
             grid(True)
 
             subplot(212)
             subplot(223)
-            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, errors, tag, **plot_kwargs)
             ylabel("Errors", fontsize=15, color='black')
             grid(True)
             xlabel("Degrees of freedom", fontsize=15, color='black')
 
             subplot(224)
-            semilogx(num_dofs, funcs, tag, linewidth=3, ms=10, alpha=1.0)
+            semilogx(num_dofs, funcs, tag, **plot_kwargs)
             ylabel("Functional", fontsize=15, color='black')
             grid(True)
 
         elif problem[0:5] == 'Aneur':
             subplot(211)
-            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, cputimes, tag, **plot_kwargs)
             ylabel("CPU time", fontsize=15, color='black')
             grid(True)
 
             subplot(212)
-            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, errors, tag, **plot_kwargs)
             ylabel("Functional", fontsize=15, color='black')
             grid(True)
 
         else:
             subplot(211)
-            loglog(num_dofs, cputimes, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, cputimes, tag, **plot_kwargs)
             ylabel("CPU time", fontsize=15, color='black')
             grid(True)
 
             subplot(212)
-            loglog(num_dofs, errors, tag, linewidth=3, ms=10, alpha=1.0)
+            loglog(num_dofs, errors, tag, **plot_kwargs)
             ylabel("Errors", fontsize=15, color='black')
             grid(True)
 
@@ -109,35 +120,28 @@ for (i, problem) in enumerate(data):
     # Set title and legend
     subplot(211)
     title(problem, fontsize=15, color='black')
-    legend(data[problem], loc=2)
+    legend(problem_data, loc=2)
 
 # Extract scatter plot data for CPU time vs error
 points = {}
-#data = {"Channel": data["Channel"]}
-for problem in data:
-
-    # Get maximum for scaling
-    max_num_levels = max([len(data[problem][s][0]) for s in data[problem]])
-    error_scale = [0 for i in range(max_num_levels)]
-    cputime_scale = [0 for i in range(max_num_levels)]
-    num_entries = [0 for i in range(max_num_levels)]
-    for solver in data[problem]:
-        num_dofs, cputimes, errors, funcs = data[problem][solver]
-        for i in range(len(num_dofs)):
-            error_scale[i] += errors[i] / num_dofs[i]
-            cputime_scale[i] += cputimes[i] / num_dofs[i]
-            num_entries[i] += 1
-    error_scale = [error_scale[i] / num_entries[i] for i in range(max_num_levels)]
-    cputime_scale = [cputime_scale[i] / num_entries[i] for i in range(max_num_levels)]
+for problem, problem_data in data.items():
+    mean_cputime_smallest_mesh = 1
+    mean_error_smallest_mesh   = 1
+    for solver, solver_data in problem_data.items():
+        num_dofs, cputimes, errors, funcs = solver_data
+        mean_cputime_smallest_mesh *= cputimes[0]
+        mean_error_smallest_mesh   *= errors[0]
+    mean_cputime_smallest_mesh **= 1.0/len(problem_data)
+    mean_error_smallest_mesh   **= 1.0/len(problem_data)
 
     # Get scaled values
-    for solver in data[problem]:
-        num_dofs, cputimes, errors, funcs = data[problem][solver]
+    for solver, solver_data in problem_data.items():
+        num_dofs, cputimes, errors, funcs = solver_data
         num_levels = len(num_dofs)
         if not solver in points:
             points[solver] = [[], []]
-        points[solver][0] += [log(cputimes[i] / num_dofs[i] / cputime_scale[i]) for i in range(num_levels)]
-        points[solver][1] += [log(errors[i] / num_dofs[i] / error_scale[i]) for i in range(num_levels)]
+        points[solver][0] += [(cputimes[i]/mean_cputime_smallest_mesh) for i in range(num_levels)] + [None]
+        points[solver][1] += [(errors[i]/mean_error_smallest_mesh)     for i in range(num_levels)] + [None]
 
 # Create scatter plot of CPU time vs error
 figure(len(data))
@@ -146,9 +150,11 @@ grid(True)
 xlabel("Scaled CPU time")
 ylabel("Scaled error")
 for solver in points:
-    c = tags(solver)[0]
-    scatter(points[solver][0], points[solver][1], c=c, s=150.0, alpha=0.75)
-title("Solver performance", fontsize=15, color='black')
-legend([solver for solver in points], loc=3)
+    tag = tags(solver)
+    #c = tags(solver)[0]
+    #scatter(points[solver][0], points[solver][1], c=c, s=150, alpha=0.75)
+    loglog(points[solver][0], points[solver][1], tag, **plot_kwargs)
+title("Solver performance (scaled by a per-problem constant)", fontsize=15, color='black')
+legend([solver for solver in points], loc=1)
 
 show()

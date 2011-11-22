@@ -10,10 +10,6 @@ __license__  = "GNU GPL version 3 or any later version"
 from solverbase import *
 from rhsgenerator import *
 
-#parameters["linear_algebra_backend"] = "Epetra"
-#parameters["form_compiler"]["representation"] = "quadrature"
-#parameters["form_compiler"]["quadrature_degree"] = 1
-
 class Solver(SolverBase):
     "Incremental pressure-correction scheme."
 
@@ -34,9 +30,9 @@ class Solver(SolverBase):
 
         # Define function spaces
         if self.segregated:
-            V = FunctionSpace(mesh, "CG", self.options['u_order'])
+            V = FunctionSpace(mesh, "CG", 1)
         else:
-            V = VectorFunctionSpace(mesh, "CG", self.options['u_order'])
+            V = VectorFunctionSpace(mesh, "CG", 1)
         Q = FunctionSpace(mesh, "CG", 1)
 
         # Get initial and boundary conditions
@@ -78,38 +74,31 @@ class Solver(SolverBase):
         # Tentative velocity step
         M  = assemble(inner(v, u) * dx)
         K1 = assemble((1/k) * inner(v, u) * dx)
-        if self.segregated == 'hack':
-            Dx = [assemble(-v * u.dx(r) * dx) for r in dims]
-            sum_u0_Du0 = u0[0].vector().copy()
         if self.segregated:
-            K2 = assemble(0.5 * inner(grad(v), nu*grad(u)) * dx
-                          - 0.5 * beta * nu * inner(dot(grad(u), n), v) * ds)
+            K2 = assemble(0.5 * inner(grad(v), nu*grad(u)) * dx)
+            a_conv = -v * sum(u0[r]*u.dx(r) for r in dims) * dx
+            Kconv = Matrix() # assembled from a_conv in the time loop from
+
             A_u_tent = []
             rhs_u_tent = []
             for d in dims:
-                A = K1.copy()
-                A += K2
+                A_u_tent.append(K1+K2) # Separate matrices, because they may have different BCs
+                K3 = assemble(-v*p*n[d]*ds + v.dx(d)*p*dx)
 
-                K3 = assemble(-inner(v, p*n[d])*ds + v.dx(d)*p*dx)
                 rhs = RhsGenerator(V)
                 rhs += K1, u0[d]
                 rhs -= K2, u0[d]
                 rhs += K3, p0
                 rhs += M, f[d]
-                if self.segregated == 'hack':
-                    rhs += sum_u0_Du0
-                else:
-                    rhs += -v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
+                rhs += Kconv, u0[d]
 
-                A_u_tent.append(A)
                 rhs_u_tent.append(rhs)
         else:
             K2 = assemble(inner(epsilon(v), nu*epsilon(u)) * dx
                           - 0.5 * beta * nu * inner(v, grad(u).T*n) * ds)
-            A = K1.copy()
-            A += K2
+            A = K1+K2
+            K3 = assemble(-inner(v, p*n)*ds + div(v)*p*dx)
 
-            K3 = assemble(-inner(v, p*n)*ds + inner(epsilon(v), p*Identity(u.cell().d)) * dx)
             rhs = RhsGenerator(V)
             rhs += K1, u0_
             rhs -= K2, u0_
@@ -178,12 +167,13 @@ class Solver(SolverBase):
             bcu, bcp = bcs[:-1], bcs[-1]
             self.timer("update & fetch bc")
 
+            # Assemble the u0-dependent convection matrix. It is important that
+            # it is assembled into the same tensor, because it is stored in rhs.
+            if self.segregated:
+                assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
+
             # Compute tentative velocity step
             for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_tent, rhs_u_tent, u1, bcu):
-                if self.segregated == 'hack':
-                    sum_u0_Du0[:] = 0
-                    for r in dims:
-                        sum_u0_Du0 += u0[r].vector() * (Dx[r] * u0[d].vector())
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
                 self.timer("u0 construct rhs")
@@ -216,8 +206,6 @@ class Solver(SolverBase):
 
     def __str__(self):
         name = "IPCS_opt"
-        if self.segregated == "hack":
-            name += "_hack"
-        elif self.segregated:
+        if self.segregated:
             name += "_seg"
         return name

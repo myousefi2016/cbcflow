@@ -13,6 +13,7 @@ class Solver(SolverBase):
     "Incremental pressure-correction scheme."
 
     def __init__(self, options):
+        assert not options['segregated']
         SolverBase.__init__(self, options)
 
     def solve(self, problem):
@@ -27,17 +28,12 @@ class Solver(SolverBase):
         dt, t, t_range = problem.timestep(problem)
 
         # Define function spaces
-        if self.options['segregated']:
-            V = FunctionSpace(mesh, "CG", self.options['u_order'])
-        else:
-            V = VectorFunctionSpace(mesh, "CG", self.options['u_order'])
+        V = VectorFunctionSpace(mesh, "CG", 2)
         Q = FunctionSpace(mesh, "CG", 1)
 
         # Get initial and boundary conditions
-        ics = problem.initial_conditions(V, Q)
-        bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
-        bcu, bcp = bcs[:-1], bcs[-1]
+        u0, p0 = problem.initial_conditions(V, Q)
+        bcu, bcp = problem.boundary_conditions(V, Q, t)
 
         # Remove boundary stress term if problem is periodic
         if is_periodic(bcp):
@@ -52,84 +48,55 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
 
         # Functions
-        dims = range(len(u0))
-        u0 = [interpolate(_u0, V) for _u0 in u0]
-        u1 = [Function(V) for _u0 in u0]
+        u0 = interpolate(u0, V)
+        u1 = Function(V)
 
         p0 = interpolate(p0, Q)
         p1 = interpolate(p0, Q)
         nu = Constant(problem.nu)
         k  = Constant(dt)
-        f  = problem.f
+        f  = problem.f[0]
         n  = FacetNormal(mesh)
 
-        # To avoid indexing in non-segregated forms
-        if not self.options['segregated']:
-            u0_ = u0[0]
-            u1_ = u1[0]
-            f_  = f[0]
-
         # Tentative velocity step
-        if self.options['segregated']:
-            F_u_tent = []
-            for d in dims:
-                u_mean = 0.5 * (u + u0[d])
-                u_diff = (u - u0[d])
-                F_u_tent += [(1/k) * inner(v, u_diff) * dx
-                             + v * sum(u0[r]*u0[d].dx(r) for r in dims) * dx
-                             + inner(grad(v), nu*grad(u_mean)) * dx
-                             #+ inner(grad(v), 2*nu*grad(u_mean)) * dx
-                             - v.dx(d) * p0 * dx
-                             - beta * nu * inner(dot(grad(u_mean),n), v) * ds
-                             + inner(v, p0*n[d]) * ds
-                             - v * f[d] * dx]
-        else:
-            u_mean = 0.5 * (u + u0_)
-            u_diff = (u - u0_)
-            F_u_tent = [(1/k) * inner(v, u_diff) * dx
-                        + inner(v, grad(u0_)*u0_) * dx
-                        + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx
-                        - beta * nu * inner(grad(u_mean).T*n, v) * ds
-                        + inner(v, p0*n) * ds
-                        - inner(v, f_) * dx]
+        u_mean = 0.5 * (u + u0)
+        u_diff = (u - u0)
+        F_u_tent = ((1/k) * inner(v, u_diff) * dx
+                    + inner(v, grad(u0)*u0) * dx
+                    + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx
+                    - beta * nu * inner(grad(u_mean).T*n, v) * ds
+                    + inner(v, p0*n) * ds
+                    - inner(v, f) * dx)
 
-        a_u_tent = [lhs(F) for F in F_u_tent]
-        L_u_tent = [rhs(F) for F in F_u_tent]
+        a_u_tent = lhs(F_u_tent)
+        L_u_tent = rhs(F_u_tent)
 
         # Pressure correction
         a_p_corr = inner(grad(q), grad(p))*dx
-        if self.options['segregated']:
-            L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*sum(u1[r].dx(r) for r in dims)*dx
-        else:
-            L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*div(u1_)*dx
+        L_p_corr = inner(grad(q), grad(p0))*dx - (1/k)*q*div(u1)*dx
 
         # Velocity correction
-        a_u_corr = [inner(v, u)*dx for r in dims]
-        if self.options['segregated']:
-            L_u_corr = [v*u1[r]*dx - k*inner(v, grad(p1-p0)[r])*dx for r in dims]
-        else:
-            L_u_corr = [inner(v, u1_)*dx - k*inner(v, grad(p1-p0))*dx]
+        a_u_corr = inner(v, u)*dx
+        L_u_corr = inner(v, u1)*dx - k*inner(v, grad(p1-p0))*dx
 
         # Assemble matrices
-        A_u_tent = [assemble(a) for a in a_u_tent]
+        A_u_tent = assemble(a_u_tent)
         A_p_corr = assemble(a_p_corr)
-        A_u_corr = [assemble(a) for a in a_u_corr]
+        A_u_corr = assemble(a_u_corr)
 
         # Time loop
         self.start_timing()
         for t in t_range:
             # Get boundary conditions
-            bcs = problem.boundary_conditions(V, Q, t)
-            bcu, bcp = bcs[:-1], bcs[-1]
+            bcu, bcp = problem.boundary_conditions(V, Q, t)
             self.timer("update & fetch bc")
 
             # Compute tentative velocity step
-            for A, L, u1_comp, bcu_comp in zip(A_u_tent, L_u_tent, u1, bcu):
-                b = assemble(L)
-                for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u1 construct rhs")
-                iter = solve(A, u1_comp.vector(), b, *solver_u_tent)
-                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_tent), A.size(0), iter))
+            b = assemble(L_u_tent)
+            for bc in bcu: bc.apply(A_u_tent, b)
+            self.timer("u1 construct rhs")
+            iter = solve(A_u_tent, u1.vector(), b, *solver_u_tent)
+            self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_tent), b.size(), iter))
 
             # Pressure correction
             b = assemble(L_p_corr)
@@ -142,25 +109,21 @@ class Solver(SolverBase):
             self.timer("p construct rhs")
             iter = solve(A_p_corr, p1.vector(), b, *solver_p)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p solve (%s, %d, %d)"%(', '.join(solver_p), A_p_corr.size(0), iter))
+            self.timer("p solve (%s, %d, %d)"%(', '.join(solver_p), b.size(), iter))
 
             # Velocity correction
-            for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1, bcu):
-                b = assemble(L)
-                for bc in bcu_comp: bc.apply(A, b)
-                self.timer("u2 construct rhs")
-                iter = solve(A, u1_comp.vector(), b, *solver_u_corr)
-                self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
+            b = assemble(L_u_corr)
+            for bc in bcu: bc.apply(A_u_corr, b)
+            self.timer("u2 construct rhs")
+            iter = solve(A_u_corr, u1.vector(), b, *solver_u_corr)
+            self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), b.size(),iter))
 
             # Update
             self.update(problem, t, u1, p1)
-            for r in dims: u0[r].assign(u1[r])
+            u0.assign(u1)
             p0.assign(p1)
 
-        return self._desegregate(u1), p1
+        return u1, p1
 
     def __str__(self):
-        if self.options['segregated']:
-            return "IPCS_seg"
-        else:
-            return "IPCS"
+        return "IPCS"

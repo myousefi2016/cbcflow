@@ -71,8 +71,8 @@ class Problem(ProblemBase):
         self.U = 500
 
         # Set end-time
+        self.t = 0.00
         self.T = 0.05
-        self.First = True
 
     def initial_conditions(self, V, Q):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
