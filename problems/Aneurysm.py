@@ -69,11 +69,11 @@ class Problem(ProblemBase):
         self.nu = 3.45
 
         # Characteristic velocity in the domain (used to determine timestep)
-        self.U = InflowData.scale / sqrt(self.nu) # just a guess
+        self.U = InflowData.scale
 
         # Set current and end-time
         self.t = 0.0
-        self.T = 0.05
+        self.T = 0.5
 
     def initial_conditions(self, V, Q):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
