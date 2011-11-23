@@ -2,7 +2,17 @@ from dolfin import *
 from ufl.form import Form
 
 class RhsGenerator(object):
-    """The instructions to create b."""
+    """Class for storing the instructions to create the RHS vector b.
+    The two main purposes of this class are:
+
+    - make it easy to define the LHS and RHS in the same place
+
+    - make it easy to generate RHS from matrix-XXX products, where XXX may be either
+      * a Constant (which can be projected to a vector at once)
+      * an Expression (which must be projected each time, because its parameters may change)
+      * a Function
+      """
+
     def __init__(self, space):
         self.space = space
         self.matvecs = []

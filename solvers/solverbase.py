@@ -64,10 +64,30 @@ class SolverBase:
         s = self.__module__.split(".")[-1].lower()
         return problem.output_location + p + "_" + s
 
+    def desegregate(self, u):
+        if not isinstance(u, (list, tuple)):
+            return u
+
+        V = u[0].function_space()
+        W = VectorFunctionSpace(V.mesh(), V.ufl_element().family(), V.ufl_element().degree())
+        f = Function(W)
+        fv = f.vector()
+        for i in range(len(u)):
+            uv = u[i].vector()
+            # FIXME: Assumptions about ordering of vector-function entries
+            fv[i*len(uv):(i+1)*len(uv)] = uv
+        return f
+
     def update(self, problem, t, u, p):
         "Update problem at time t"
 
-        u = self._desegregate(u)
+        s = max(ui.vector().norm('linf') for ui in u) / problem.U
+        if s > 5:
+            print "WARNING: A component in u is %.1f times characteristic velocity U"%s
+        if s > 1e10:
+            raise RuntimeError("Runaway solution")
+
+        u = self._list_or_function(u)
 
         # Add to accumulated CPU time
         timestep_cputime = time() - self._time
@@ -80,21 +100,25 @@ class SolverBase:
         # Update problem FIXME: Should this be called before problem.functional??
         problem.update_problem(t, u, p)
 
-        # Evaluate functional and error
-        m = problem.reference(t)
-        M = problem.functional(t, u, p)
-        if m is None:
-            e = None
-            print "M = %g (missing reference value)" % M
-        else:
-            e = abs(M - m)
-            print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
+        # Ignore error in functional (outside domain in parallel, for example)
+        try:
+            # Evaluate functional and error
+            m = problem.reference(t)
+            M = problem.functional(t, u, p)
+            if m is None:
+                e = None
+                print "M = %g (missing reference value)" % M
+            else:
+                e = abs(M - m)
+                print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
 
-        # Store values
-        self._t.append(t)
-        self._M.append(M)
-        self._m.append(m)
-        self._e.append(e)
+            # Store values
+            self._t.append(t)
+            self._M.append(M)
+            self._m.append(m)
+            self._e.append(e)
+        except RuntimeError:
+            print 'Exception getting functional/error, ignoring.'
 
         # Save solution
         if self.options["save_solution"]:
@@ -108,7 +132,7 @@ class SolverBase:
                     self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_u.pvd")
                 if self._pfile is None:
                     self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_p.pvd")
-                self._ufile << u
+                self._ufile << self.desegregate(u)
                 self._pfile << p
 
         # Save solution at t = T
@@ -120,13 +144,13 @@ class SolverBase:
                     self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_u.pvd")
                 if self._pfile is None:
                     self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
-                self._ufile << u
+                self._ufile << self.desegregate(u)
                 self._pfile << p
 
         # Save vectors in xml format
         if self.options["save_xml"]:
             file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_u.xml" )
-            file << u.vector()
+            file << self.desegregate(u).vector()
 
             file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_p.xml" )
             file << p.vector()
@@ -135,7 +159,7 @@ class SolverBase:
         if self.options["plot_solution"]:
 
             # Plot velocity and pressure
-            plot(u, title="Velocity", rescale=True)
+            plot(self.desegregate(u), title="Velocity", rescale=True)
             plot(p, title="Pressure", rescale=True)
 
         # Check memory usage
@@ -175,9 +199,8 @@ class SolverBase:
         "Return accumulated CPU time."
         return self._cputime
 
-    def _desegregate(self, u):
-        """Used to interface with external functions which may expect a single
-        function. This is of course only possible if u IS a single function."""
+    def _list_or_function(self, u):
+        "Return a single function if possible, else a list."
         if self.options['segregated'] or not isinstance(u, (list, tuple)):
             return u
         else:

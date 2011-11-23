@@ -202,7 +202,7 @@ class Solver(SolverBase):
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
 
-        return self._desegregate(u1), p1
+        return self._list_or_function(u1), p1
 
     def __str__(self):
         name = "IPCS_opt"

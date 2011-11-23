@@ -17,6 +17,8 @@ class ProblemBase:
         # Store options
         self.options = options
 
+        self.output_location = ''
+
         # FIXME: Temporary while testing
         self.bcpsi = []
 

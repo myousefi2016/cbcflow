@@ -6,6 +6,8 @@ from math import pi
 from scipy.interpolate import splrep, splev
 
 class InflowData(object):
+    scale = 750
+
     def __init__(self, V, problem):
         self.mesh = V.mesh()
         self.problem = problem
@@ -16,8 +18,7 @@ class InflowData(object):
                     347.,   365.,   402.,   425.,   440.,   491.,   546.,   618.,
                     703.,   758.,   828.,   897.,  1002.]) / (75/60.0) / 1000
 
-        scale = 750
-        #Create interpolated mean velocity in time
+        # Create interpolated mean velocity in time
         v = array([390.        ,  398.76132931,  512.65861027,  642.32628399,
                    710.66465257,  770.24169184,  779.00302115,  817.55287009,
                    877.12990937,  941.96374622,  970.        ,  961.2386707 ,
@@ -25,7 +26,7 @@ class InflowData(object):
                    694.89425982,  714.16918429,  682.62839879,  644.07854985,
                    647.58308157,  589.75830816,  559.96978852,  516.16314199,
                    486.37462236,  474.10876133,  456.58610272,  432.05438066,
-                   390.]) / 574.211239628 * scale
+                   390.]) / 574.211239628 * self.scale
 
         self.inflow_spline = splrep(t, v)
 
@@ -65,13 +66,13 @@ class Problem(ProblemBase):
         self.f = self.uConstant((0, 0, 0))
 
         # Set viscosity
-        self.nu = 0.00345
+        self.nu = 3.45
 
         # Characteristic velocity in the domain (used to determine timestep)
-        self.U = 500
+        self.U = InflowData.scale / sqrt(self.nu) # just a guess
 
-        # Set end-time
-        self.t = 0.00
+        # Set current and end-time
+        self.t = 0.0
         self.T = 0.05
 
     def initial_conditions(self, V, Q):
@@ -91,10 +92,10 @@ class Problem(ProblemBase):
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
-        bc_outflow = [DirichletBC(Q, self.g_outflow, subd) for subd in (2,3)]
+        bc_outflow = [DirichletBC(Q, self.g_outflow, marker) for marker in (2,3)]
 
-        bc_u = zip(bc_inflow)
-        bc_p = zip(bc_outflow)
+        bc_u = zip(bc_inflow, bc_noslip) # Important: inflow before noslip
+        bc_p = [bc_outflow]
 
         return bc_u + bc_p
 

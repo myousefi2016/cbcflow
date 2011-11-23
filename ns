@@ -6,7 +6,7 @@ __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 import sys, time
-from dolfin import set_log_active, parameters, list_timings
+from dolfin import set_log_active, parameters, list_timings, interactive
 
 from problems import Problem, problems
 from solvers import Solver, solvers
@@ -146,6 +146,8 @@ def main(args):
     except:
         print 'Exception getting functional/error, ignoring.'
 
+    if options['plot_solution']:
+        interactive()
 
     return 0
 
