@@ -27,8 +27,8 @@ class SolverBase:
         self._timestep = 0
 
         # Reset files for storing solution
-        self._ufile = None
-        self._pfile = None
+        self._ufiles = None
+        self._pfile  = None
 
         # Reset storage for functional values and errors
         self._t = []
@@ -68,6 +68,7 @@ class SolverBase:
         if not isinstance(u, (list, tuple)):
             return u
 
+        assert MPI.num_processes() == 1
         V = u[0].function_space()
         W = VectorFunctionSpace(V.mesh(), V.ufl_element().family(), V.ufl_element().degree())
         f = Function(W)
@@ -87,8 +88,6 @@ class SolverBase:
         if s > 1e10:
             raise RuntimeError("Runaway solution")
 
-        u = self._list_or_function(u)
-
         # Add to accumulated CPU time
         timestep_cputime = time() - self._time
         self._cputime += timestep_cputime
@@ -98,13 +97,13 @@ class SolverBase:
             check_divergence(u, p.function_space())
 
         # Update problem FIXME: Should this be called before problem.functional??
-        problem.update_problem(t, u, p)
+        problem.update_problem(t, self._list_or_function(u), p)
 
         # Ignore error in functional (outside domain in parallel, for example)
         try:
             # Evaluate functional and error
             m = problem.reference(t)
-            M = problem.functional(t, u, p)
+            M = problem.functional(t, self._list_or_function(u), p)
             if m is None:
                 e = None
                 print "M = %g (missing reference value)" % M
@@ -128,11 +127,12 @@ class SolverBase:
             refinement = self.options["refinement_level"]
             if (self._timestep - 1) % frequency == 0:
                 # Create files for saving
-                if self._ufile is None:
-                    self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_u.pvd")
+                if self._ufiles is None:
+                    self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
                 if self._pfile is None:
-                    self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_p.pvd")
-                self._ufile << self.desegregate(u)
+                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_p.pvd")
+                for i, ui in enumerate(u):
+                    self._ufiles[i] << ui
                 self._pfile << p
 
         # Save solution at t = T
@@ -140,17 +140,19 @@ class SolverBase:
             if t >= problem.T:
                 refinement = self.options["refinement_level"]
                 # Create files for saving
-                if self._ufile is None:
-                    self._ufile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_u.pvd")
+                if self._ufiles is None:
+                    self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
                 if self._pfile is None:
-                    self._pfile = File("results/" + self.prefix(problem) +"refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
-                self._ufile << self.desegregate(u)
+                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
+                for i, ui in enumerate(u):
+                    self._ufiles[i] << ui
                 self._pfile << p
 
         # Save vectors in xml format
         if self.options["save_xml"]:
-            file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_u.xml" )
-            file << self.desegregate(u).vector()
+            for i, ui in enumerate(u):
+                file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_u%d.xml"%i )
+                file << ui.vector()
 
             file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_p.xml" )
             file << p.vector()
