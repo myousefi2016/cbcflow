@@ -82,7 +82,11 @@ class SolverBase:
     def update(self, problem, t, u, p):
         "Update problem at time t"
 
-        s = max(ui.vector().norm('linf') for ui in u) / problem.U
+        s = 0 
+        if self.options['segregated']:
+           s = max(ui.vector().norm('linf') for ui in u) / problem.U
+        else: 
+           s = u[0].vector().norm('linf') 
         if s > 5:
             print "WARNING: A component in u is %.1f times characteristic velocity U"%s
         if s > 1e10:
@@ -128,12 +132,19 @@ class SolverBase:
             if (self._timestep - 1) % frequency == 0:
                 # Create files for saving
                 if self._ufiles is None:
-                    self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
+		    if self.options['segregated']:
+			self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
+                    else: 
+			self._ufiles = File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u.pvd") 
                 if self._pfile is None:
                     self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_p.pvd")
-                for i, ui in enumerate(u):
-                    self._ufiles[i] << ui
-                self._pfile << p
+                if self.options['segregated']:
+		    for i, ui in enumerate(u):
+			self._ufiles[i] << ui
+		    self._pfile << p
+                else:
+		    self._ufiles << u[0]
+		    self._pfile << p
 
         # Save solution at t = T
         if self.options["save_solution_at_t=T"]:

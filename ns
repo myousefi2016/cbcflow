@@ -19,8 +19,8 @@ if len(sys.argv) > 1 and sys.argv[1] in ['channel', 'g2ref']:
 # Default options
 OPTIONS = {"refinement_level": 0,
            "dt_division": 0,
-           "save_solution": False,
-           "save_frequency": 1,
+           "save_solution": True,
+           "save_frequency": 100,
            "check_mem_usage": False,
            "check_frequency": 10,
            "save_solution_at_t=T": False,
@@ -33,9 +33,11 @@ OPTIONS = {"refinement_level": 0,
   	   "max_steps": None,
            "segregated": False,
            "timer": False,
+           "test_case": 1,
            "krylov_solver_absolute_tolerance": 1e-25,
            "krylov_solver_relative_tolerance": 1e-12,
            "krylov_solver_monitor_convergence": False}
+     
 
 def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_division , error):
     "Save results to file."
