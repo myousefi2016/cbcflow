@@ -67,7 +67,7 @@ class Problem(ProblemBase):
 
         # Set current and end-time
         self.t = 0.0
-        self.T = 0.5
+        self.T = 0.01
 
 
         one = Constant(1)
@@ -85,6 +85,10 @@ class Problem(ProblemBase):
 
         # Characteristic velocity in the domain (used to determine timestep)
         self.U = self.velocity*4  
+        h  = MPI.min(self.mesh.hmin())
+        print "Characteristic velocity ", self.U
+        print "mesh size ", h
+        print "velocity at inflow ", self.velocity
 
 
     def initial_conditions(self, V, Q):
@@ -120,7 +124,7 @@ class Problem(ProblemBase):
     def functional(self, t, u, p):
 
          n = FacetNormal(self.mesh)
-         b = dot(u,n)*ds(1) 
+         b = assemble(dot(u,n)*ds(1)) 
          p_max = p.vector().max()
          p_min = p.vector().min()
 
@@ -131,6 +135,7 @@ class Problem(ProblemBase):
              u_max = max(ui.vector().norm('linf') for ui in u) 
          else:
              u_max = u[0].vector().norm('linf')  
+         print "u_max ", u_max, " U ", self.U
 
          return self.uEval(u, 0, (0.025, -0.006, 0.0))
 

@@ -129,15 +129,16 @@ class SolverBase:
             # Save velocity and pressure
             frequency = self.options["save_frequency"]
             refinement = self.options["refinement_level"]
+            case = self.options["test_case"] 
             if (self._timestep - 1) % frequency == 0:
                 # Create files for saving
                 if self._ufiles is None:
 		    if self.options['segregated']:
-			self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
+			self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_u%d.pvd"%i) for i in range(len(u))]
                     else: 
-			self._ufiles = File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u.pvd") 
+			self._ufiles = File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_u.pvd") 
                 if self._pfile is None:
-                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_p.pvd")
+                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_p.pvd")
                 if self.options['segregated']:
 		    for i, ui in enumerate(u):
 			self._ufiles[i] << ui

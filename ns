@@ -19,7 +19,7 @@ if len(sys.argv) > 1 and sys.argv[1] in ['channel', 'g2ref']:
 # Default options
 OPTIONS = {"refinement_level": 0,
            "dt_division": 0,
-           "save_solution": True,
+           "save_solution": False,
            "save_frequency": 100,
            "check_mem_usage": False,
            "check_frequency": 10,
