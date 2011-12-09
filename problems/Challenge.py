@@ -44,8 +44,12 @@ class Problem(ProblemBase):
 
         # Load mesh
         self.mesh = Mesh("data/mesh_500k.xml.gz")
+        refinement = self.options["refinement_level"] 
+ 	if refinement==1: self.mesh = Mesh("data/mesh_1mio.xml.gz")
+ 	if refinement==2: self.mesh = Mesh("data/mesh_2mio.xml.gz")
+ 	if refinement==3: self.mesh = Mesh("data/mesh_4mio.xml.gz")
 
-        self.refinement = self.options["refinement_level"] 
+
         self.testcase = self.options["test_case"] 
         self.flux = 0
         if self.testcase == 1: 
@@ -67,7 +71,7 @@ class Problem(ProblemBase):
 
         # Set current and end-time
         self.t = 0.0
-        self.T = 0.01
+        self.T = 0.05
 
 
         one = Constant(1)
@@ -80,15 +84,18 @@ class Problem(ProblemBase):
 	print "Areal  of the no-slip is  ", self.A0 
 	print "Areal  of the inflow is   ", self.A1 
 	print "Areal  of the outflow is  ", self.A2 
+        
 
 	self.velocity = self.flux / self.A1 
 
-        # Characteristic velocity in the domain (used to determine timestep)
+        # Characteristic velocity (U) in the domain (used to determine timestep)
         self.U = self.velocity*4  
         h  = MPI.min(self.mesh.hmin())
         print "Characteristic velocity ", self.U
-        print "mesh size ", h
+        print "mesh size          ", h
         print "velocity at inflow ", self.velocity
+        print "Number of cells    ", self.mesh.num_cells()
+        print "Number of vertices ", self.mesh.num_vertices()
 
 
     def initial_conditions(self, V, Q):
