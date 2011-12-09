@@ -49,6 +49,12 @@ class Problem(ProblemBase):
  	if refinement==2: self.mesh = Mesh("data/mesh_2mio.xml.gz")
  	if refinement==3: self.mesh = Mesh("data/mesh_4mio.xml.gz")
 
+        boundary_layers = self.options["boundary_layers"]
+        if boundary_layers:
+            self.mesh = Mesh("data/mesh_750k_BL_t.xml.gz")
+	    if refinement==1: self.mesh = Mesh("data/mesh_2mio_BL_t.xml.gz")
+	    if refinement==2: self.mesh = Mesh("data/mesh_4mio_BL_t.xml.gz")
+
 
         self.testcase = self.options["test_case"] 
         self.flux = 0
