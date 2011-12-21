@@ -196,4 +196,5 @@ class Problem(ProblemBase):
         return 0 
 
     def __str__(self):
-        return "Aneurysm"
+        return "Challenge"
+
