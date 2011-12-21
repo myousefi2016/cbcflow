@@ -1,23 +1,53 @@
 from __future__ import division
 from problembase import *
 from scipy import *
-from numpy import array
-from math import pi
+from numpy import array, sin, cos, pi
 from scipy.interpolate import splrep, splev
 
+A = [1, -0.23313344, -0.11235758, 0.10141715, 0.06681337, -0.044572343, -0.055327477, 0.040199067, 0.01279207, -0.002555173, -0.006805238, 0.002761498, -0.003147682, 0.003569664, 0.005402948, -0.002816467, 0.000163798, 8.38311E-05, -0.001517142, 0.001394522, 0.00044339, -0.000565792, -6.48123E-05] 
+
+B = [0, 0.145238823, -0.095805132, -0.117147521, 0.07563348, 0.060636658, -0.046028338, -0.031658495, 0.015095811, 0.01114202, 0.001937877, -0.003619434, 0.000382924, -0.005482582, 0.003510867, 0.003397822, -0.000521362, 0.000866551, -0.001248326, -0.00076668, 0.001208502, 0.000163361, 0.000388013]
+
+
+counter = 0 
+N = 100 
+
+def time_dependent_velocity(t): 
+  velocity = 0 
+  for k in range(len(A)): 
+    velocity += A[k]*cos(2*pi*k*t)
+    velocity += B[k]*sin(2*pi*k*t)
+  return velocity
+
 class InflowData(object):
-    scale = 40 
 
     def __init__(self, V, problem):
         self.mesh = V.mesh()
         self.problem = problem
-        self.val = problem.velocity 
-
+        self.velocity = problem.velocity
+        self.val = self.velocity 
+        self.stationary = problem.stationary
+        self.t = 0 
+        self.N = 100 
 
     def __call__(self, x, ufc_cell):
-        val = self.val 
         cell = Cell(self.mesh, ufc_cell.index)
         n = cell.normal(ufc_cell.local_facet)
+
+        global counter
+        global N 
+
+        if self.problem.t > self.t and not self.problem.stationary: 
+            self.t = self.problem.t 
+            self.val = self.velocity*time_dependent_velocity(self.t)
+        if self.problem.stationary and counter <= N: 
+            if self.problem.t > self.t: 
+                self.t = self.problem.t 
+                counter += 1 
+                self.val = float(self.velocity*self.counter)/self.N
+                print self.val, self.velocity, self.counter, self.N 
+         
+        val = self.val 
         return [-n.x()*val, -n.y()*val, -n.z()*val]
 
 class InflowVec(Expression):
@@ -43,29 +73,32 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-        self.mesh = Mesh("data/mesh_500k.xml.gz")
         refinement = self.options["refinement_level"] 
- 	if refinement==1: self.mesh = Mesh("data/mesh_1mio.xml.gz")
- 	if refinement==2: self.mesh = Mesh("data/mesh_2mio.xml.gz")
- 	if refinement==3: self.mesh = Mesh("data/mesh_4mio.xml.gz")
-
+        self.stationary = self.options["stationary"]
         boundary_layers = self.options["boundary_layers"]
+
         if boundary_layers:
-            self.mesh = Mesh("data/mesh_750k_BL_t.xml.gz")
-	    if refinement==1: self.mesh = Mesh("data/mesh_2mio_BL_t.xml.gz")
-	    if refinement==2: self.mesh = Mesh("data/mesh_4mio_BL_t.xml.gz")
+            mesh_filename = "data/mesh_750k_BL_t.xml.gz"
+            if refinement==1: mesh_filename = "data/mesh_2mio_BL_t.xml.gz"
+            if refinement==2: mesh_filename = "data/mesh_4mio_BL_t.xml.gz"
+        else:
+            mesh_filename = "data/mesh_500k.xml.gz"
+            if refinement==1: mesh_filename = "data/mesh_1mio.xml.gz"
+            if refinement==2: mesh_filename = "data/mesh_2mio.xml.gz"
+            if refinement==3: mesh_filename = "data/mesh_4mio.xml.gz"
+        self.mesh = Mesh(mesh_filename)
 
 
         self.testcase = self.options["test_case"] 
         self.flux = 0
         if self.testcase == 1: 
-	    self.flux = 5.13 
+            self.flux = 5.13 
         elif self.testcase == 2:
-	    self.flux = 6.41 
+            self.flux = 6.41 
         elif self.testcase == 3:
-	    self.flux = 9.14 
+            self.flux = 9.14 
         elif self.testcase == 4:
-	    self.flux = 11.42 
+            self.flux = 11.42 
 
 
         # The body force term
@@ -81,23 +114,23 @@ class Problem(ProblemBase):
 
 
         one = Constant(1)
-	self.V0 = assemble(one*dx, mesh=self.mesh)
-	self.A0 = assemble(one*ds(0), mesh=self.mesh)
-	self.A1 = assemble(one*ds(1), mesh=self.mesh)
-	self.A2 = assemble(one*ds(2), mesh=self.mesh)
+        self.V0 = assemble(one*dx, mesh=self.mesh)
+        self.A0 = assemble(one*ds(0), mesh=self.mesh)
+        self.A1 = assemble(one*ds(1), mesh=self.mesh)
+        self.A2 = assemble(one*ds(2), mesh=self.mesh)
 
-	print "Volume of the geometry is ", self.V0 
-	print "Areal  of the no-slip is  ", self.A0 
-	print "Areal  of the inflow is   ", self.A1 
-	print "Areal  of the outflow is  ", self.A2 
+        print "Volume of the geometry is (dx)   ", self.V0 
+        print "Areal  of the no-slip is (ds(0)  ", self.A0 
+        print "Areal  of the inflow is (ds(1))  ", self.A1 
+        print "Areal  of the outflow is (ds(2)) ", self.A2 
         
 
-	self.velocity = self.flux / self.A1 
+        self.velocity = self.flux / self.A1 
 
         # Characteristic velocity (U) in the domain (used to determine timestep)
-        self.U = self.velocity*4  
+        self.U = self.velocity*16  
         h  = MPI.min(self.mesh.hmin())
-        print "Characteristic velocity ", self.U
+        print "Characteristic velocity set to", self.U
         print "mesh size          ", h
         print "velocity at inflow ", self.velocity
         print "Number of cells    ", self.mesh.num_cells()
@@ -121,7 +154,7 @@ class Problem(ProblemBase):
 
         # Create outflow boundary condition for pressure
         self.g_outflow = Constant(0)
-        bc_outflow = [DirichletBC(Q, self.g_outflow, marker) for marker in (2,3)]
+        bc_outflow = [DirichletBC(Q, self.g_outflow, marker) for marker in (2,)]
 
         bc_u = zip(bc_inflow, bc_noslip) # Important: inflow before noslip
         bc_p = [bc_outflow]
@@ -137,43 +170,30 @@ class Problem(ProblemBase):
     def functional(self, t, u, p):
 
          n = FacetNormal(self.mesh)
-         b = assemble(dot(u,n)*ds(1)) 
+         b0 = assemble(dot(u,n)*ds(0)) 
+         b1 = assemble(dot(u,n)*ds(1)) 
+         b2 = assemble(dot(u,n)*ds(2)) 
+         b3 = assemble(dot(u,n)*ds(3)) 
          p_max = p.vector().max()
          p_min = p.vector().min()
 
-         print "flux ", b 
+         print "flux ds0 ", b0 
+         print "flux ds1 ", b1 
+         print "flux ds2 ", b2 
+         print "flux ds3 ", b3 
          print "p_min ", p_min 
          print "p_max ", p_max
          if self.options["segregated"]: 
              u_max = max(ui.vector().norm('linf') for ui in u) 
          else:
-             u_max = u[0].vector().norm('linf')  
+             u_max = u.vector().norm('linf')  
          print "u_max ", u_max, " U ", self.U
 
-         return self.uEval(u, 0, (0.025, -0.006, 0.0))
+          #FIXME should use selected points
+         return p_max - p_min 
 
     def reference(self, t):
-        """The reference value was computed using on a fine mesh
-        (level 6). Values obtained for different refinement levels
-        are listed below for Chorin and IPCS.
-
-              Chorin                 IPCS
-        ----------------------------------------
-        -0.0325040608617000  -0.0333250879034000
-        -0.0470001557641000  -0.0458749339862000
-        -0.0370348732066000  -0.0364138324117000
-        -0.0359768558469000  -0.0358236703894000
-        -0.0356064894317000  -0.0354277722246000
-        -0.0355250220872000  -0.0353312047875000
-        -0.0356105862451000  -0.0354251625379000
-
-        The reference value is taken as the average of the values
-        for Chorin and IPCS on the finest mesh.
-        """
-        if t < self.T:
-            return 0.0
-
-        return -0.0355
+        return 0 
 
     def __str__(self):
         return "Aneurysm"
