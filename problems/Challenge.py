@@ -211,7 +211,7 @@ class Problem(ProblemBase):
 	print "p at outlet", value
 
           #FIXME should use selected points
-         return p_max - p_min 
+        return p_max - p_min 
 
     def reference(self, t):
         return 0 
