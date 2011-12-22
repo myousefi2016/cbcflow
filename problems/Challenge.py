@@ -169,25 +169,42 @@ class Problem(ProblemBase):
 
     def functional(self, t, u, p):
 
-         n = FacetNormal(self.mesh)
-         b0 = assemble(dot(u,n)*ds(0)) 
-         b1 = assemble(dot(u,n)*ds(1)) 
-         b2 = assemble(dot(u,n)*ds(2)) 
-         b3 = assemble(dot(u,n)*ds(3)) 
-         p_max = p.vector().max()
-         p_min = p.vector().min()
+	n = FacetNormal(self.mesh)
+	b0 = assemble(dot(u,n)*ds(0)) 
+	b1 = assemble(dot(u,n)*ds(1)) 
+	b2 = assemble(dot(u,n)*ds(2)) 
+	b3 = assemble(dot(u,n)*ds(3)) 
+	p_max = p.vector().max()
+	p_min = p.vector().min()
 
-         print "flux ds0 ", b0 
-         print "flux ds1 ", b1 
-         print "flux ds2 ", b2 
-         print "flux ds3 ", b3 
-         print "p_min ", p_min 
-         print "p_max ", p_max
-         if self.options["segregated"]: 
-             u_max = max(ui.vector().norm('linf') for ui in u) 
-         else:
-             u_max = u.vector().norm('linf')  
-         print "u_max ", u_max, " U ", self.U
+	print "flux ds0 ", b0 
+	print "flux ds1 ", b1 
+	print "flux ds2 ", b2 
+	print "flux ds3 ", b3 
+	print "p_min ", p_min 
+	print "p_max ", p_max
+	if self.options["segregated"]: 
+	    u_max = max(ui.vector().norm('linf') for ui in u) 
+	else:
+	    u_max = u.vector().norm('linf')  
+	print "u_max ", u_max, " U ", self.U
+
+
+	x = array((-1.75, -2.55, -0.32))
+	value = p(x)
+	print "p at inlet ", value
+	x = array((-0.17, -0.59, 1.17))
+	value = p(x)
+	print "p before obstruction ", value
+	x = array((-0.14, -0.91, 1.26))
+	value = p(x)
+	print "p at obstruction ", value
+	x = array((-0.38, -0.35, 0.89))
+	value = p(x)
+	print "p after obstruction ", value
+	x = array((-1.17, -0.87, 0.45))
+	value = p(x)
+	print "p at outlet", value
 
           #FIXME should use selected points
          return p_max - p_min 
