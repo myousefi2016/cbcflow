@@ -6,6 +6,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from dolfin import *
 
 from time import time
+import os
 from os import getpid
 from commands import getoutput
 
@@ -81,6 +82,8 @@ class SolverBase:
 
     def update(self, problem, t, u, p):
         "Update problem at time t"
+
+        casedir = os.path.join("results", self.options["casename"])
 
         s = 0 
         if self.options['segregated']:

@@ -3,7 +3,7 @@ from problembase import *
 from scipy import *
 import numpy
 from numpy import array, sin, cos, pi
-from scipy.interpolate import splrep, splev
+import pylab
 import os
 
 A = [1, -0.23313344, -0.11235758, 0.10141715, 0.06681337, -0.044572343, -0.055327477, 0.040199067, 0.01279207, -0.002555173, -0.006805238, 0.002761498, -0.003147682, 0.003569664, 0.005402948, -0.002816467, 0.000163798, 8.38311E-05, -0.001517142, 0.001394522, 0.00044339, -0.000565792, -6.48123E-05] 
@@ -33,7 +33,7 @@ class InflowData(object):
         self.counter = 0
 
     def __call__(self, x, ufc_cell):
-        # TODO: (martin) understand how this time thingy works in this framework
+        # TODO: Move time update to problem.update()
         if self.problem.stationary:
             # Using a continuation method, stepping up t gradually
             if self.t < self.problem.t and self.counter <= self.N:
@@ -143,6 +143,11 @@ class Problem(ProblemBase):
         print "Number of cells    ", self.mesh.num_cells()
         print "Number of vertices ", self.mesh.num_vertices()
 
+        self.cl = numpy.loadtxt("data/challenge/cl.dat")
+        self.probevalues = numpy.zeros((self.cl.shape[0],))
+        if self.options["plot_probes"]:
+            pylab.ion()
+
         self.initialized_bcs = None
 
     def initial_conditions(self, V, Q):
@@ -176,49 +181,71 @@ class Problem(ProblemBase):
         return 0
 
     def update(self, t, u, p):
-        self.t = t
+        pass
+
+    def probe(self, t, u, p):
+        pass
+
+    def _probe(self, t, u, p): # Disabled because of parallel issues # FIXME: Test!
+        # Sample pressure at probe points from challenge readme1a
+        cl = self.cl
+        for i in range(self.cl.shape[0]):
+            self.probevalues[i] = p(array(self.cl[i,:3]))
+
+        if self.options["store_probes"]:
+            probefilename = os.path.join("results", self.options["casename"], "probes",
+                                         "p_t%g" % t)
+            f = open(probefilename, "w")
+            f.write('\n'.join(map(str,self.probevalues)))
+            f.close()
+            print "FIXME: Implement storing of probevalues!"
+
+        if self.options["plot_probes"]:
+            pylab.figure(1)
+            pylab.plot(self.cl[:,3], self.probevalues)
+            pylab.show() # Not working...
 
     def functional(self, t, u, p):
+        self.probe(t,u,p) # TODO: Not sure where I should do this according to the framework?
+
         n = FacetNormal(self.mesh)
         b0 = assemble(dot(u,n)*ds(0)) 
         b1 = assemble(dot(u,n)*ds(1)) 
         b2 = assemble(dot(u,n)*ds(2)) 
         b3 = assemble(dot(u,n)*ds(3)) 
+        print "flux ds0 ", b0
+        print "flux ds1 ", b1
+        print "flux ds2 ", b2
+        print "flux ds3 ", b3
+
         p_max = p.vector().max()
         p_min = p.vector().min()
-
-        print "flux ds0 ", b0 
-        print "flux ds1 ", b1 
-        print "flux ds2 ", b2 
-        print "flux ds3 ", b3 
-        print "p_min ", p_min 
+        print "p_min ", p_min
         print "p_max ", p_max
-        if self.options["segregated"]: 
+
+        if self.options["segregated"]:
             u_max = max(ui.vector().norm('linf') for ui in u) 
         else:
             u_max = u.vector().norm('linf')  
-        print "u_max ", u_max, " U ", self.U
+        print "u_max ", u_max
+        print "U ", self.U
 
-        # TODO: Add other probe points
+        #return self._named_probes(t, u, p) # Disabled because of parallell issues
+        return p_max - p_min
 
-        x = array((-1.75, -2.55, -0.32))
-        value = p(x)
-        print "p at inlet ", value
-        x = array((-0.17, -0.59, 1.17))
-        value = p(x)
-        print "p before obstruction ", value
-        x = array((-0.14, -0.91, 1.26))
-        value = p(x)
-        print "p at obstruction ", value
-        x = array((-0.38, -0.35, 0.89))
-        value = p(x)
-        print "p after obstruction ", value
-        x = array((-1.17, -0.87, 0.45))
-        value = p(x)
-        print "p at outlet", value
+    def _named_probes(self, t, u, p): # Disabled because of parallell issues
+        named_probes = [
+            ((-1.75, -2.55, -0.32), "at inlet"),
+            ((-0.17, -0.59, 1.17), "before obstruction"),
+            ((-0.14, -0.91, 1.26), "at obstruction"),
+            ((-0.38, -0.35, 0.89), "after obstruction"),
+            ((-1.17, -0.87, 0.45), "at outlet"),
+            ]
+        named_values = dict((name,p(array(x))) for x,name in named_probes)
+        for x,name in named_probes:
+            print "p %s = %g" % (name, named_values[name])
 
-        #FIXME should use selected points
-        return p_max - p_min 
+        return named_values["at outlet"] - named_values["at inlet"]
 
     def reference(self, t):
         return 0 

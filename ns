@@ -5,7 +5,7 @@ __date__ = "2008-04-11"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-import sys, time
+import os, sys, time
 from dolfin import set_log_active, parameters, list_timings, interactive
 
 from problems import Problem, problems
@@ -38,13 +38,16 @@ OPTIONS = {"refinement_level": 0,
            "krylov_solver_monitor_convergence": False,
 
            # Parameters added for Challenge:
+           "casename": 'defaultcase',
            "test_case": 1,
            "dt": None,
            "max_t": 1.0,
+           "plot_probes": False,
+           "store_probes": False,
           }
-     
 
-def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_division, error):
+
+def save_results(casename, problem, solver, num_dofs, cputime, wct, functional, dt_division, error):
     "Save results to file."
 
     # Print summary
@@ -65,12 +68,11 @@ def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_divisio
     list_timings()
 
     # Append to file
-    if 0: # TODO: Remove? Disabled because we don't need this in headflow. It is unsafe anyway, so another implementation is needed if we want something like this.
-        filename = "results/results.log"
-        file = open(filename, "a")
-        file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
-                   (time.asctime(), problem, solver, num_dofs, cputime, wct, functional, str(dt_division) , str(error)))
-        file.close()
+    filename = os.path.join("results", casename, "results.log")
+    file = open(filename, "a")
+    file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
+               (time.asctime(), problem, solver, num_dofs, cputime, wct, functional, str(dt_division) , str(error)))
+    file.close()
 
 def usage():
     "Print usage"
@@ -109,6 +111,13 @@ def main(args):
                 options[key] = str(value)
         except:
             print "Warning: Unhandled command-line argument", arg
+
+    # Make directory for result files
+    casedir = os.path.join("results", options["casename"])
+    if not os.path.exists(casedir):
+        os.mkdir(casedir)
+    else:
+        print "NB! Directory already exists: '%s'." % casedir
 
     # Set global DOLFIN parameters
     parameters["form_compiler"]["cpp_optimize"] = True
@@ -150,7 +159,7 @@ def main(args):
         functional, error = solver.eval()
 
         # Save results
-        save_results(problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
+        save_results(casename, problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
     except:
         print 'Exception getting functional/error, ignoring.'
 
