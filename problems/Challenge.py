@@ -27,7 +27,7 @@ class InflowData(object):
         self.t = 0
 
         # Continuation parameters
-        self.N = 5
+        self.N = 100
         self.counter = 0
 
     def __call__(self, x, ufc_cell):
