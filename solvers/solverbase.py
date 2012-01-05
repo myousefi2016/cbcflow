@@ -131,50 +131,61 @@ class SolverBase:
 
             # Save velocity and pressure
             frequency = self.options["save_frequency"]
-            refinement = self.options["refinement_level"]
-            case = self.options["test_case"] 
+
             if (self._timestep - 1) % frequency == 0:
-                # Create files for saving
+                # Create files
                 if self._ufiles is None:
-		    if self.options['segregated']:
-			self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_u%d.pvd"%i) for i in range(len(u))]
+                    if self.options['segregated']:
+                        # added '_' to separate i from vtu numbering
+                        self._ufiles = [File(os.path.join(casedir, "u%d_.pvd" % i))
+                                        for i in range(len(u))]
                     else: 
-			self._ufiles = File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_u.pvd") 
+                        self._ufiles = File(os.path.join(casedir, "u.pvd"))
                 if self._pfile is None:
-                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_case_" + str(case) + "_p.pvd")
+                    self._pfile = File(os.path.join(casedir, "p.pvd"))
+
+                # Write to files
                 if self.options['segregated']:
-		    for i, ui in enumerate(u):
-			self._ufiles[i] << ui
-		    self._pfile << p
+                    for i, ui in enumerate(u):
+                        self._ufiles[i] << ui
                 else:
-		    self._ufiles << u[0]
-		    self._pfile << p
+                    self._ufiles << u[0]
+                self._pfile << p
 
         # Save solution at t = T
         if self.options["save_solution_at_t=T"]:
             if t >= problem.T:
-                refinement = self.options["refinement_level"]
-                # Create files for saving
+                # Create files
                 if self._ufiles is None:
-                    self._ufiles = [File("results/"+ self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_u%d.pvd"%i) for i in range(len(u))]
+                    self._ufiles = [File(os.path.join(casedir, "u%d_at_end.pvd" % i))
+                                    for i in range(len(u))]
+                else: 
+                    self._ufiles = File(os.path.join(casedir, "u_at_end.pvd"))
                 if self._pfile is None:
-                    self._pfile = File("results/" + self.prefix(problem) +"_refinement_level_"+ str(refinement) + "_at_end" + "_p.pvd")
-                for i, ui in enumerate(u):
-                    self._ufiles[i] << ui
+                    self._pfile = File(os.path.join(casedir, "p_at_end.pvd"))
+
+                # Write to files
+                if self.options['segregated']:
+                    for i, ui in enumerate(u):
+                        self._ufiles[i] << ui
+                else:
+                    self._ufiles << u[0]
                 self._pfile << p
 
         # Save vectors in xml format
         if self.options["save_xml"]:
-            for i, ui in enumerate(u):
-                file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_u%d.xml"%i )
-                file << ui.vector()
-
-            file = File(self.prefix(problem) +"_refinement_level_"+ str(self.options["refinement_level"]) + "t=%1.2e"% t + "_p.xml" )
+            if self.options['segregated']:
+                for i, ui in enumerate(u):
+                    file = File(os.path.join(casedir, "u%d_at_t_%1.2e.xml" % (i,t)))
+                    file << ui.vector()
+            else:
+                file = File(os.path.join(casedir, "u_at_t_%1.2e.xml" % (t,)))
+                file << u[0].vector()
+            file = File(os.path.join(casedir, "p_at_t_%1.2e.xml" % (t,)))
             file << p.vector()
 
         # Plot solution
         if self.options["plot_solution"]:
-
             # Plot velocity and pressure
             plot(self.desegregate(u), title="Velocity", rescale=True)
             plot(p, title="Pressure", rescale=True)

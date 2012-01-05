@@ -38,7 +38,7 @@ OPTIONS = {"refinement_level": 0,
            "krylov_solver_monitor_convergence": False,
 
            # Parameters added for Challenge:
-           "casename": 'defaultcase',
+           "casename": None,
            "test_case": 1,
            "dt": None,
            "max_t": 1.0,
@@ -112,13 +112,6 @@ def main(args):
         except:
             print "Warning: Unhandled command-line argument", arg
 
-    # Make directory for result files
-    casedir = os.path.join("results", options["casename"])
-    if not os.path.exists(casedir):
-        os.mkdir(casedir)
-    else:
-        print "NB! Directory already exists: '%s'." % casedir
-
     # Set global DOLFIN parameters
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
@@ -139,6 +132,17 @@ def main(args):
     solver = Solver(solver_name, options)
     print "Problem: " + str(problem)
     print "Solver:  " + str(solver)
+
+    # Make directory for result files
+    if options["casename"] is None: # Lazy attempt at keeping compatibility with old way
+        options["casename"] = solver.prefix(problem) + \
+            "_refinement_level_"+ str(options["refinement_level"])
+    casedir = os.path.join("results", options["casename"])
+    if not os.path.exists(casedir):
+        os.mkdir(casedir)
+        print "Made case directory '%s'" % casedir
+    else:
+        print "NB! Directory already exists: '%s'." % casedir
 
     # Solve problem with solver
     wct = time.time()
