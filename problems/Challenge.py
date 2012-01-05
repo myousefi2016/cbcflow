@@ -1,6 +1,7 @@
 from __future__ import division
 from problembase import *
 from scipy import *
+import numpy
 from numpy import array, sin, cos, pi
 from scipy.interpolate import splrep, splev
 import os
@@ -9,14 +10,15 @@ A = [1, -0.23313344, -0.11235758, 0.10141715, 0.06681337, -0.044572343, -0.05532
 
 B = [0, 0.145238823, -0.095805132, -0.117147521, 0.07563348, 0.060636658, -0.046028338, -0.031658495, 0.015095811, 0.01114202, 0.001937877, -0.003619434, 0.000382924, -0.005482582, 0.003510867, 0.003397822, -0.000521362, 0.000866551, -0.001248326, -0.00076668, 0.001208502, 0.000163361, 0.000388013]
 
+assert len(A) == len(B)
+A = numpy.array(A)
+B = numpy.array(B)
+_omk = (2*pi/0.99)*numpy.arange(len(A))
 def time_dependent_velocity(t):
     "Returns unitless temporal variation of velocity."
-    velocity = 0
-    T = 0.99 # Hardcoded from challenge readme, matching A/B above
-    for k in range(len(A)): 
-        velocity += A[k]*cos(2*pi*k*t/T)
-        velocity += B[k]*sin(2*pi*k*t/T)
-    return velocity
+    c = numpy.cos(_omk*t)
+    s = numpy.sin(_omk*t)
+    return numpy.dot(A,c) + numpy.dot(B,s)
 
 class InflowData(object):
     def __init__(self, V, problem):
@@ -109,9 +111,11 @@ class Problem(ProblemBase):
         # Set viscosity (cm2/s)
         self.nu = 0.04
 
-        # Set current and end-time
+        # Set current and end-time (Note: Peak systole is 0.275 s)
         self.t = 0.0
-        self.T = 0.05 # s # TODO: Is this an input parameter somewhere? Add parameter if not! Peak systole is 0.275 s.
+        self.T = self.options["max_t"] # s
+        if self.options["dt"] is not None:
+            self.dt = self.options["dt"]
 
         # Compute volume (cm3) and areas (cm2)
         one = Constant(1)
@@ -145,7 +149,7 @@ class Problem(ProblemBase):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
 
     def boundary_conditions(self, V, Q, t):
-        # Simple fix to avoid recreating bcs each timestep, probably better to just do it in __init__?
+        # Simple fix to avoid recreating bcs each timestep, TODO: better to just do it in __init__
         if self.initialized_bcs is None:
              # Create no-slip boundary condition for velocity
              self.g_noslip = self.uConstant((0, 0, 0))
@@ -195,6 +199,7 @@ class Problem(ProblemBase):
             u_max = u.vector().norm('linf')  
         print "u_max ", u_max, " U ", self.U
 
+        # TODO: Add other probe points
 
         x = array((-1.75, -2.55, -0.32))
         value = p(x)

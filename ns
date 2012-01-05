@@ -29,17 +29,22 @@ OPTIONS = {"refinement_level": 0,
            "plot_functional": False,
            "compute_stress": False,
            "compute_divergence": False,
-  	   "debug": False,
-  	   "max_steps": None,
+           "debug": False,
+           "max_steps": None,
            "segregated": False,
            "timer": False,
-           "test_case": 1,
            "krylov_solver_absolute_tolerance": 1e-25,
            "krylov_solver_relative_tolerance": 1e-12,
-           "krylov_solver_monitor_convergence": False}
+           "krylov_solver_monitor_convergence": False,
+
+           # Parameters added for Challenge:
+           "test_case": 1,
+           "dt": None,
+           "max_t": 1.0,
+          }
      
 
-def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_division , error):
+def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_division, error):
     "Save results to file."
 
     # Print summary
@@ -60,11 +65,12 @@ def save_results(problem, solver, num_dofs, cputime, wct, functional, dt_divisio
     list_timings()
 
     # Append to file
-    filename = "results/results.log"
-    file = open(filename, "a")
-    file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
-               (time.asctime(), problem, solver, num_dofs, cputime, wct, functional, str(dt_division) , str(error)))
-    file.close()
+    if 0: # TODO: Remove? Disabled because we don't need this in headflow. It is unsafe anyway, so another implementation is needed if we want something like this.
+        filename = "results/results.log"
+        file = open(filename, "a")
+        file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
+                   (time.asctime(), problem, solver, num_dofs, cputime, wct, functional, str(dt_division) , str(error)))
+        file.close()
 
 def usage():
     "Print usage"

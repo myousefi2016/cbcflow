@@ -42,10 +42,7 @@ class Solver(SolverBase):
         bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
-        if is_periodic(bcp):
-            beta = Constant(0)
-        else:
-            beta = Constant(1)
+        beta = 0 if is_periodic(bcp) else 1
 
         # Test and trial functions
         v = TestFunction(V)
@@ -54,7 +51,7 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
 
         # Functions
-        dims = range(len(u0));
+        dims = range(len(u0))
         u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
 

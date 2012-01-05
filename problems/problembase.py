@@ -72,23 +72,24 @@ class ProblemBase:
             T  = n*dt
             t_range = linspace(0, T, n + 1)[1:]
         else:
+            # FIXME: This sequence of ifs make no sense. Clean up...
 
-            if self.options["dt_division"] != 0 and problem.dt is not None:
-                dt =  (problem.dt)/int(sqrt(2)**self.options["dt_division"])
+            if self.options["dt_division"] != 0 and problem.dt > 0:
+                dt = problem.dt / int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
                 print 'Using problem.dt and time step refinements'
 
             # Use time step specified in problem if available
-            elif hasattr(problem, 'dt'):
+            elif hasattr(problem, 'dt') and problem.dt > 0:
                 dt = problem.dt
-                print dt
                 n  = int(T / dt)
                 print 'Using problem.dt'
 
             # Otherwise, base time step on mesh size
             elif self.options["dt_division"] != 0:
-                dt =  0.25*h**2 / (U*(nu + h*U))/int(sqrt(2)**self.options["dt_division"])
+                dt = 0.25*h**2 / (U*(nu + h*U))
+                dt /= int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
                 print 'Computing time step according to stability criteria and time step refinements'
