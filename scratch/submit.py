@@ -37,7 +37,7 @@ def emit_job(**values):
 #max_t = 1.5
 # Set dt to None to use computed cfl condition
 #for dt in (1e-3,1e-4,1e-5):
-for dt in (1e-3,1e-4,1e-5):
+for dt in (1e-4,):
     save_frequency = 10 if dt is None else max(1,int(0.5+1.0/(400*dt)))
 
     max_t = dt*10 # Short timespan for debugging!
