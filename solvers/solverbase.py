@@ -123,8 +123,9 @@ class SolverBase:
             self._M.append(M)
             self._m.append(m)
             self._e.append(e)
-        except RuntimeError:
-            print 'Exception getting functional/error, ignoring.'
+        except RuntimeError as err:
+            print 'Exception getting functional/error, ignoring:'
+            print err
 
         # Save solution
         if self.options["save_solution"]:

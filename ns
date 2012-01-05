@@ -163,9 +163,10 @@ def main(args):
         functional, error = solver.eval()
 
         # Save results
-        save_results(casename, problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
-    except:
-        print 'Exception getting functional/error, ignoring.'
+        save_results(options["casename"], problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
+    except Exception as err: # TODO: What kind of error do we get in parallell? RuntimeError? Something else?
+        print 'Exception getting functional/error, ignoring:'
+        print err
 
     if options['plot_solution']:
         interactive()
