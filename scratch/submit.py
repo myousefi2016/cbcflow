@@ -68,11 +68,11 @@ if __name__ == '__main__':
         from dolfin_utils.pjobs import submit
         n = int(sys.argv[1]) 
         if n == 1:
-            submit(jobs, names=names, serial=True)
+            submit(jobs, name=names, serial=True)
         else:
             prefix = "pmpirun.openmpi -n %d " % n
             jobs = [prefix + job for job in jobs]
             nn = (n+7)//8
             assert n <= nn * 8
-            submit(jobs, names=names, nodes=(n+7)//8, ppn=8, walltime=24*7, keep_environment=True)
+            submit(jobs, name=names, nodes=(n+7)//8, ppn=8, walltime=24*7, keep_environment=True)
 
