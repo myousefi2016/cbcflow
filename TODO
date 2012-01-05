@@ -1,4 +1,6 @@
-* Get all benchmarks to run (again)
-* New cylinder meshes
+* Implement save_interval (in time units) as alternative to save_frequency
+* Implement restarting
+* Implement probing utils working in parallell
+* Clean up stuff left from nsbench which does not make sense anymore
 * Fix all FIXMEs
 * More cleanups

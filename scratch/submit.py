@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-# TODO: Implement save_interval as alternative to save_frequency
-# TODO: Implement restarting
-# TODO: Implement probing utils
-
 # Template for command and casename
 params = ['stationary', 'test_case', 'refinement_level', 'boundary_layers', 'dt', 'max_t']
 template = './ns Challenge ipcs_opt \
