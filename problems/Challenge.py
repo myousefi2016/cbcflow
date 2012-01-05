@@ -11,10 +11,11 @@ B = [0, 0.145238823, -0.095805132, -0.117147521, 0.07563348, 0.060636658, -0.046
 
 def time_dependent_velocity(t):
     "Returns unitless temporal variation of velocity."
-    velocity = 0 
+    velocity = 0
+    T = 0.99 # Hardcoded from challenge readme, matching A/B above
     for k in range(len(A)): 
-        velocity += A[k]*cos(2*pi*k*t)
-        velocity += B[k]*sin(2*pi*k*t)
+        velocity += A[k]*cos(2*pi*k*t/T)
+        velocity += B[k]*sin(2*pi*k*t/T)
     return velocity
 
 class InflowData(object):
@@ -23,9 +24,10 @@ class InflowData(object):
         self.problem = problem
         self.velocity = problem.velocity
         self.val = self.velocity
-        self.stationary = problem.stationary
         self.t = 0
-        self.N = 100
+
+        # Continuation parameters
+        self.N = 5
         self.counter = 0
 
     def __call__(self, x, ufc_cell):
@@ -127,7 +129,7 @@ class Problem(ProblemBase):
         self.velocity = self.flux / self.A1
 
         # Characteristic velocity (U) in the domain (used to determine timestep)
-        cfl_factor = 16 # TODO: Is this a bit high? Reduce by a factor 2-3 to speed up?
+        cfl_factor = 8 #16 # TODO: Is 16 a bit high? Reduce by a factor 2-3 to speed up?
         self.U = self.velocity*cfl_factor
         h = MPI.min(self.mesh.hmin())
 
@@ -173,44 +175,44 @@ class Problem(ProblemBase):
         self.t = t
 
     def functional(self, t, u, p):
-	n = FacetNormal(self.mesh)
-	b0 = assemble(dot(u,n)*ds(0)) 
-	b1 = assemble(dot(u,n)*ds(1)) 
-	b2 = assemble(dot(u,n)*ds(2)) 
-	b3 = assemble(dot(u,n)*ds(3)) 
-	p_max = p.vector().max()
-	p_min = p.vector().min()
+        n = FacetNormal(self.mesh)
+        b0 = assemble(dot(u,n)*ds(0)) 
+        b1 = assemble(dot(u,n)*ds(1)) 
+        b2 = assemble(dot(u,n)*ds(2)) 
+        b3 = assemble(dot(u,n)*ds(3)) 
+        p_max = p.vector().max()
+        p_min = p.vector().min()
 
-	print "flux ds0 ", b0 
-	print "flux ds1 ", b1 
-	print "flux ds2 ", b2 
-	print "flux ds3 ", b3 
-	print "p_min ", p_min 
-	print "p_max ", p_max
-	if self.options["segregated"]: 
-	    u_max = max(ui.vector().norm('linf') for ui in u) 
-	else:
-	    u_max = u.vector().norm('linf')  
-	print "u_max ", u_max, " U ", self.U
+        print "flux ds0 ", b0 
+        print "flux ds1 ", b1 
+        print "flux ds2 ", b2 
+        print "flux ds3 ", b3 
+        print "p_min ", p_min 
+        print "p_max ", p_max
+        if self.options["segregated"]: 
+            u_max = max(ui.vector().norm('linf') for ui in u) 
+        else:
+            u_max = u.vector().norm('linf')  
+        print "u_max ", u_max, " U ", self.U
 
 
-	x = array((-1.75, -2.55, -0.32))
-	value = p(x)
-	print "p at inlet ", value
-	x = array((-0.17, -0.59, 1.17))
-	value = p(x)
-	print "p before obstruction ", value
-	x = array((-0.14, -0.91, 1.26))
-	value = p(x)
-	print "p at obstruction ", value
-	x = array((-0.38, -0.35, 0.89))
-	value = p(x)
-	print "p after obstruction ", value
-	x = array((-1.17, -0.87, 0.45))
-	value = p(x)
-	print "p at outlet", value
+        x = array((-1.75, -2.55, -0.32))
+        value = p(x)
+        print "p at inlet ", value
+        x = array((-0.17, -0.59, 1.17))
+        value = p(x)
+        print "p before obstruction ", value
+        x = array((-0.14, -0.91, 1.26))
+        value = p(x)
+        print "p at obstruction ", value
+        x = array((-0.38, -0.35, 0.89))
+        value = p(x)
+        print "p after obstruction ", value
+        x = array((-1.17, -0.87, 0.45))
+        value = p(x)
+        print "p at outlet", value
 
-          #FIXME should use selected points
+        #FIXME should use selected points
         return p_max - p_min 
 
     def reference(self, t):
