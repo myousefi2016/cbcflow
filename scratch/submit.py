@@ -43,18 +43,20 @@ def emit_job(**values):
 
 # ... Parameter sweep
 #max_t = 3.5
-#max_t = 1.5
+max_t = 1.5
 # Set dt to None to use computed cfl condition
+#for dt in (1e-4,):
 #for dt in (1e-3,1e-4,1e-5):
-for dt in (1e-4,):
+for dt in (1e-3,2e-5):
     save_frequency = 10 if dt is None else max(1,int(0.5+1.0/(400*dt)))
 
-    max_t = dt*10 # Short timespan for debugging!
+    #max_t = dt*10 # Short timespan for debugging!
 
     #for refinement_level in (0,1,2):
-    for refinement_level in (0,):
+    #for refinement_level in (0,):
+    for refinement_level in (0,1):
         #for boundary_layers in (False,True):
-        for boundary_layers in (False,):
+        for boundary_layers in (True,):
 
             stationary = True
             #for test_case in (1,2,3,4):
