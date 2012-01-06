@@ -9,6 +9,7 @@ template = './ns Challenge ipcs_opt \
 segregated=True \
 save_solution=True \
 save_frequency=%(save_frequency)d \
+save_xml=True \
 store_probes=False \
 plot_probes=False \
 stationary=%(stationary)s \
@@ -18,6 +19,14 @@ boundary_layers=%(boundary_layers)s \
 dt=%(dt)g \
 max_t=%(max_t)g \
 casename=%(casename)r'
+
+
+fenics_stable_setup = '''
+echo Using fenics setup from
+ls -lst ${FENICS_STABLE_DIR}/share/dolfin/dolfin.conf
+source ${FENICS_STABLE_DIR}/share/dolfin/dolfin.conf
+fenics-versions
+'''
 
 
 # ... Utility code
@@ -57,7 +66,6 @@ for dt in (1e-4,):
             for test_case in (1,):
                 emit_job(**locals())
 
-
 # ... Execute jobs!
 if __name__ == '__main__':
     import sys
@@ -67,12 +75,13 @@ if __name__ == '__main__':
     else:
         from dolfin_utils.pjobs import submit
         n = int(sys.argv[1]) 
-        if n == 1:
+        if n < 1:
             submit(jobs, name=names, serial=True)
         else:
+            setup = fenics_stable_setup
             prefix = "pmpirun.openmpi -n %d " % n
             jobs = [prefix + job for job in jobs]
             nn = (n+7)//8
             assert n <= nn * 8
-            submit(jobs, name=names, nodes=(n+7)//8, ppn=8, walltime=24*7, keep_environment=True)
+            submit(jobs, name=names, nodes=(n+7)//8, ppn=8, walltime=24*7, setup=setup, keep_environment=False)
 

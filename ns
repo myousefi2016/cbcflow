@@ -5,7 +5,13 @@ __date__ = "2008-04-11"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-import os, sys, time
+import os
+print
+print "PATH variable is:"
+print os.environ["PATH"]
+print
+
+import sys, time
 from dolfin import set_log_active, parameters, list_timings, interactive
 
 from problems import Problem, problems
