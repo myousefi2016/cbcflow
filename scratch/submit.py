@@ -43,7 +43,7 @@ def emit_job(**values):
 debug = False
 
 # ... Parameter sweep
-smax_t = 0.3
+smax_t = 0.1
 pmax_t = 2.5
 #pmax_t = 1.5
 # Set dt to None to use computed cfl condition
