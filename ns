@@ -134,7 +134,9 @@ def main(args):
     dt_division = str(options["dt_division"])
 
     # Create problem and solver
+    print "Making problem..."
     problem = Problem(problem_name, options)
+    print "Making solver..."
     solver = Solver(solver_name, options)
     print "Problem: " + str(problem)
     print "Solver:  " + str(solver)
