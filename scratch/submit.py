@@ -40,33 +40,41 @@ def emit_job(**values):
     jobs.append(template % values)
     names.append(casename)
 
+debug = False
 
 # ... Parameter sweep
-#max_t = 3.5
-max_t = 1.5
+smax_t = 0.3
+pmax_t = 2.5
+#pmax_t = 1.5
 # Set dt to None to use computed cfl condition
 #for dt in (1e-4,):
 #for dt in (1e-3,1e-4,1e-5):
-for dt in (1e-3,2e-5):
+for dt in (2e-4,2e-5):
     save_frequency = 10 if dt is None else max(1,int(0.5+1.0/(400*dt)))
 
-    #max_t = dt*10 # Short timespan for debugging!
+    #smax_t = pmax_t = dt*10 # Short timespan for debugging!
 
     #for refinement_level in (0,1,2):
     #for refinement_level in (0,):
-    for refinement_level in (0,1):
+    for refinement_level in (0,1,):
         #for boundary_layers in (False,True):
         for boundary_layers in (True,):
 
             stationary = True
-            #for test_case in (1,2,3,4):
-            for test_case in (1,):
+            max_t = smax_t
+            #for test_case in (1,):
+            for test_case in (1,2,3,4):
                 emit_job(**locals())
+                if debug: break
+            if debug: break
 
             stationary = False
+            max_t = pmax_t
             #for test_case in (1,2,):
-            for test_case in (1,):
+            for test_case in (1,2,):
                 emit_job(**locals())
+        if debug: break
+    if debug: break
 
 # ... Execute jobs!
 if __name__ == '__main__':
@@ -80,10 +88,10 @@ if __name__ == '__main__':
         if n < 1:
             submit(jobs, name=names, serial=True)
         else:
-            setup = ''#fenics_stable_setup
+            setup = ''#fenics_stable_setup # TODO: (msa) Test this now that correct .bash_profile has been configured
             prefix = "pmpirun.openmpi -n %d " % n
             jobs = [prefix + job for job in jobs]
             nn = (n+7)//8
             assert n <= nn * 8
-            submit(jobs, name=names, nodes=(n+7)//8, ppn=8, walltime=24*7, setup=setup, keep_environment=False)
+            submit(jobs, name=names, nodes=(n+7)//8, ppn=8, walltime=24*7, setup=setup, keep_environment=False, dryrun=False)
 
