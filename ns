@@ -12,7 +12,7 @@ print os.environ["PATH"]
 print
 
 import sys, time
-from dolfin import set_log_active, parameters, list_timings, interactive
+from dolfin import set_log_active, parameters, list_timings, interactive, MPI
 
 from problems import Problem, problems
 from solvers import Solver, solvers
@@ -144,11 +144,12 @@ def main(args):
         options["casename"] = solver.prefix(problem) + \
             "_refinement_level_"+ str(options["refinement_level"])
     casedir = os.path.join("results", options["casename"])
-    if not os.path.exists(casedir):
-        os.mkdir(casedir)
-        print "Made case directory '%s'" % casedir
-    else:
-        print "NB! Directory already exists: '%s'." % casedir
+    if MPI.process_number() == 0:
+        if not os.path.exists(casedir):
+            os.mkdir(casedir)
+            print "Made case directory '%s'" % casedir
+        else:
+            print "NB! Directory already exists: '%s'." % casedir
 
     # Solve problem with solver
     wct = time.time()
@@ -180,4 +181,10 @@ def main(args):
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    args = sys.argv[1:]
+    print "Running main with args", args
+    result = main(args)
+    print "Result from main is", result
+    sys.exit(result)
+    print "Should have exited now!"
+
