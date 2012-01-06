@@ -80,7 +80,7 @@ if __name__ == '__main__':
         if n < 1:
             submit(jobs, name=names, serial=True)
         else:
-            setup = fenics_stable_setup
+            setup = ''#fenics_stable_setup
             prefix = "pmpirun.openmpi -n %d " % n
             jobs = [prefix + job for job in jobs]
             nn = (n+7)//8
