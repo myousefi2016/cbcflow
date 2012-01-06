@@ -94,7 +94,9 @@ class Problem(ProblemBase):
                 2: "mesh_2mio.xml.gz",
                 3: "mesh_4mio.xml.gz",
             }[refinement]
+        print "Loading mesh..."
         self.mesh = Mesh(os.path.join("data", "challenge", mesh_filename))
+        print "Done loading mesh."
 
         # Select flux in cm3/s
         self.testcase = self.options["test_case"]
