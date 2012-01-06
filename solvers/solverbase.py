@@ -175,14 +175,15 @@ class SolverBase:
 
         # Save vectors in xml format
         if self.options["save_xml"]:
+            # TODO: (msa) I think it would be better to store timesteps in a separate file and use timestep number instead of time in .xml filenames.
             if self.options['segregated']:
                 for i, ui in enumerate(u):
-                    file = File(os.path.join(casedir, "u%d_at_t_%1.2e.xml" % (i,t)))
+                    file = File(os.path.join(casedir, "u%d_at_t_%.5e.xml" % (i,t)))
                     file << ui.vector()
             else:
-                file = File(os.path.join(casedir, "u_at_t_%1.2e.xml" % (t,)))
+                file = File(os.path.join(casedir, "u_at_t_%.5e.xml" % (t,)))
                 file << u[0].vector()
-            file = File(os.path.join(casedir, "p_at_t_%1.2e.xml" % (t,)))
+            file = File(os.path.join(casedir, "p_at_t_%.5e.xml" % (t,)))
             file << p.vector()
 
         # Plot solution
