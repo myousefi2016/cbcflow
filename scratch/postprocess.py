@@ -6,6 +6,7 @@ from scipy import *
 import os, re, sys, glob, math
 from dolfin import *
 
+casename = sys.argv[1]
 results_dir = "results/success"
 data_dir = "data/challenge"
 case_dir = os.path.join(results_dir, casename)
@@ -53,14 +54,20 @@ def iterate_pressure_functions(mesh):
     globpattern = os.path.join(case_dir, "p_at_t_*.xml")
     regexp = re.compile("p_at_t_(.*).xml")
 
+    filenames = []
     for fn in glob.glob(globpattern):
         m = regexp.search(fn)
         assert m
         ts, = m.groups()
         t = float(ts)
+        filenames.append((t, fn))
 
-        # TODO: Pick time interval, or just closest to n.275 automatically
+    # Pick last few steps
+    filenames = sorted(filenames)
+    filenames = filenames[-20:]
+    print '\n'.join(map(str,filenames))
 
+    for t, fn in filenames:
         f = File(fn)
         f >> p.vector()
         yield p, t
@@ -72,7 +79,7 @@ def evaluate_pressure_probes(cl, p):
         probevalues[i] = p(numpy.array(cl[i,:3]))
     return probevalues
 
-def postprocess(casename, dowrite=False, doplot=False):
+def postprocess(dowrite=False, doplot=False):
     mesh = load_mesh()
     print mesh.num_vertices(), mesh.num_cells()
 
@@ -92,8 +99,8 @@ def postprocess(casename, dowrite=False, doplot=False):
             os.mkdir(probe_dir)
 
     for p, t in iterate_pressure_functions(mesh):
-        print "Got", t, p.vector().size(), p.vector().max(), p.vector.min()
         y = evaluate_pressure_probes(cl, p)
+        print "At t = %g, max dp = %g, probe dp = %g" % (t, p.vector().max()-p.vector().min(), max(y)-min(y))
 
         if doplot:
             if line is None:
@@ -104,9 +111,9 @@ def postprocess(casename, dowrite=False, doplot=False):
                 pylab.draw()
 
         if dowrite:
-            probefilename = os.path.join(probe_dir "p_t%g" % t)
+            probefilename = os.path.join(probe_dir, "p_t%g" % t)
             with open(probefilename, "w") as f:
                 f.write('\n'.join(map(str,self.probevalues)))
 
 if __name__ == '__main__':
-    postprocess(sys.argv[1], doplot=False, dowrite=False)
+    postprocess(doplot=False, dowrite=False)
