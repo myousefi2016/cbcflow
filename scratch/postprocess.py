@@ -6,10 +6,14 @@ from scipy import *
 import os, re, sys, glob, math
 from dolfin import *
 
+number_of_steps = 3
 casename = sys.argv[1]
 results_dir = "results/success"
 data_dir = "data/challenge"
 case_dir = os.path.join(results_dir, casename)
+assert os.path.exists(results_dir)
+assert os.path.exists(data_dir)
+assert os.path.exists(case_dir)
 probe_dir = os.path.join(case_dir, "probes")
 
 def load_mesh(refinement=0, stationary=True, boundary_layers=True):
@@ -34,15 +38,37 @@ def load_probes():
     return cl
 
 def iterate_velocity_functions(mesh):
-    # TODO: Invert this like for pressure, by using glob and re to find timesteps
-    if 0:
-        u = [u0,u1,u2]
-        for i, ui in enumerate(u):
-            fn = os.path.join(case_dir, "u%d_at_t_%.5e.xml" % (i,t))
-            file = File(fn)
-            file >> ui.vector()
-    t = 0
-    for u in []:
+    # NB! Currently yielding the same function object each time!
+
+    V = VectorFunctionSpace(mesh, "CG", 1)
+    Vi = FunctionSpace(mesh, "CG", 1)
+    u = Function(V)
+    ui = Function(Vi)
+
+    globpatterns = [os.path.join(case_dir, "u%d_at_t_*.xml" % i) for i in range(3)]
+    regexps = [re.compile("u%d_at_t_(.*).xml" % i) for i in range(3)]
+
+    filenames = {}
+    for i in range(3):
+        for fn in glob.glob(globpatterns[i]):
+            m = regexps[i].search(fn)
+            assert m
+            ts, = m.groups()
+            t = float(ts)
+            filenames[ts] = filenames.get(ts,[]) + [fn]
+    filenames = [(float(ts), fns) for (ts,fns) in filenames.items()]
+
+    # Pick last few steps
+    filenames = sorted(filenames)
+    filenames = filenames[-number_of_steps:]
+    print '\n'.join(map(str,filenames))
+
+    n = ui.vector().size()
+    for t, fns in filenames:
+        for i in range(3):
+            f = File(fns[i])
+            f >> ui.vector()
+            u.vector()[i*n:(i+1)*n] = ui.vector() # NB! Assuming simple component layout!
         yield u, t
 
 def iterate_pressure_functions(mesh):
@@ -64,7 +90,7 @@ def iterate_pressure_functions(mesh):
 
     # Pick last few steps
     filenames = sorted(filenames)
-    filenames = filenames[-20:]
+    filenames = filenames[-number_of_steps:]
     print '\n'.join(map(str,filenames))
 
     for t, fn in filenames:
@@ -79,7 +105,7 @@ def evaluate_pressure_probes(cl, p):
         probevalues[i] = p(numpy.array(cl[i,:3]))
     return probevalues
 
-def postprocess(dowrite=False, doplot=False):
+def postprocess(dowrite=False, doplot=False, dowritepvd=False):
     mesh = load_mesh()
     print mesh.num_vertices(), mesh.num_cells()
 
@@ -89,7 +115,9 @@ def postprocess(dowrite=False, doplot=False):
     x = numpy.array(cl[:,3])
     print "cl", cl.shape
 
-    line = None
+    if doplot:
+        line = None
+        pylab.ion()
 
     if dowrite:
         if os.path.exists(probe_dir):
@@ -97,6 +125,12 @@ def postprocess(dowrite=False, doplot=False):
         else:
             print "Creating:", probe_dir
             os.mkdir(probe_dir)
+
+    if dowritepvd:
+        pvdfilename = os.path.join(probe_dir, "p.pvd")
+        pvdfile = File(pvdfilename)
+        upvdfilename = os.path.join(probe_dir, "u.pvd")
+        upvdfile = File(upvdfilename)
 
     for p, t in iterate_pressure_functions(mesh):
         y = evaluate_pressure_probes(cl, p)
@@ -111,9 +145,23 @@ def postprocess(dowrite=False, doplot=False):
                 pylab.draw()
 
         if dowrite:
-            probefilename = os.path.join(probe_dir, "p_t%g" % t)
+            probefilename = os.path.join(probe_dir, "p_t%.5e" % t)
             with open(probefilename, "w") as f:
-                f.write('\n'.join(map(str,self.probevalues)))
+                f.write('\n'.join(map(str,y)))
+        if dowritepvd:
+            pvdfile << p
+
+    for u, t in iterate_velocity_functions(mesh):
+        if dowritepvd:
+            upvdfile << u
+
+    if doplot:
+        pylab.ioff()
+        pylab.show()
 
 if __name__ == '__main__':
-    postprocess(doplot=False, dowrite=False)
+    args = sys.argv[2:]
+    postprocess(doplot='p' in args,
+                dowrite='w' in args,
+                dowritepvd='v' in args)
+
