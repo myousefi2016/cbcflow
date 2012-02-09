@@ -55,7 +55,7 @@ class RhsGenerator(object):
             return x.vector()
         return assemble(inner(x, TestFunction(self.space)) * dx)
 
-    def __call__(self):
+    def __call__(self, bcs=None, symmetric_mod=None):
         f = Function(self.space)
         b = f.vector().copy() # dolfin bug 889021
         for mat, x, alpha in self.matvecs:
@@ -67,6 +67,20 @@ class RhsGenerator(object):
             b += vec
         if self.form:
             assemble(self.form, tensor=b, add_values=True, reset_sparsity=False)
+        for bc in self._wrap_in_list(bcs, "bcs", DirichletBC):
+            bc.apply(b)
+        if symmetric_mod:
+            b -= symmetric_mod*b
         return b
 
-
+    def _wrap_in_list(self, obj, name, types=type):
+        if obj is None:
+            lst = []
+        elif hasattr(obj, '__iter__'):
+            lst = list(obj)
+        else:
+            lst = [obj]
+        for obj in lst:
+            if not isinstance(obj, types):
+                raise TypeError("expected a (list of) %s as '%s' argument" % (str(types),name))
+        return lst
