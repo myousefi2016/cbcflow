@@ -91,16 +91,13 @@ class Problem(ProblemBase):
         bc_inflow = [DirichletBC(V, g, 1) for g in self.g_inflow]
 
         # Create outflow boundary condition for pressure
-        self.g_outflow = Constant(0)
+        self.g_outflow = self.resistance(V.mesh(), boundary_markers, 2, C=5.97, p0=0)
         bc_outflow = [DirichletBC(Q, self.g_outflow, marker) for marker in (2,3)]
 
         bc_u = zip(bc_inflow, bc_noslip) # Important: inflow before noslip
         bc_p = [bc_outflow]
 
         return bc_u + bc_p
-
-    def pressure_bc(self, Q):
-        return 0
 
     def update(self, t, u, p):
         self.t = t

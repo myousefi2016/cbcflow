@@ -92,9 +92,6 @@ class Problem(ProblemBase):
 
         return bcu + bcp
 
-    def pressure_bc(self, Q):
-        return 0
-
     def update(self, t, u, p):
         for g in self.g_inflow:
             g.t = t

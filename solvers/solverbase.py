@@ -89,7 +89,7 @@ class SolverBase:
         if self.options['segregated']:
            s = max(ui.vector().norm('linf') for ui in u) / problem.U
         else: 
-           s = u[0].vector().norm('linf') 
+           s = u.vector().norm('linf') 
         if s > 5:
             print "WARNING: A component in u is %.1f times characteristic velocity U"%s
         if s > 1e10:

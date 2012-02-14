@@ -113,8 +113,19 @@ class ProblemBase:
 
         return dt, t_range[0], t_range
 
-    # FIXME: Remove this and merge with boundary_condition()
+    def resistance(self, mesh, boundary_markers, mark, C, p0):
+        if not hasattr(self, "u"):
+            print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
+            return Constant(p0)
+        n = FacetNormal(mesh)
+        flux = inner(self.u, n)*ds(mark)
+        Q = assemble(flux, mesh=mesh, exterior_facet_domains=boundary_markers)
+        R = C*Q + p0
+        print "Computed resistance over marker %d is %.3g, the flux is %.3g"%(mark, R, Q)
+        return Constant(R)
+
     def pressure_bc(self, Q):
+        warning("Using default pressure 0, please set pressure bc in boundary_conditions()")
         return Constant(0)
 
     def uConstant(self, values):
