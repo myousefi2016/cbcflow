@@ -59,7 +59,6 @@ class Solver(SolverBase):
         dims = range(dim)
 
         # Functions
-
         u_prev = [_.copy() for _ in u_curr] # u^{n-1}
         u_next = [_.copy() for _ in u_curr] # u^{n+1}
         p_next = p_curr.copy()              # p^{n+1}
@@ -145,6 +144,8 @@ class Solver(SolverBase):
                 assemble(a_conv, tensor=Kconv, reset_sparsity=False)
             else:
                 assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+            for bc in bcu[0]:
+                bc.zero(Kconv)
             A_u_tent.axpy(1.0, Kconv, True)
             self.timer("u_tent assemble convection & construct lhs")
 
