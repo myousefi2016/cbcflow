@@ -64,7 +64,7 @@ class ProblemBase:
         # FIXME: This looks very complex, should be cleaned up
 
         T  = problem.T
-        U  = problem.U
+        U  = getattr(problem, "U", float("nan"))
         nu = problem.nu
         h  = MPI.min(self.mesh.hmin())
         "Return time step and number of time steps for problem. Used for debugging / compilation only"
@@ -152,8 +152,29 @@ class ProblemBase:
         else:
             return [Expression(expr_strings, **kwargs)]
 
+    def eval(self, func, point):
+        M = 0
+        N = 0
+        err = None
+        try:
+            func.gather()
+            M = func(point)
+            N = 1
+        except RuntimeError as e:
+            err = e
+        N = MPI.sum(N)
+        if N == 0:
+            raise RuntimeError(str(err))
+        if hasattr(M, '__iter__'):
+            for i in range(len(M)):
+                M[i] = MPI.sum(M[i])/N
+        else:
+            M = MPI.sum(M)/N
+        return M
+
+
     def uEval(self, func, component, point):
         if self.options['segregated']:
-            return func[component](point)
+            return self.eval(func[component], point)
         else:
-            return func(point)[component]
+            return self.eval(func, point)[component]

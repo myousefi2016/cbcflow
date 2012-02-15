@@ -165,16 +165,11 @@ def main(args):
     else:
         num_dofs = u.vector().size() + p.vector().size()
 
-    # May raise exception on some processors in parallel, it seems -- ignore.
-    try:
-        # Get functional value and error.
-        functional, error = solver.eval()
+    # Get functional value and error.
+    functional, error = solver.eval()
 
-        # Save results
-        save_results(options["casename"], problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
-    except Exception as err: # TODO: What kind of error do we get in parallell? RuntimeError? Something else?
-        print 'Exception getting functional/error, ignoring:'
-        print err
+    # Save results
+    save_results(options["casename"], problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
 
     if options['plot_solution']:
         interactive()

@@ -74,12 +74,10 @@ class Problem(ProblemBase):
         return bcu + bcp
 
     def update(self, t, u, p):
-        print 'Time in update is:', t
         for expr in self.exact_u + self.exact_p:
             expr.t = t
 
     def functional(self, t, u, p):
-        print 'Time in functional is:', t
         if t < self.T:
             return 0.0
         else:

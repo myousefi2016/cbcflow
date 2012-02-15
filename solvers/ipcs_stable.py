@@ -138,12 +138,16 @@ class Solver(SolverBase):
 
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
-            # stored in rhs. (And it's faster).
-            if Kconv.size(0) > 0:
+            # also stored in rhs. (And it's faster).
+            if Kconv.size(0) == 0:
+                # First time, just assemble normally
+                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+            else:
+                # Subtract the convection for previous time step before re-assembling Kconv
                 A_u_tent.axpy(-1.0, Kconv, True)
                 assemble(a_conv, tensor=Kconv, reset_sparsity=False)
-            else:
-                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+            # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
+            # the axpy (it doesn't matter which)
             for bc in bcu[0]:
                 bc.zero(Kconv)
             A_u_tent.axpy(1.0, Kconv, True)

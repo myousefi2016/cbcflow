@@ -88,10 +88,10 @@ class SolverBase:
         casedir = os.path.join("results", self.options["casename"])
 
         if self.options['segregated']:
-           s = max(ui.vector().norm('linf') for ui in u) / problem.U
+           s = max(ui.vector().norm('linf') for ui in u)
         else:
-           s = u.vector().norm('linf') / problem.U
-        if s > 5:
+           s = u.vector().norm('linf')
+        if s > 5 * getattr(problem, 'U', float('inf')):
             warning("A component in u is %.4g times characteristic velocity U"%round(s))
         if s > 1e10:
             raise RuntimeError("Runaway solution")
@@ -107,28 +107,24 @@ class SolverBase:
         # Update problem FIXME: Should this be called before problem.functional??
         problem.update_problem(t, self._list_or_function(u), p)
 
-        # Ignore error in functional (outside domain in parallel, for example)
-        try:
-            # Evaluate functional and error
-            m = problem.reference(t)
-            M = problem.functional(t, self._list_or_function(u), p)
-            if m is None:
-                e = None
-                if master:
-                    print "M = %g (missing reference value)" % M
-            else:
-                e = abs(M - m)
-                if master:
-                    print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
 
-            # Store values
-            self._t.append(t)
-            self._M.append(M)
-            self._m.append(m)
-            self._e.append(e)
-        except RuntimeError as err:
-            print 'Exception getting functional/error, ignoring:'
-            print err
+        # Evaluate functional and error
+        m = problem.reference(t)
+        M = problem.functional(t, self._list_or_function(u), p)
+        if m is None:
+            e = None
+            if master:
+                print "M = %g (missing reference value)" % M
+        else:
+            e = abs(M - m)
+            if master:
+                print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
+
+        # Store values
+        self._t.append(t)
+        self._M.append(M)
+        self._m.append(m)
+        self._e.append(e)
 
         # Save solution
         if self.options["save_solution"]:
