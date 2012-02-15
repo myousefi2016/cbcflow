@@ -14,6 +14,8 @@ from commands import getoutput
 maxiter = default_maxiter = 200
 tolerance = default_tolerance = 1e-4
 
+master = MPI.process_number() == 0
+
 class SolverBase:
     "Base class for all solvers."
 
@@ -45,7 +47,7 @@ class SolverBase:
         return mymemory
 
     def timer(self, msg):
-        if self.options['timer']:
+        if self.options['timer'] and master:
             print "%10.0f ms: %s"%((time()-self._timer)*1000, msg)
             self._timer = time()
 
@@ -85,13 +87,12 @@ class SolverBase:
 
         casedir = os.path.join("results", self.options["casename"])
 
-        s = 0 
         if self.options['segregated']:
            s = max(ui.vector().norm('linf') for ui in u) / problem.U
-        else: 
-           s = u.vector().norm('linf') 
+        else:
+           s = u.vector().norm('linf') / problem.U
         if s > 5:
-            print "WARNING: A component in u is %.1f times characteristic velocity U"%s
+            warning("A component in u is %.4g times characteristic velocity U"%round(s))
         if s > 1e10:
             raise RuntimeError("Runaway solution")
 
@@ -113,10 +114,12 @@ class SolverBase:
             M = problem.functional(t, self._list_or_function(u), p)
             if m is None:
                 e = None
-                print "M = %g (missing reference value)" % M
+                if master:
+                    print "M = %g (missing reference value)" % M
             else:
                 e = abs(M - m)
-                print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
+                if master:
+                    print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
 
             # Store values
             self._t.append(t)
@@ -198,12 +201,13 @@ class SolverBase:
                 print 'Memory usage is:' , self.getMyMemoryUsage()
 
         # Print progress
-        time_remaining = self._cputime * (problem.T/t-1)
-        print
-        s = "Time step %d finished in %.2f seconds, %.1f%% done (t=%.3g, T=%g; %ds remaining)." \
-            % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T, time_remaining)
-        print s
-        print "-"*len(s)
+        if master:
+            time_remaining = self._cputime * (problem.T/t-1)
+            print
+            s = "Time step %d finished in %.2f seconds, %.1f%% done (t=%.3g, T=%g; %ds remaining)." \
+                % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T, time_remaining)
+            print s
+            print "-"*len(s)
 
         # Increase time step and record current time
         self._timestep += 1
@@ -252,9 +256,9 @@ def is_periodic(bcs):
 
 def has_converged(r, iter, method, maxiter=default_maxiter, tolerance=default_tolerance):
     "Check if solution has converged."
-    print "Residual = ", r
+    if master: print "Residual = ", r
     if r < tolerance:
-        print "%s iteration converged in %d iteration(s)." % (method, iter + 1)
+        if master: print "%s iteration converged in %d iteration(s)." % (method, iter + 1)
         return True
     elif iter == maxiter - 1:
         raise RuntimeError, "%s iteration did not converge." % method
@@ -264,7 +268,7 @@ def check_divergence(u, Q):
     "Check divergence of velocity."
 
     # Compute L2 norm of divergence
-    print "||div u||_L2 =", norm(u, "Hdiv0")
+    if master: print "||div u||_L2 =", norm(u, "Hdiv0")
 
     # Compute projection of div u into Q_0
     pdivu = project(div(u), Q)
@@ -273,4 +277,4 @@ def check_divergence(u, Q):
     bc.apply(pdivu.vector())
 
     # Compute "weak" L2 norm of divergence
-    print "||div u||_w  =", sqrt(abs(assemble(pdivu*div(u)*dx, mesh=Q.mesh())))
+    if master: print "||div u||_w  =", sqrt(abs(assemble(pdivu*div(u)*dx, mesh=Q.mesh())))

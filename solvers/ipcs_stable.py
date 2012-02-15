@@ -142,16 +142,20 @@ class Solver(SolverBase):
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
             # stored in rhs. (And it's faster).
-            assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
+            if Kconv.size(0) > 0:
+                A_u_tent.axpy(-1.0, Kconv, True)
+                assemble(a_conv, tensor=Kconv, reset_sparsity=False)
+            else:
+                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+            A_u_tent.axpy(1.0, Kconv, True)
+            self.timer("u_tent assemble convection & construct lhs")
 
-            A_u_tent += Kconv
             # Compute tentative velocity step
             for d in dims:
                 b = rhs_u_tent[d](bcs=bcu[d])
                 self.timer("u_tent construct rhs")
                 iter = solver_u_tent.solve(u0[d].vector(), b)
                 self.timer("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_tent_params), b.size(), iter))
-            A_u_tent -= Kconv
 
             # Pressure correction
             b = rhs_p_corr(bcs=bcp)

@@ -9,6 +9,8 @@ from dolfin import *
 from numpy import linspace
 from math import *
 
+master = MPI.process_number() == 0
+
 class ProblemBase:
     "Base class for all problems."
 
@@ -74,17 +76,23 @@ class ProblemBase:
         else:
             # FIXME: This sequence of ifs make no sense. Clean up...
 
-            if self.options["dt_division"] != 0 and problem.dt > 0:
+            if self.options["dt"]:
+                dt = self.options["dt"]
+                n = int(T / dt + 0.5)
+                dt = T / n
+                if master: print "Using used supplied dt"
+
+            elif self.options["dt_division"] != 0 and getattr(problem, "dt", 0) > 0:
                 dt = problem.dt / int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Using problem.dt and time step refinements'
+                if master: print 'Using problem.dt and time step refinements'
 
             # Use time step specified in problem if available
-            elif hasattr(problem, 'dt') and problem.dt > 0:
+            elif getattr(problem, "dt", 0) > 0:
                 dt = problem.dt
                 n  = int(T / dt)
-                print 'Using problem.dt'
+                if master: print 'Using problem.dt'
 
             # Otherwise, base time step on mesh size
             elif self.options["dt_division"] != 0:
@@ -92,7 +100,7 @@ class ProblemBase:
                 dt /= int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Computing time step according to stability criteria and time step refinements'
+                if master: print 'Computing time step according to stability criteria and time step refinements'
 
             # Otherwise, base time step on mesh size
             else:
@@ -100,32 +108,36 @@ class ProblemBase:
                 dt =  0.2*(h / U)
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                print 'Computing time step according to stability criteria'
+                if master: print 'Computing time step according to stability criteria'
 
         # Compute range
         t_range = linspace(0,T,n+1)[1:] # FIXME: Comment out [1:] to run g2ref g2ref
 
         # Report time step
-        print " "
-        print 'Number of timesteps:' , len(t_range)
-        print 'Size of timestep:' , dt
-        print " "
+        if master:
+            print " "
+            print 'Number of timesteps:' , len(t_range)
+            print 'Size of timestep:' , dt
+            print " "
 
         return dt, t_range[0], t_range
 
     def resistance(self, mesh, boundary_markers, mark, C, p0):
         if not hasattr(self, "u"):
-            print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
+            if master:
+                print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
             return Constant(p0)
         n = FacetNormal(mesh)
         flux = inner(self.u, n)*ds(mark)
         Q = assemble(flux, mesh=mesh, exterior_facet_domains=boundary_markers)
         R = C*Q + p0
-        print "Computed resistance over marker %d is %.3g, the flux is %.3g"%(mark, R, Q)
+        if master:
+            print "Computed resistance over marker %d is %.3g, the flux is %.3g"%(mark, R, Q)
         return Constant(R)
 
     def pressure_bc(self, Q):
-        warning("Using default pressure 0, please set pressure bc in boundary_conditions()")
+        if master:
+            warning("Using default pressure 0, please set pressure bc in boundary_conditions()")
         return Constant(0)
 
     def uConstant(self, values):
