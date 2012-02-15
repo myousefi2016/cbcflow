@@ -198,10 +198,12 @@ class SolverBase:
                 print 'Memory usage is:' , self.getMyMemoryUsage()
 
         # Print progress
-        print ""
-        s = "Time step %d finished in %.2f seconds, %.1f%% done (t = %g, T = %g)." \
-            % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T)
-        print s + "\n" + len(s)*"-"
+        time_remaining = self._cputime * (problem.T/t-1)
+        print
+        s = "Time step %d finished in %.2f seconds, %.1f%% done (t=%.3g, T=%g; %ds remaining)." \
+            % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T, time_remaining)
+        print s
+        print "-"*len(s)
 
         # Increase time step and record current time
         self._timestep += 1

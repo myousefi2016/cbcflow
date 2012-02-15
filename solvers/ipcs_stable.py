@@ -1,7 +1,7 @@
 from __future__ import division
 
 __author__ = "Joachim B Haga <jobh@simula.no>"
-__date__ = "2012-02-01"
+__date__ = "2012-02-15"
 __copyright__ = "Copyright (C) 2012 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
@@ -17,10 +17,10 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        solver_u_tent_params      = "cg", "hypre_euclid"
-        solver_p_periodic_params  = "cg", "hypre_euclid"
-        solver_p_dirichlet_params = "cg", "ml_amg"
-        solver_u_corr_params      = "cg", "hypre_euclid"
+        solver_u_tent_params      = "gmres", "hypre_euclid"
+        solver_p_periodic_params  = "gmres", "hypre_euclid"
+        solver_p_dirichlet_params = "gmres", "ml_amg"
+        solver_u_corr_params      = "bicgstab", "hypre_euclid"
 
         # Get problem parameters
         mesh = problem.mesh
@@ -33,8 +33,12 @@ class Solver(SolverBase):
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
         bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
+        u1, p1 = ics[:-1], ics[-1]
         bcu, bcp = bcs[:-1], bcs[-1]
+
+        # Interpolate initial conditions to functions
+        u1 = [interpolate(_u1, V) for _u1 in u1]
+        p1 = interpolate(p1, Q)
 
         # Remove boundary stress term if problem is periodic
         beta = 0 if is_periodic(bcp) else 1
@@ -45,36 +49,40 @@ class Solver(SolverBase):
         u = TrialFunction(V)
         p = TrialFunction(Q)
 
-        # Functions
-        dim  = len(u0)
-        dims = range(dim)
-        u0 = [interpolate(_u0, V) for _u0 in u0]
-        u1 = [Function(V) for d in dims]
-
-        p0 = interpolate(p0, Q)
-        p1 = interpolate(p0, Q)
+        # Problem parameters etc
         nu = Constant(problem.nu)
         k  = Constant(dt)
         f  = problem.f
         n  = FacetNormal(mesh)
 
+        dim  = len(u1)
+        dims = range(dim)
+
+        # Functions -- [u.] == [u^{n-.}], [p.] == [p^{n-.}], hence u0 is the
+        # most recent displacement and u2 is the oldest. This is the opposite
+        # of the other ipcs solvers.
+
+        u2 = [_.copy() for _ in u1]
+        u0 = [_.copy() for _ in u1]
+        p0 = p1.copy()
+
         # Tentative velocity step
         a1 = (1/k) * inner(v, u) * dx
         a2 = 0.5 * inner(grad(v), nu*grad(u)) * dx
-        a_conv = -v * sum(u0[r]*u.dx(r) for r in dims) * dx
+
+        a_conv = v * sum((0.75*u1[r] - 0.25*u2[r]) * u.dx(r) for r in dims) * dx
         Kconv = Matrix() # assembled from a_conv in the time loop
 
-        # Create the final coefficient matrix for the tentative velocity
-        # step. We use a single matrix for all dimensions, which means that the
-        # BCs must match (they must apply to the full vector space at the
-        # vertex, not a subspace.
-        A_u_tent, A_u_tent_asymm = symmetric_assemble(a1+a2, bcs=bcu[0])
-        A_u_tent_asymm.compress()
+        # Create the static part of the coefficient matrix for the tentative
+        # velocity step. The convection is added in the time loop. We use a
+        # single matrix for all dimensions, which means that the BCs must match
+        # (they must apply to the full vector space at the vertex, not a
+        # subspace.
+        A_u_tent = assemble(a1+a2)
 
         # Create matrices for generating the RHS
         B = assemble(a1-a2)
-        M_symm, M_asymm = symmetric_assemble(v*u*dx, bcs=bcu[0])
-        M_asymm.compress()
+        M = assemble(v*u*dx)
 
         # Define how to create the RHS for the tentative velocity. The RHS is
         # (of course) different for each dimension.
@@ -82,32 +90,35 @@ class Solver(SolverBase):
         for d in dims:
             C = assemble(-v*p*n[d]*ds + v.dx(d)*p*dx)
             rhs_u_tent[d] = RhsGenerator(V)
-            rhs_u_tent[d] += B, u0[d]
-            rhs_u_tent[d] += C, p0
-            rhs_u_tent[d] += M_symm, f[d]
-            rhs_u_tent[d] += M_asymm, f[d]
-            rhs_u_tent[d] += Kconv, u0[d]
+            rhs_u_tent[d] += B, u1[d]
+            rhs_u_tent[d] += C, p1
+            rhs_u_tent[d] += M, f[d]
+            rhs_u_tent[d] -= Kconv, u1[d]
 
         # Pressure correction
-        A_p_corr, A_p_corr_asymm = symmetric_assemble(inner(grad(q), grad(p))*dx, bcs=bcp)
-        A_p_corr_asymm.compress()
+        A_p_corr = assemble(inner(grad(q), grad(p))*dx)
         rhs_p_corr = RhsGenerator(Q)
-        rhs_p_corr += A_p_corr, p0
-        rhs_p_corr += A_p_corr_asymm, p0
+        rhs_p_corr += A_p_corr, p1
         for d in dims:
             Ku = assemble(-(1/k)*q*u.dx(d)*dx)
-            rhs_p_corr += Ku, u1[d]
+            rhs_p_corr += Ku, u0[d]
 
         # Velocity correction. Like for the tentative velocity, a single LHS is used.
-        A_u_corr, A_u_corr_asymm = M_symm, M_asymm
+        A_u_corr = M
         rhs_u_corr = [None]*dim
         for d in dims:
             Kp = assemble(-k*inner(v, grad(p)[d])*dx)
             rhs_u_corr[d] = RhsGenerator(V)
-            rhs_u_corr[d] += M_symm, u1[d]
-            rhs_u_corr[d] += M_asymm, u1[d]
-            rhs_u_corr[d] += Kp, p1
-            rhs_u_corr[d] -= Kp, p0
+            rhs_u_corr[d] += M, u0[d]
+            rhs_u_corr[d] += Kp, p0
+            rhs_u_corr[d] -= Kp, p1
+
+        # Apply BCs to LHS
+        for bc in bcu[0]:
+            bc.apply(A_u_tent)
+            bc.apply(A_u_corr)
+        for bc in bcp:
+            bc.apply(A_p_corr)
 
         # Create solvers
         if is_periodic(bcp): solver_p_params = solver_p_periodic_params
@@ -128,40 +139,43 @@ class Solver(SolverBase):
             bcu, bcp = bcs[:-1], bcs[-1]
             self.timer("update & fetch bc")
 
-            # Assemble the u0-dependent convection matrix. It is important that
-            # it is assembled into the same tensor, because it is stored in
-            # rhs. (And it's faster).
+            # Assemble the u-dependent convection matrix. It is important that
+            # it is assembled into the same tensor, because the tensor is
+            # stored in rhs. (And it's faster).
             assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
 
+            A_u_tent += Kconv
             # Compute tentative velocity step
             for d in dims:
-                b = rhs_u_tent[d](bcs=bcu[d], symmetric_mod=A_u_tent_asymm)
-                self.timer("u0 construct rhs")
-                iter = solver_u_tent.solve(u1[d].vector(), b)
-                self.timer("u0 solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_tent_params), b.size(), iter))
+                b = rhs_u_tent[d](bcs=bcu[d])
+                self.timer("u_tent construct rhs")
+                iter = solver_u_tent.solve(u0[d].vector(), b)
+                self.timer("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_tent_params), b.size(), iter))
+            A_u_tent -= Kconv
 
             # Pressure correction
-            b = rhs_p_corr(bcs=bcp, symmetric_mod=A_p_corr_asymm)
+            b = rhs_p_corr(bcs=bcp)
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
-            self.timer("p1 construct rhs")
-            iter = solver_p_corr.solve(p1.vector(), b)
-            if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p1 solve (%s, %d dofs, %d iter)"%(', '.join(solver_p_params), b.size(), iter))
+            self.timer("p_corr construct rhs")
+            iter = solver_p_corr.solve(p0.vector(), b)
+            if len(bcp) == 0 or is_periodic(bcp): normalize(p0.vector())
+            self.timer("p_corr solve (%s, %d dofs, %d iter)"%(', '.join(solver_p_params), b.size(), iter))
 
             # Velocity correction
             for d in dims:
-                b = rhs_u_corr[d](bcs=bcu[d], symmetric_mod=A_u_corr_asymm)
-                self.timer("u1 construct rhs")
-                iter = solver_u_corr.solve(u1[d].vector(), b)
-                self.timer("u1 solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_corr_params), b.size(), iter))
+                b = rhs_u_corr[d](bcs=bcu[d])
+                self.timer("u_corr construct rhs")
+                iter = solver_u_corr.solve(u0[d].vector(), b)
+                self.timer("u_corr solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_corr_params), b.size(), iter))
 
             # Update
-            self.update(problem, t, u1, p1)
-            for d in dims: u0[d].assign(u1[d])
-            p0.assign(p1)
+            self.update(problem, t, u0, p0)
+            for d in dims: u2[d].assign(u1[d])
+            for d in dims: u1[d].assign(u0[d])
+            p1.assign(p0)
 
-        return self._list_or_function(u1), p1
+        return self._list_or_function(u0), p1
 
     def __str__(self):
-        name = "IPCS_symm"
+        name = "IPCS_stable"
         return name
