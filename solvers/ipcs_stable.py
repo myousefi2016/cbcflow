@@ -37,8 +37,8 @@ class Solver(SolverBase):
         bcu, bcp = bcs[:-1], bcs[-1]
 
         # Interpolate initial conditions to functions
-        u_curr = [interpolate(_, V) for _ in u0]
-        p_curr = interpolate(p0, Q)
+        u_curr = [interpolate(_, V) for _ in u0] # u^{n}
+        p_curr = interpolate(p0, Q)              # p^{n}
 
         # Remove boundary stress term if problem is periodic
         beta = 0 if is_periodic(bcp) else 1
@@ -55,16 +55,14 @@ class Solver(SolverBase):
         f  = problem.f
         n  = FacetNormal(mesh)
 
-        dim  = len(u1)
+        dim  = len(u0)
         dims = range(dim)
 
         # Functions
 
-        u_prev = [_.copy() for _ in u0] # u^{n-1}
-        u_curr = [_.copy() for _ in u0] # u^{n}
-        u_next = [_.copy() for _ in u0] # u^{n+1}
-        p_curr = p0.copy()              # p^{n}
-        p_next = p0.copy()              # p^{n+1}
+        u_prev = [_.copy() for _ in u_curr] # u^{n-1}
+        u_next = [_.copy() for _ in u_curr] # u^{n+1}
+        p_next = p_curr.copy()              # p^{n+1}
 
         # Tentative velocity step
         a1 = (1/k) * inner(v, u) * dx
