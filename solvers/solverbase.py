@@ -107,7 +107,6 @@ class SolverBase:
         # Update problem FIXME: Should this be called before problem.functional??
         problem.update_problem(t, self._list_or_function(u), p)
 
-
         # Evaluate functional and error
         m = problem.reference(t)
         M = problem.functional(t, self._list_or_function(u), p)
@@ -198,10 +197,12 @@ class SolverBase:
 
         # Print progress
         if master:
-            time_remaining = self._cputime * (problem.T/t-1)
+            ss = self._cputime * (problem.T/t-1)
+            hh, ss = divmod(ss, 60*60)
+            mm, ss = divmod(ss, 60)
             print
-            s = "Time step %d finished in %.2f seconds, %.1f%% done (t=%.3g, T=%g; %ds remaining)." \
-                % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T, time_remaining)
+            s = "Time step %d finished in %.2f seconds, %.1f%% done (t=%.3g, T=%g; %02d:%02d:%02d remaining)." \
+                % (self._timestep, timestep_cputime, 100.0*(t / problem.T), t, problem.T, hh, mm, ss)
             print s
             print "-"*len(s)
 

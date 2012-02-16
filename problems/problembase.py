@@ -157,17 +157,13 @@ class ProblemBase:
         if gather:
             func.gather()
         M = 0
-        N = 0
-        err = None
         try:
             M = func(point)
-            N = 1
-        except RuntimeError as e:
-            err = e
-        N = MPI.sum(N)
-        if N == 0:
-            # Failed to get function value anywhere, re-create error.
-            raise err
+            N = MPI.sum(1) # Succeeding processors participate in the MPI collective here
+        except RuntimeError:
+            N = MPI.sum(0) # Failing processors participate in the MPI collective here
+            if N == 0:
+                raise      # All processors failed
         if master and N > 1:
             warning("%d processors returned function value, which is unexpected (but probably ok)"%N)
         if hasattr(M, '__iter__'):
