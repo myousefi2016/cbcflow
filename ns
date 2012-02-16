@@ -30,6 +30,7 @@ OPTIONS = {"refinement_level": 0,
            "dt_division": 0,
            "save_solution": False,
            "save_frequency": 100,
+           "save_number": None, # max number of saves in total, at fixed frequency
            "check_mem_usage": False,
            "check_frequency": 10,
            "save_solution_at_t=T": False,

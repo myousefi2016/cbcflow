@@ -127,21 +127,17 @@ class SolverBase:
 
         # Save solution
         if self.options["save_solution"]:
-
-            # Save velocity and pressure
-            frequency = self.options["save_frequency"]
-
-            if (self._timestep - 1) % frequency == 0:
+            if (self._timestep - 1) % self.options["save_frequency"] == 0:
                 # Create files
                 if self._ufiles is None:
                     if self.options['segregated']:
                         # added '_' to separate i from vtu numbering
-                        self._ufiles = [File(os.path.join(casedir, "u%d_.pvd" % i))
+                        self._ufiles = [File(os.path.join(casedir, "u%d_.pvd" % i), "compressed")
                                         for i in range(len(u))]
                     else:
-                        self._ufiles = File(os.path.join(casedir, "u.pvd"))
+                        self._ufiles = File(os.path.join(casedir, "u.pvd"), "compressed")
                 if self._pfile is None:
-                    self._pfile = File(os.path.join(casedir, "p.pvd"))
+                    self._pfile = File(os.path.join(casedir, "p.pvd"), "compressed")
 
                 # Write to files
                 if self.options['segregated']:
@@ -156,12 +152,12 @@ class SolverBase:
             if t >= problem.T:
                 # Create files
                 if self._ufiles is None:
-                    self._ufiles = [File(os.path.join(casedir, "u%d_at_end.pvd" % i))
+                    self._ufiles = [File(os.path.join(casedir, "u%d_at_end.pvd" % i), "compressed")
                                     for i in range(len(u))]
                 else: 
-                    self._ufiles = File(os.path.join(casedir, "u_at_end.pvd"))
+                    self._ufiles = File(os.path.join(casedir, "u_at_end.pvd"), "compressed")
                 if self._pfile is None:
-                    self._pfile = File(os.path.join(casedir, "p_at_end.pvd"))
+                    self._pfile = File(os.path.join(casedir, "p_at_end.pvd"), "compressed")
 
                 # Write to files
                 if self.options['segregated']:
@@ -173,16 +169,17 @@ class SolverBase:
 
         # Save vectors in xml format
         if self.options["save_xml"]:
-            timestr = "at_t%d_%.5e" % (self._timestep, t)
-            if self.options['segregated']:
-                for i, ui in enumerate(u):
-                    file = File(os.path.join(casedir, "u%d_%s.xml.gz" % (i, timestr)))
-                    file << ui.vector()
-            else:
-                file = File(os.path.join(casedir, "u_%s.xml.gz" % (timestr,)))
-                file << u[0].vector()
-            file = File(os.path.join(casedir, "p_%s.xml.gz" % (timestr,)))
-            file << p.vector()
+            if (self._timestep - 1) % self.options["save_frequency"] == 0:
+                timestr = "at_t%d_%.5e" % (self._timestep, t)
+                if self.options['segregated']:
+                    for i, ui in enumerate(u):
+                        file = File(os.path.join(casedir, "u%d_%s.xml.gz" % (i, timestr)))
+                        file << ui.vector()
+                else:
+                    file = File(os.path.join(casedir, "u_%s.xml.gz" % (timestr,)))
+                    file << u[0].vector()
+                file = File(os.path.join(casedir, "p_%s.xml.gz" % (timestr,)))
+                file << p.vector()
 
         # Plot solution
         if self.options["plot_solution"]:
@@ -209,6 +206,80 @@ class SolverBase:
         # Increase time step and record current time
         self._timestep += 1
         self._time = time()
+
+    def select_timestep(self, problem):
+        "Return time step and number of time steps for problem."
+
+        from numpy import linspace
+
+        # FIXME: This looks very complex, should be cleaned up
+
+        T  = problem.T
+        U  = getattr(problem, "U", float("nan"))
+        nu = problem.nu
+        h  = MPI.min(problem.mesh.hmin())
+        "Return time step and number of time steps for problem. Used for debugging / compilation only"
+        if self.options["max_steps"] is not None:
+            dt =  0.25*h**2 / (U*(nu + h*U))
+            n  = self.options["max_steps"]
+            T  = n*dt
+            t_range = linspace(0, T, n + 1)[1:]
+        else:
+            # FIXME: This sequence of ifs make no sense. Clean up...
+
+            if self.options["dt"]:
+                dt = self.options["dt"]
+                n = int(T / dt + 0.5)
+                dt = T / n
+                if master: print "Using user supplied dt"
+
+            elif self.options["dt_division"] != 0 and getattr(problem, "dt", 0) > 0:
+                dt = problem.dt / int(sqrt(2)**self.options["dt_division"])
+                n  = int(T / dt + 1.0)
+                dt = T / n
+                if master: print 'Using problem.dt and time step refinements'
+
+            # Use time step specified in problem if available
+            elif getattr(problem, "dt", 0) > 0:
+                dt = problem.dt
+                n  = int(T / dt)
+                if master: print 'Using problem.dt'
+
+            # Otherwise, base time step on mesh size
+            elif self.options["dt_division"] != 0:
+                dt = 0.25*h**2 / (U*(nu + h*U))
+                dt /= int(sqrt(2)**self.options["dt_division"])
+                n  = int(T / dt + 1.0)
+                dt = T / n
+                if master: print 'Computing time step according to stability criteria and time step refinements'
+
+            # Otherwise, base time step on mesh size
+            else:
+                # dt =  0.25*h**2 / (U*(nu + h*U))
+                dt =  0.2*(h / U)
+                n  = int(T / dt + 1.0)
+                dt = T / n
+                if master: print 'Computing time step according to stability criteria'
+
+        # Compute range
+        t_range = linspace(0,T,n+1)[1:] # FIXME: Comment out [1:] to run g2ref g2ref
+
+        # Compute save_frequency if save_number is given
+        if self.options["save_number"] is not None:
+            frequency = int(1 + len(t_range) / (1+self.options["save_number"]))
+            if master:
+                print "Selected save frequency of %d (total %d snapshots)" % (frequency, len(t_range)//frequency)
+            self.options["save_frequency"] = frequency
+
+        # Report time step
+        if master:
+            print " "
+            print 'Number of timesteps:' , len(t_range)
+            print 'Size of timestep:' , dt
+            print " "
+
+        self._num_steps = len(t_range)
+        return dt, t_range[0], t_range
 
     def eval(self):
         "Return last functional value and maximum error in functional value on [0, T]"

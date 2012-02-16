@@ -19,7 +19,7 @@ class Solver(SolverBase):
 
         # Get mesh and time step
         mesh = problem.mesh
-        dt, t, trange = problem.timestep(problem)
+        dt, t, trange = self.select_timestep(problem)
 
         if str(problem) == "Channel":
             dt /= 3.0
