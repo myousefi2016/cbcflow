@@ -152,26 +152,30 @@ class ProblemBase:
         else:
             return [Expression(expr_strings, **kwargs)]
 
-    def eval(self, func, point):
+    def eval(self, func, point, gather=True):
+        """Parallel-safe function evaluation"""
+        if gather:
+            func.gather()
         M = 0
         N = 0
         err = None
         try:
-            func.gather()
             M = func(point)
             N = 1
         except RuntimeError as e:
             err = e
         N = MPI.sum(N)
         if N == 0:
-            raise RuntimeError(str(err))
+            # Failed to get function value anywhere, re-create error.
+            raise err
+        if master and N > 1:
+            warning("%d processors returned function value, which is unexpected (but probably ok)"%N)
         if hasattr(M, '__iter__'):
             for i in range(len(M)):
                 M[i] = MPI.sum(M[i])/N
         else:
             M = MPI.sum(M)/N
         return M
-
 
     def uEval(self, func, component, point):
         if self.options['segregated']:
