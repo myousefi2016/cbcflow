@@ -138,7 +138,7 @@ class SolverBase:
                         # added '_' to separate i from vtu numbering
                         self._ufiles = [File(os.path.join(casedir, "u%d_.pvd" % i))
                                         for i in range(len(u))]
-                    else: 
+                    else:
                         self._ufiles = File(os.path.join(casedir, "u.pvd"))
                 if self._pfile is None:
                     self._pfile = File(os.path.join(casedir, "p.pvd"))
@@ -173,15 +173,15 @@ class SolverBase:
 
         # Save vectors in xml format
         if self.options["save_xml"]:
-            # TODO: (msa) I think it would be better to store timesteps in a separate file and use timestep number instead of time in .xml filenames.
+            timestr = "at_t%d_%.5e" % (self._timestep, t)
             if self.options['segregated']:
                 for i, ui in enumerate(u):
-                    file = File(os.path.join(casedir, "u%d_at_t_%.5e.xml" % (i,t)))
+                    file = File(os.path.join(casedir, "u%d_%s.xml.gz" % (i, timestr)))
                     file << ui.vector()
             else:
-                file = File(os.path.join(casedir, "u_at_t_%.5e.xml" % (t,)))
+                file = File(os.path.join(casedir, "u_%s.xml.gz" % (timestr,)))
                 file << u[0].vector()
-            file = File(os.path.join(casedir, "p_at_t_%.5e.xml" % (t,)))
+            file = File(os.path.join(casedir, "p_%s.xml.gz" % (timestr,)))
             file << p.vector()
 
         # Plot solution

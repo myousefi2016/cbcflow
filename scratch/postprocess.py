@@ -45,31 +45,32 @@ def iterate_velocity_functions(mesh):
     u = Function(V)
     ui = Function(Vi)
 
-    globpatterns = [os.path.join(case_dir, "u%d_at_t_*.xml" % i) for i in range(3)]
-    regexps = [re.compile("u%d_at_t_(.*).xml" % i) for i in range(3)]
+    globpatterns = [os.path.join(case_dir, "u%d_at_t*.xml.gz" % i) for i in range(3)]
+    regexps = [re.compile("u%d_at_t([0-9]*)_(.*).xml.gz" % i) for i in range(3)]
 
     filenames = {}
+    times = {}
     for i in range(3):
         for fn in glob.glob(globpatterns[i]):
             m = regexps[i].search(fn)
             assert m
-            ts, = m.groups()
-            t = float(ts)
+            ts, t = m.groups()
+            ts = int(ts)
             filenames[ts] = filenames.get(ts,[]) + [fn]
-    filenames = [(float(ts), fns) for (ts,fns) in filenames.items()]
+            times[ts] = float(t)
 
     # Pick last few steps
-    filenames = sorted(filenames)
+    filenames = sorted(filenames.items())
     filenames = filenames[-number_of_steps:]
     print '\n'.join(map(str,filenames))
 
     n = ui.vector().size()
-    for t, fns in filenames:
+    for ts, fns in filenames:
         for i in range(3):
             f = File(fns[i])
             f >> ui.vector()
             u.vector()[i*n:(i+1)*n] = ui.vector() # NB! Assuming simple component layout!
-        yield u, t
+        yield u, ts, times[ts]
 
 def iterate_pressure_functions(mesh):
     # NB! Currently yielding the same function object each time!
@@ -77,26 +78,28 @@ def iterate_pressure_functions(mesh):
     V = FunctionSpace(mesh, "CG", 1)
     p = Function(V)
 
-    globpattern = os.path.join(case_dir, "p_at_t_*.xml")
-    regexp = re.compile("p_at_t_(.*).xml")
+    globpattern = os.path.join(case_dir, "p_at_t*.xml.gz")
+    regexp = re.compile("p_at_t([0-9]*)_(.*).xml.gz")
 
     filenames = []
+    times = {}
     for fn in glob.glob(globpattern):
         m = regexp.search(fn)
         assert m
-        ts, = m.groups()
-        t = float(ts)
-        filenames.append((t, fn))
+        ts, t = m.groups()
+        ts = int(ts)
+        filenames.append((ts, fn))
+        times[ts] = float(t)
 
     # Pick last few steps
     filenames = sorted(filenames)
     filenames = filenames[-number_of_steps:]
     print '\n'.join(map(str,filenames))
 
-    for t, fn in filenames:
+    for ts, fn in filenames:
         f = File(fn)
         f >> p.vector()
-        yield p, t
+        yield p, ts, times[ts]
 
 def evaluate_pressure_probes(cl, p):
     # Sample pressure at probe points from challenge readme1a
@@ -132,7 +135,7 @@ def postprocess(dowrite=False, doplot=False, dowritepvd=False):
         upvdfilename = os.path.join(probe_dir, "u.pvd")
         upvdfile = File(upvdfilename)
 
-    for p, t in iterate_pressure_functions(mesh):
+    for p, ts, t in iterate_pressure_functions(mesh):
         y = evaluate_pressure_probes(cl, p)
         print "At t = %g, max dp = %g, probe dp = %g" % (t, p.vector().max()-p.vector().min(), max(y)-min(y))
 
@@ -151,7 +154,7 @@ def postprocess(dowrite=False, doplot=False, dowritepvd=False):
         if dowritepvd:
             pvdfile << p
 
-    for u, t in iterate_velocity_functions(mesh):
+    for u, ts, t in iterate_velocity_functions(mesh):
         if dowritepvd:
             upvdfile << u
 

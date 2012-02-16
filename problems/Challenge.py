@@ -138,7 +138,6 @@ class Problem(ProblemBase):
         cfl_factor = 8 #16 # TODO: Is 16 a bit high? Reduce by a factor 2-3 to speed up?
         self.U = self.velocity*cfl_factor
         h = MPI.min(self.mesh.hmin())
-        num_cells = int(MPI.sum(self.mesh.num_cells()))
         if MPI.num_processes() == 1:
             num_vertices = self.mesh.num_vertices()
             num_cells = self.mesh.num_cells()
