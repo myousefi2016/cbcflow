@@ -138,13 +138,22 @@ class Problem(ProblemBase):
         cfl_factor = 8 #16 # TODO: Is 16 a bit high? Reduce by a factor 2-3 to speed up?
         self.U = self.velocity*cfl_factor
         h = MPI.min(self.mesh.hmin())
+        num_cells = int(MPI.sum(self.mesh.num_cells()))
+        if MPI.num_processes() == 1:
+            num_vertices = self.mesh.num_vertices()
+            num_cells = self.mesh.num_cells()
+        else:
+            # MPI.sum(num_vertices) counts overlapping vertices twice
+            num_ge = self.mesh.parallel_data().num_global_entities()
+            num_vertices = num_ge[0]
+            num_cells = num_ge[-1]
 
         if master:
             print "Characteristic velocity set to", self.U, "cm/s"
             print "mesh size          ", h, "cm"
             print "velocity at inflow ", self.velocity, "cm/s"
-            print "Number of cells    ", int(MPI.sum(self.mesh.num_cells()))
-            print "Number of vertices ", int(MPI.sum(self.mesh.num_vertices()))
+            print "Number of cells    ", num_cells
+            print "Number of vertices ", num_vertices
 
         self.cl = numpy.loadtxt("data/challenge/cl.dat")
         self.probevalues = numpy.zeros((self.cl.shape[0],))
