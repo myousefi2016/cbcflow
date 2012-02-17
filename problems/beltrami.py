@@ -81,6 +81,8 @@ class Problem(ProblemBase):
         if t < self.T:
             return 0.0
         else:
+            for expr in self.exact_u + self.exact_p:
+                expr.t = t
             if not self.options['segregated']:
                 u = [u]
             error = 0

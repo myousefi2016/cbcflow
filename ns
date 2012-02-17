@@ -58,6 +58,7 @@ OPTIONS = {"refinement_level": 0,
            # Used for restarting a solution at a given time
            "restart_time": None,
            "restart_timestep": None,
+           "restart_casename": None,
           }
 
 
@@ -161,13 +162,15 @@ def main(args):
     wct = time.time()
     if options["restart_timestep"] is not None:
         from solvers.restartinfo import RestartInfo
-        restart = RestartInfo(options["casename"], timestep=options["restart_timestep"])
+        restart = RestartInfo(options["restart_casename"] or options["casename"],
+                              timestep=options["restart_timestep"])
         if master:
             print "Restarting from timestep %d (time %.3g)" % (restart.timestep, restart.t)
         u, p = solver.solve(problem, restart)
     elif options["restart_time"] is not None:
         from solvers.restartinfo import RestartInfo
-        restart = RestartInfo(options["casename"], t=options["restart_time"])
+        restart = RestartInfo(options["restart_casename"] or options["casename"],
+                              t=options["restart_time"])
         if master:
             print "Restarting from timestep %d (time %.3g)" % (restart.timestep, restart.t)
         u, p = solver.solve(problem, restart)

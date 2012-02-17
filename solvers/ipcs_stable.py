@@ -35,9 +35,11 @@ class Solver(SolverBase):
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
         if restart:
-            u_curr = restart.u(t, V)
-            p_curr = restart.p(t, Q)
+            u_prev = restart.u(t-dt, V) # u^{n-1}
+            u_curr = restart.u(t, V) # u^n
+            p_curr = restart.p(t, Q) # p^n
         else:
+            u_prev = [interpolate(_, V) for _ in ics[:-1]]
             u_curr = [interpolate(_, V) for _ in ics[:-1]]
             p_curr = interpolate(ics[-1], Q)
         bcs = problem.boundary_conditions(V, Q, t)
@@ -62,9 +64,8 @@ class Solver(SolverBase):
         dims = range(dim)
 
         # Functions
-        u_prev = [_.copy() for _ in u_curr] # u^{n-1}
-        u_next = [_.copy() for _ in u_curr] # u^{n+1}
-        p_next = p_curr.copy()              # p^{n+1}
+        u_next = [Function(V) for _ in u_curr] # u^{n+1}
+        p_next = Function(Q)                   # p^{n+1}
 
         # Tentative velocity step
         a1 = (1/k) * inner(v, u) * dx

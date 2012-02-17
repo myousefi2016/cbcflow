@@ -15,7 +15,7 @@ class Solver(SolverBase):
         SolverBase.__init__(self, options)
         self.segregated = options['segregated']
 
-    def solve(self, problem):
+    def solve(self, problem, restart=None):
 
         solver_u_tent_params      = "gmres", "hypre_euclid"
         solver_p_periodic_params  = "gmres", "hypre_euclid"
@@ -25,6 +25,8 @@ class Solver(SolverBase):
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
+        if restart:
+            dt, t, t_range = restart.select_timestep(dt, problem.T)
 
         # Define function spaces
         if self.segregated:
@@ -35,8 +37,13 @@ class Solver(SolverBase):
 
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
+        if restart:
+            u0 = restart.u(t, V)
+            p0 = restart.p(t, Q)
+        else:
+            u0 = [interpolate(_, V) for _ in ics[:-1]]
+            p0 = interpolate(ics[-1], Q)
         bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
         bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
@@ -50,11 +57,9 @@ class Solver(SolverBase):
 
         # Functions
         dims = range(len(u0))
-        u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
+        p1 = Function(Q)
 
-        p0 = interpolate(p0, Q)
-        p1 = interpolate(p0, Q)
         nu = Constant(problem.nu)
         k  = Constant(dt)
         f  = problem.f
@@ -157,6 +162,9 @@ class Solver(SolverBase):
         # Time loop
         self.start_timing()
         for t in t_range:
+            print "t =",t
+            print "u =",u0[0].vector().norm('l2')
+            print "p =",p0.vector().norm('l2')
             # Get boundary conditions
             bcs = problem.boundary_conditions(V, Q, t)
             bcu, bcp = bcs[:-1], bcs[-1]

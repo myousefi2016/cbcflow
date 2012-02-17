@@ -9,17 +9,19 @@ import os
 from glob import glob
 import re
 
+master = MPI.process_number() == 0
+
 class RestartInfo(object):
     def __init__(self, casename, timestep=None, t=None):
         self.path = os.path.join("results", casename)
         regexp = re.compile("_at_t([0-9]*)_(.*).xml.gz")
-        if timestep:
+        if timestep is not None:
             filenames = glob(os.path.join(self.path, "*_at_t%d_*.xml.gz"%timestep))
             m = filenames and regexp.search(filenames[0])
             if m:
                 self.timestep = timestep
                 self.t = float(m.group(2))
-        elif time:
+        elif t is not None:
             filenames = glob(os.path.join(self.path, "*_at_t*.xml.gz"))
             for fn in filenames:
                 m = regexp.search(fn)
@@ -28,13 +30,15 @@ class RestartInfo(object):
                     self.timestep = int(m.group(1))
                     break
         if not hasattr(self, 't'):
-            raise RuntimeError("Unable to match time/timestep (no saved data)")
+            raise RuntimeError("Unable to match time/timestep (no saved data in casename %s)"%casename)
 
     def select_timestep(self, dt, T):
-        """Return t (according to timestep) and t_range (with the same dt as old_t_range)"""
+        """Return new time step info"""
         n = int((T-self.t) / dt + 0.5)
+        if n < 1:
+            raise RuntimeError("Trying to restart from t >= T")
         self.t_range = linspace(self.t, T, n + 1)[1:]
-        return dt, self.t, self.t_range
+        return (T-self.t)/n, self.t, self.t_range
 
     def p(self, t, Q):
         return self._load_at_time(t, Q, "p")
@@ -58,8 +62,8 @@ class RestartInfo(object):
 
         # FIXME: Should support going back in time, using linear interpolation
         # between saved files.
-        if t != self.t:
-            raise RuntimeError("Only latest time supported")
+        if master and t != self.t:
+            warning("Using data for current time %.2g instead of %.2g for %s"%(self.t, t, name))
 
         f = Function(functionspace)
         File(filenames[0]) >> f.vector()
