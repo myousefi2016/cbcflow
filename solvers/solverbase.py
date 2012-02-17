@@ -9,6 +9,7 @@ from time import time
 import os
 from os import getpid
 from commands import getoutput
+from numpy import linspace
 
 # Common solver parameters
 maxiter = default_maxiter = 200
@@ -170,7 +171,7 @@ class SolverBase:
         # Save vectors in xml format
         if self.options["save_xml"]:
             if (self._timestep - 1) % self.options["save_frequency"] == 0:
-                timestr = "at_t%d_%.5e" % (self._timestep, t)
+                timestr = "at_t%d_%.6e" % (self._timestep, t)
                 if self.options['segregated']:
                     for i, ui in enumerate(u):
                         file = File(os.path.join(casedir, "u%d_%s.xml.gz" % (i, timestr)))
@@ -209,8 +210,6 @@ class SolverBase:
 
     def select_timestep(self, problem):
         "Return time step and number of time steps for problem."
-
-        from numpy import linspace
 
         # FIXME: This looks very complex, should be cleaned up
 

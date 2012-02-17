@@ -15,7 +15,7 @@ class Solver(SolverBase):
         assert options['segregated']
         SolverBase.__init__(self, options)
 
-    def solve(self, problem):
+    def solve(self, problem, restart=None):
 
         solver_u_tent_params      = "gmres", "hypre_euclid"
         solver_p_periodic_params  = "gmres", "hypre_euclid"
@@ -25,6 +25,8 @@ class Solver(SolverBase):
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
+        if restart:
+            dt, t, t_range = restart.select_timestep(dt, problem.T)
 
         # Define function spaces
         V = FunctionSpace(mesh, "CG", 1)
@@ -32,13 +34,14 @@ class Solver(SolverBase):
 
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
+        if restart:
+            u_curr = restart.u(t, V)
+            p_curr = restart.p(t, Q)
+        else:
+            u_curr = [interpolate(_, V) for _ in ics[:-1]]
+            p_curr = interpolate(ics[-1], Q)
         bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
         bcu, bcp = bcs[:-1], bcs[-1]
-
-        # Interpolate initial conditions to functions
-        u_curr = [interpolate(_, V) for _ in u0] # u^{n}
-        p_curr = interpolate(p0, Q)              # p^{n}
 
         # Remove boundary stress term if problem is periodic
         beta = 0 if is_periodic(bcp) else 1
@@ -55,7 +58,7 @@ class Solver(SolverBase):
         f  = problem.f
         n  = FacetNormal(mesh)
 
-        dim  = len(u0)
+        dim  = len(u_curr)
         dims = range(dim)
 
         # Functions

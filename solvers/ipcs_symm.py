@@ -15,7 +15,7 @@ class Solver(SolverBase):
         assert options['segregated']
         SolverBase.__init__(self, options)
 
-    def solve(self, problem):
+    def solve(self, problem, restart=None):
 
         solver_u_tent_params      = "cg", "hypre_euclid"
         solver_p_periodic_params  = "cg", "hypre_euclid"
@@ -25,6 +25,8 @@ class Solver(SolverBase):
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
+        if restart:
+            dt, t, t_range = restart.select_timestep(dt, problem.T)
 
         # Define function spaces
         V = FunctionSpace(mesh, "CG", 1)
@@ -32,8 +34,13 @@ class Solver(SolverBase):
 
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
+        if restart:
+            u0 = restart.u(t, V)
+            p0 = restart.p(t, Q)
+        else:
+            u0 = [interpolate(_, V) for _ in ics[:-1]]
+            p0 = interpolate(ics[-1], Q)
         bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
         bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
@@ -45,14 +52,12 @@ class Solver(SolverBase):
         u = TrialFunction(V)
         p = TrialFunction(Q)
 
-        # Functions
+        # Functions and parameters
         dim  = len(u0)
         dims = range(dim)
-        u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
+        p1 = Function(Q)
 
-        p0 = interpolate(p0, Q)
-        p1 = interpolate(p0, Q)
         nu = Constant(problem.nu)
         k  = Constant(dt)
         f  = problem.f
