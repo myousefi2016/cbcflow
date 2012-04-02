@@ -88,7 +88,10 @@ class ProblemBase:
     def eval(self, func, point, gather=True):
         """Parallel-safe function evaluation"""
         if gather:
-            func.gather()
+            if hasattr(func, 'gather'):
+                func.gather() # dolfin 1.0
+            else:
+                func.update() # dolfin dev
         M = 0
         try:
             M = func(point)

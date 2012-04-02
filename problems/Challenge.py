@@ -197,7 +197,10 @@ class Problem(ProblemBase):
     def probe(self, t, u, p):
         # Sample pressure at probe points from challenge readme1a
         cl = self.cl
-        p.gather()
+        if hasattr(p, 'gather'):
+            p.gather() # dolfin 1.0
+        else:
+            p.update() # dolfin dev
         for i in range(self.cl.shape[0]):
             self.probevalues[i] = self.eval(p, array(self.cl[i,:3]), gather=False)
 
@@ -250,7 +253,10 @@ class Problem(ProblemBase):
             ((-0.38, -0.35,  0.89), "after obstruction"),
             ((-1.17, -0.87,  0.45), "at outlet"),
             ]
-        p.gather()
+        if hasattr(p, 'gather'):
+            p.gather() # dolfin 1.0
+        else:
+            p.udate() # dolfin dev
         named_values = dict((name,self.eval(p,array(x),gather=False)) for x,name in named_probes)
         if master:
             for x,name in named_probes:
