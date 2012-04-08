@@ -55,19 +55,6 @@ class ProblemBase:
         else:
             return 1e-6
 
-    def resistance(self, mesh, boundary_markers, mark, C, p0):
-        if not hasattr(self, "u"):
-            if master:
-                print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
-            return Constant(p0)
-        n = FacetNormal(mesh)
-        flux = inner(self.u, n)*ds(mark)
-        Q = assemble(flux, mesh=mesh, exterior_facet_domains=boundary_markers)
-        R = C*Q + p0
-        if master:
-            print "Computed resistance over marker %d is %.3g, the flux is %.3g"%(mark, R, Q)
-        return Constant(R)
-
     def pressure_bc(self, Q):
         if master:
             warning("Using default pressure 0, please set pressure bc in boundary_conditions()")

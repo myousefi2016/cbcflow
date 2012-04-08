@@ -84,6 +84,19 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
 
+    def resistance(self, mesh, mark, C, p0):
+        if not hasattr(self, "u"):
+            if master:
+                print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
+            return Constant(p0)
+        n = FacetNormal(mesh)
+        flux = inner(self.u, n)*ds(mark)
+        Q = assemble(flux, mesh=mesh)
+        R = C*Q + p0
+        if master:
+            print "Computed resistance over marker %d is %.3g, the flux is %.3g"%(mark, R, Q)
+        return Constant(R)
+
     def boundary_conditions(self, V, Q, t):
         # Create no-slip boundary condition for velocity
         self.g_noslip = self.uConstant((0, 0, 0))
@@ -97,8 +110,10 @@ class Problem(ProblemBase):
         bc_inflow = [DirichletBC(V, g, 1) for g in self.g_inflow]
 
         # Create outflow boundary condition for pressure
-        self.g_outflow = self.resistance(V.mesh(), boundary_markers, 2, C=5.97, p0=0)
-        bc_outflow = [DirichletBC(Q, self.g_outflow, marker) for marker in (2,3)]
+        self.g_outflow = {}
+        self.g_outflow[2] = self.resistance(V.mesh(), 2, C=5.97, p0=0)
+        self.g_outflow[3] = self.resistance(V.mesh(), 3, C=5.97, p0=0)
+        bc_outflow = [DirichletBC(Q, self.g_outflow[marker], marker) for marker in (2,3)]
 
         bc_u = zip(bc_inflow, bc_noslip) # Important: inflow before noslip
         bc_p = [bc_outflow]
