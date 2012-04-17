@@ -39,7 +39,7 @@ class Solver(SolverBase):
         tol = problem.tolerance(problem)
 
         #FIXME, channel want go further down.
-        tol = 1.0e-13 # slightly stricter critera to avoid drivencavity to dance
+        tol = 1.0e-11 # slightly stricter critera to avoid drivencavity to dance
         maxiter = 100
 
         # Gives good convergence on drivencavity and channel (tau_y2 is not important since the fluid is not very viscous)
@@ -103,9 +103,17 @@ class Solver(SolverBase):
         ay1 = k**2*(inner(grad(q), grad(p)))*dx
         ay2 = k**2*((1.0/(nu*k)) * q*p)*dx
 
-        Kx  = assemble(ax, bcs=bcu)
+        Kx        = assemble(ax, bcs=bcu)
         Ky1, Ky1a = symmetric_assemble(ay1, bcs=bcp)
         Ky2, Ky2a = symmetric_assemble(ay2, bcs=bcp)
+
+        # Create solvers
+        Kx.solver  = LinearSolver("gmres", "jacobi")
+        Ky1.solver = LinearSolver("cg", "jacobi")
+        Ky2.solver = LinearSolver("cg", "jacobi")
+        for K in [Kx, Ky1, Ky2]:
+            K.solver.set_operator(K)
+            K.solver.parameters["preconditioner"]["reuse"] = True
 
         # Get solution vectors
         x = u1.vector()
@@ -135,7 +143,7 @@ class Solver(SolverBase):
 
                 # Velocity update
                 delta_x.zero()
-                solve(Kx, delta_x, rx, 'gmres', "jacobi")
+                Kx.solver.solve(delta_x, rx)
                 x.axpy(-1.0, delta_x) #x -= delta_x
 
                 # Pressure residual
@@ -147,14 +155,14 @@ class Solver(SolverBase):
                 if is_periodic(bcp):
                     solve(Ky1, delta_y, ry1)
                 else:
-                    solve(Ky1, delta_y, ry1, 'cg', 'jacobi')
+                    Ky1.solver.solve(delta_y, ry1)
                 if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
                 y.axpy(-tau_y1, delta_y) #y -= tau_y1*delta_y
 
                 # Pressure update 2
                 ry2 = ry - Ky2a*ry
                 delta_y.zero()
-                solve(Ky2, delta_y, ry2, 'cg', 'jacobi')
+                Ky2.solver.solve(delta_y, ry2)
                 y.axpy(-tau_y2, delta_y) #y -= tau_y2*delta_y
 
 
