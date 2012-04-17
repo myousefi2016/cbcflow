@@ -41,6 +41,7 @@ class SolverBase:
         self._e = []
 
         self._timer = None
+        self._func_cache = {}
 
     def getMyMemoryUsage(self):
         mypid = getpid()
@@ -71,11 +72,12 @@ class SolverBase:
     def desegregate(self, u):
         if not isinstance(u, (list, tuple)):
             return u
-
+        if len(u) == 1:
+            return u[0]
         assert MPI.num_processes() == 1
         V = u[0].function_space()
         W = VectorFunctionSpace(V.mesh(), V.ufl_element().family(), V.ufl_element().degree())
-        f = Function(W)
+        f = self._func_cache.setdefault(str(W), Function(W))
         fv = f.vector()
         for i in range(len(u)):
             uv = u[i].vector()
@@ -91,7 +93,7 @@ class SolverBase:
         if self.options['segregated']:
            s = max(ui.vector().norm('linf') for ui in u)
         else:
-           s = u.vector().norm('linf')
+           s = self._list_or_function(u).vector().norm('linf')
         if s > 5 * getattr(problem, 'U', float('inf')):
             warning("A component in u is %.4g times characteristic velocity U"%round(s))
         if s > 1e10:

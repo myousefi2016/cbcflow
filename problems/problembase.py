@@ -75,11 +75,14 @@ class ProblemBase:
     def eval(self, func, point, gather=True):
         """Parallel-safe function evaluation"""
         if gather:
-            if hasattr(func, 'gather'):
-                func.gather() # dolfin 1.0
-            else:
+            if hasattr(func, 'update'):
                 func.update() # dolfin dev
-        M = 0
+            else:
+                func.gather() # dolfin 1.0
+        if len(func.shape())==1:
+            M = [0]*func.shape()[0]
+        else:
+            M = 0
         try:
             M = func(point)
             N = MPI.sum(1) # Succeeding processors participate in the MPI collective here

@@ -15,30 +15,31 @@ class Solver(SolverBase):
         assert not options['segregated']
         SolverBase.__init__(self, options)
 
-    def solve(self, problem):
-
-        # Get mesh and time step
-        mesh = problem.mesh
-        dt, t, trange = self.select_timestep(problem)
-
-        if str(problem) == "Channel":
+    def select_timestep(self, problem):
+        dt, t, trange = SolverBase.select_timestep(self, problem)
+        if str(problem) in ["Channel"]:
             dt /= 3.0
             n = int(trange[-1] / dt + 1.0)
             dt = trange[-1] / n
             t = dt
             trange = linspace(0,trange[-1],n+1)[1:]
+            if MPI.process_number() == 0:
+                print "Number of time steps increased to", len(trange)
+        return dt, t, trange
+
+    def solve(self, problem, restart=None):
+
+        # Get mesh and time step
+        mesh = problem.mesh
+        dt, t, trange = self.select_timestep(problem)
+        if restart:
+            dt, t, trange = restart.select_timestep(dt, problem.T)
 
         # Parameters for Uzawa iteration
         tol = problem.tolerance(problem)
 
-        if str(problem)=="Aneurysm":
-            pc = "jacobi"
-        else:
-            pc = "ilu"
-
-
         #FIXME, channel want go further down.
-#        tol = 1.0e-6 # slightly stricter critera to avoid drivencavity to dance
+        tol = 1.0e-13 # slightly stricter critera to avoid drivencavity to dance
         maxiter = 100
 
         # Gives good convergence on drivencavity and channel (tau_y2 is not important since the fluid is not very viscous)
@@ -60,7 +61,11 @@ class Solver(SolverBase):
             beta = Constant(1)
 
         # FIXME: This should be moved to problem.boundary_conditions()
-        pbar = problem.pressure_bc(Q)
+        pbar = Constant(0)
+        if bcp and not is_periodic(bcp):
+            pbar = interpolate(pbar, Q)
+            for bc in bcp:
+                bc.apply(pbar.vector())
 
         # Test and trial functions
         v = TestFunction(V)
@@ -69,18 +74,12 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
         h = CellSize(mesh)
 
-        # FIXME: Move this somewhere else
-        if mesh.topology().dim() == 2:
-            shape = triangle
-        else:
-            shape = tetrahedron
-
         # Functions
         u0  = interpolate(u0, V)
         u1  = interpolate(u0, V)
         p01 = interpolate(p0, Q)
         k   = Constant(dt)
-        n   = shape.n
+        n   = FacetNormal(mesh)
         f   = problem.f[0]
         nu  = problem.nu
 
@@ -97,9 +96,8 @@ class Solver(SolverBase):
 
         # Add stabilization in case of Pq - Pq
         if V.ufl_element().degree() == Q.ufl_element().degree():
-            beta  = Constant(0.1)
-            d2 = beta*h*h
-            Rp = Rp + d2*k*inner(grad(q), grad(P))*dx
+            d2 = Constant(0.1)*h*h
+            Rp += d2*k*inner(grad(q), grad(P))*dx
 
         # Assemble preconditioners
         ax  = inner(v, u)*dx + 0.5*k*inner(v, (grad(u)*u0))*dx \
@@ -110,16 +108,19 @@ class Solver(SolverBase):
         ay2 = k**2*((1.0/(nu*k)) * q*p)*dx
 
         Kx  = assemble(ax)
-        Ky1 = assemble(ay1)
+        Ky1, Ky1a = symmetric_assemble(ay1, bcs=bcp)
+        Ky1a.compress()
         Ky2 = assemble(ay2)
         [bc.apply(Kx) for bc in bcu]
-        [bc.apply(Ky1) for bc in bcp]
+        #[bc.apply(Ky1) for bc in bcp]
 
         # Get solution vectors
         x = u1.vector()
         y = p01.vector()
-        delta_x = Vector(x.size())
-        delta_y = Vector(y.size())
+        delta_x = x.copy() # copy parallel layout; zero'd later
+        delta_y = y.copy()
+
+        list_timings(True)
 
         # Time loop
         self.start_timing()
@@ -128,39 +129,44 @@ class Solver(SolverBase):
             bcu, bcp = problem.boundary_conditions(V, Q, t)
 
             # GRPC iteration
-            for iter in range(maxiter):
+            for iter in range(-1, maxiter):
 
-                # Velocity update
+                # Velocity residual
                 rx = assemble(Ru)
                 [bc.apply(rx, x) for bc in bcu]
+
+                # Check for convergence
+                if iter >= 0:
+                    r = sqrt(norm(rx)**2 + norm(ry)**2)
+                    if has_converged(r, iter, "GRPC", maxiter, tol): break
+
+                # Velocity update
                 delta_x.zero()
-                solve(Kx, delta_x, rx, 'gmres', pc)
-                x.axpy(-1.0, delta_x)
+                solve(Kx, delta_x, rx, 'gmres', "jacobi")
+                x -= delta_x
 
                 # Pressure update
                 ry = assemble(Rp)
+                ry_a = ry - Ky1a*ry
                 delta_y.zero()
                 if is_periodic(bcp):
-                    solve(Ky1, delta_y, ry)
+                    solve(Ky1, delta_y, ry_a)
                 else:
-                    solve(Ky1, delta_y, ry, 'cg', 'hypre_amg')
+                    solve(Ky1, delta_y, ry_a, 'cg', 'jacobi')
                 if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
-                y.axpy(-tau_y1, delta_y)
+                y.axpy(-tau_y1, delta_y) #y -= tau_y1*delta_y
 
                 delta_y.zero()
                 solve(Ky2, delta_y, ry, 'cg', 'jacobi')
-                y.axpy(-tau_y2, delta_y)
+                y.axpy(-tau_y2, delta_y) #y -= tau_y2*delta_y
 
-                # FIXME: A stricter convergence test should reassmble the residuals here
-
-                # Check for convergence
-                r = sqrt(norm(rx)**2 + norm(ry)**2)
-                if has_converged(r, iter, "GRPC", maxiter, tol): break
 
             # Update
             # FIXME: Might be inaccurate for functionals of the pressure since p01 is the value at the midpoint
             self.update(problem, t, u1, p01)
             u0.assign(u1)
+
+        list_timings(True)
 
         return u1, p01
 
