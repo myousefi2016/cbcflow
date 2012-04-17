@@ -61,11 +61,7 @@ class Solver(SolverBase):
             beta = Constant(1)
 
         # FIXME: This should be moved to problem.boundary_conditions()
-        pbar = Constant(0)
-        if bcp and not is_periodic(bcp):
-            pbar = interpolate(pbar, Q)
-            for bc in bcp:
-                bc.apply(pbar.vector())
+        pbar = problem.pressure_bc(Q)
 
         # Test and trial functions
         v = TestFunction(V)
@@ -107,33 +103,30 @@ class Solver(SolverBase):
         ay1 = k**2*(inner(grad(q), grad(p)))*dx
         ay2 = k**2*((1.0/(nu*k)) * q*p)*dx
 
-        Kx  = assemble(ax)
+        Kx  = assemble(ax, bcs=bcu)
         Ky1, Ky1a = symmetric_assemble(ay1, bcs=bcp)
-        Ky1a.compress()
-        Ky2 = assemble(ay2)
-        [bc.apply(Kx) for bc in bcu]
-        #[bc.apply(Ky1) for bc in bcp]
+        Ky2, Ky2a = symmetric_assemble(ay2, bcs=bcp)
 
         # Get solution vectors
         x = u1.vector()
         y = p01.vector()
-        delta_x = x.copy() # copy parallel layout; zero'd later
-        delta_y = y.copy()
-
-        list_timings(True)
+        delta_x = Vector(x) # copies parallel layout; zero'd later
+        delta_y = Vector(y)
 
         # Time loop
         self.start_timing()
         for t in trange:
 
             bcu, bcp = problem.boundary_conditions(V, Q, t)
+            [bc.apply(x) for bc in bcu]
+            [bc.apply(y) for bc in bcp]
+            [bc.homogenize() for bc in bcu+bcp]
 
             # GRPC iteration
             for iter in range(-1, maxiter):
 
                 # Velocity residual
-                rx = assemble(Ru)
-                [bc.apply(rx, x) for bc in bcu]
+                rx = assemble(Ru, bcs=bcu)
 
                 # Check for convergence
                 if iter >= 0:
@@ -143,21 +136,25 @@ class Solver(SolverBase):
                 # Velocity update
                 delta_x.zero()
                 solve(Kx, delta_x, rx, 'gmres', "jacobi")
-                x -= delta_x
+                x.axpy(-1.0, delta_x) #x -= delta_x
 
-                # Pressure update
-                ry = assemble(Rp)
-                ry_a = ry - Ky1a*ry
+                # Pressure residual
+                ry = assemble(Rp, bcs=bcp)
+
+                # Pressure update 1
+                ry1 = ry - Ky1a*ry
                 delta_y.zero()
                 if is_periodic(bcp):
-                    solve(Ky1, delta_y, ry_a)
+                    solve(Ky1, delta_y, ry1)
                 else:
-                    solve(Ky1, delta_y, ry_a, 'cg', 'jacobi')
+                    solve(Ky1, delta_y, ry1, 'cg', 'jacobi')
                 if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
                 y.axpy(-tau_y1, delta_y) #y -= tau_y1*delta_y
 
+                # Pressure update 2
+                ry2 = ry - Ky2a*ry
                 delta_y.zero()
-                solve(Ky2, delta_y, ry, 'cg', 'jacobi')
+                solve(Ky2, delta_y, ry2, 'cg', 'jacobi')
                 y.axpy(-tau_y2, delta_y) #y -= tau_y2*delta_y
 
 
@@ -165,8 +162,6 @@ class Solver(SolverBase):
             # FIXME: Might be inaccurate for functionals of the pressure since p01 is the value at the midpoint
             self.update(problem, t, u1, p01)
             u0.assign(u1)
-
-        list_timings(True)
 
         return u1, p01
 
