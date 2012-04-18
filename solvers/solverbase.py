@@ -325,7 +325,7 @@ def is_periodic(bcs):
 
 def has_converged(r, iter, method, maxiter=default_maxiter, tolerance=default_tolerance):
     "Check if solution has converged."
-    if master: print "Residual = ", r
+    if master: print "Residual = %.3g"%r
     if r < tolerance:
         if master: print "%s iteration converged in %d iteration(s)." % (method, iter + 1)
         return True

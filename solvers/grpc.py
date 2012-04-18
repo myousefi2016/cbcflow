@@ -8,6 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from numpy import linspace
+from time import time
 class Solver(SolverBase):
     "cG(2/1)cG(1) with generalized Richardson iteration on the Schur complement."
 
@@ -106,11 +107,14 @@ class Solver(SolverBase):
         Kx        = assemble(ax, bcs=bcu)
         Ky1, Ky1a = symmetric_assemble(ay1, bcs=bcp)
         Ky2, Ky2a = symmetric_assemble(ay2, bcs=bcp)
+        for K in [Kx, Ky1, Ky1a, Ky2, Ky2a]:
+            K.compress()
 
         # Create solvers
-        Kx.solver  = LinearSolver("gmres", "jacobi")
-        Ky1.solver = LinearSolver("cg", "jacobi")
-        Ky2.solver = LinearSolver("cg", "jacobi")
+        print_iterations = True
+        Kx.solver  = LinearSolver("gmres", "hypre_euclid")
+        Ky1.solver = LinearSolver("cg", "ml_amg")
+        Ky2.solver = LinearSolver("cg", "hypre_euclid")
         for K in [Kx, Ky1, Ky2]:
             K.solver.set_operator(K)
             K.solver.parameters["preconditioner"]["reuse"] = True
@@ -138,12 +142,15 @@ class Solver(SolverBase):
 
                 # Check for convergence
                 if iter >= 0:
+                    if print_iterations and MPI.process_number() == 0:
+                        print "%d/%d/%d %.3fs"%(it_Kx, it_Ky1, it_Ky2, time()-before),
                     r = sqrt(norm(rx)**2 + norm(ry)**2)
                     if has_converged(r, iter, "GRPC", maxiter, tol): break
+                before = time()
 
                 # Velocity update
                 delta_x.zero()
-                Kx.solver.solve(delta_x, rx)
+                it_Kx = Kx.solver.solve(delta_x, rx)
                 x.axpy(-1.0, delta_x) #x -= delta_x
 
                 # Pressure residual
@@ -155,14 +162,14 @@ class Solver(SolverBase):
                 if is_periodic(bcp):
                     solve(Ky1, delta_y, ry1)
                 else:
-                    Ky1.solver.solve(delta_y, ry1)
+                    it_Ky1 = Ky1.solver.solve(delta_y, ry1)
                 if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
                 y.axpy(-tau_y1, delta_y) #y -= tau_y1*delta_y
 
                 # Pressure update 2
                 ry2 = ry - Ky2a*ry
                 delta_y.zero()
-                Ky2.solver.solve(delta_y, ry2)
+                it_Ky2 = Ky2.solver.solve(delta_y, ry2)
                 y.axpy(-tau_y2, delta_y) #y -= tau_y2*delta_y
 
 
