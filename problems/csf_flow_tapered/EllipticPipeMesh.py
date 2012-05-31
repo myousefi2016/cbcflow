@@ -52,7 +52,14 @@ class Top(SubDomain):	#bc for top
 		self.y2_o_move = y2_o_move
 		self.y2_i_move = y2_i_move
 	def inside(self, x, on_boundary):
-		return bool(on_boundary and abs(x[self.z_index] - self.z_max) < 10**(-3)  and not on_ellipse(x, self.a2_o, self.b2_o, self.x_index, self.y_index, self.x2_o_move, self.y2_o_move ) and not on_ellipse(x, self.a2_i, self.b2_i, self.x_index, self.y_index, self.x2_i_move, self.y2_i_move ) )
+		return bool(on_boundary
+                            and abs(x[self.z_index] - self.z_max) < 10**(-3)
+                            and not on_ellipse(x, self.a2_o, self.b2_o,
+                                               self.x_index, self.y_index,
+                                               self.x2_o_move, self.y2_o_move )
+                            and not on_ellipse(x, self.a2_i, self.b2_i,
+                                               self.x_index, self.y_index,
+                                               self.x2_i_move, self.y2_i_move ) )
 
 class Bottom(SubDomain):	# bc for bottom
 	def __init__(self, a1_o, a1_i, b1_o, b1_i, x_index, y_index, z_index, z_min, x1_o_move=0, y1_o_move=0, x1_i_move=0, y1_i_move=0):
@@ -70,7 +77,14 @@ class Bottom(SubDomain):	# bc for bottom
 		self.y1_o_move = y1_o_move
 		self.y1_i_move = y1_i_move
 	def inside(self, x, on_boundary):
-		return bool(on_boundary and abs(x[self.z_index] - self.z_min)< 10**(-3) and not on_ellipse(x, self.a1_o, self.b1_o, self.x_index, self.y_index, self.x1_o_move, self.y1_o_move ) and not on_ellipse(x, self.a1_i, self.b1_i, self.x_index, self.y_index, self.x1_i_move, self.y1_i_move ))
+		return bool(on_boundary
+                            and abs(x[self.z_index] - self.z_min)< 10**(-3)
+                            and not on_ellipse(x, self.a1_o, self.b1_o,
+                                               self.x_index, self.y_index,
+                                               self.x1_o_move, self.y1_o_move )
+                            and not on_ellipse(x, self.a1_i, self.b1_i,
+                                               self.x_index, self.y_index,
+                                               self.x1_i_move, self.y1_i_move ))
 
 class Contour(SubDomain):	# bc for rest
 	def __init__(self, x_index, y_index, top, bottom):
@@ -80,10 +94,9 @@ class Contour(SubDomain):	# bc for rest
 		self.top = top
 		self.bottom = bottom
 	def inside(self, x, on_boundary):
-		return bool(on_boundary and not self.top.inside(x, on_boundary) and not self.bottom.inside(x, on_boundary) )
-
-
-
+		return bool(on_boundary
+                            and not self.top.inside(x, on_boundary)
+                            and not self.bottom.inside(x, on_boundary) )
 
 
 class EllipticPipeMesh(MeshInfo):
@@ -112,27 +125,19 @@ class EllipticPipeMesh(MeshInfo):
 		self.y1_i_move = y1_i_move
 		self.y2_i_move = y2_i_move
 
-
-		
 		# Mark all facets as sub domain 3
 		for i in range(self.sub_domains.size()):
 #			self.sub_domains.set(i, 3)
 			self.sub_domains[i]=3
-			
-		
+
 		self.top = Top(self.a2, self.a2_i, self.b2, self.b2_i, self.x_index, self.y_index, self.z_index, self.z_max, x2_o_move=self.x2_move, y2_o_move=self.y2_move, x2_i_move=self.x2_i_move, y2_i_move=self.y2_i_move )
 		self.bottom = Bottom(self.a1, self.a1_i, self.b1, self.b1_i, self.x_index, self.y_index, self.z_index, self.z_min, x1_o_move=self.x1_move, y1_o_move=self.y1_move, x1_i_move=self.x1_i_move, y1_i_move=self.y1_i_move  )
 		self.contour = Contour(self.x_index, self.y_index, self.top, self.bottom)
-
-
-
 
 		self.contour.mark(self.sub_domains, 0)
 		self.top.mark(self.sub_domains, 1)
 		self.bottom.mark(self.sub_domains, 2)
 
-
-
 	def get_contour(self):
 		return self.contour
 
@@ -141,18 +146,3 @@ class EllipticPipeMesh(MeshInfo):
 
 	def get_bottom(self):
 		return self.bottom
-
-"""
-
-	def get_contour(self):
-		return self.contour
-
-	def get_top(self):
-		return self.top
-
-	def get_bottom(self):
-		return self.bottom
-
-
-"""
-

@@ -89,7 +89,7 @@ class SolverBase:
         "Update problem at time t"
 
         casedir = os.path.join("results", self.options["casename"])
-        u = _as_object(u)
+        u = as_object(u)
 
         if self.options['segregated']:
            s = max(ui.vector().norm('linf') for ui in u)
@@ -304,20 +304,12 @@ class SolverBase:
         "Return accumulated CPU time."
         return self._cputime
 
-    def _as_object(self, u):
-        "Return a single object if possible, else a list."
-        if self.options['segregated'] or not isinstance(u, (list, tuple)):
-            return u
-        else:
-            assert len(u)==1
-            return u[0]
-
-    def _as_list(self, u):
-        "Return a list of objects."
-        if isinstance(u, (list, tuple)):
-            return u
-        else:
-            return [u]
+def as_object(u):
+    "Return a single object if possible, else a list."
+    if not isinstance(u, (list, tuple)) or len(u) > 1:
+        return u
+    else:
+        return u[0]
 
 def epsilon(u):
     "Return symmetric gradient."

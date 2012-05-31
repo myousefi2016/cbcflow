@@ -68,11 +68,11 @@ class ProblemBase:
         else:
             return [Constant(values)]
 
-    def uExpr(self, expr_strings, **kwargs):
-        if self.options['segregated'] and isinstance(expr_strings, (tuple, list)):
-            return [Expression(e, **kwargs) for e in expr_strings]
+    def uExpr(self, cppcode, **kwargs):
+        if self.options['segregated'] and isinstance(cppcode, (tuple, list)):
+            return [Expression(e, **kwargs) for e in cppcode]
         else:
-            return [Expression(expr_strings, **kwargs)]
+            return [Expression(cppcode, **kwargs)]
 
     def eval(self, func, point, gather=True):
         """Parallel-safe function evaluation"""
@@ -129,6 +129,13 @@ class ProblemBase:
 
         MPI.barrier()
         return filename
+
+def as_list(u):
+    "Return a list of objects."
+    if isinstance(u, (list, tuple)):
+        return u
+    else:
+        return [u]
 
 import urllib
 class DataURLOpener(urllib.FancyURLopener):

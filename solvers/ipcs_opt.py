@@ -162,9 +162,6 @@ class Solver(SolverBase):
         # Time loop
         self.start_timing()
         for t in t_range:
-            print "t =",t
-            print "u =",u0[0].vector().norm('l2')
-            print "p =",p0.vector().norm('l2')
             # Get boundary conditions
             bcs = problem.boundary_conditions(V, Q, t)
             bcu, bcp = bcs[:-1], bcs[-1]
