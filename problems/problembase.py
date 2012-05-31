@@ -115,7 +115,7 @@ class ProblemBase:
             warning('%s not found, fetching from %s'%(filename,url))
             log_level = get_log_level()
             set_log_level(PROGRESS)
-            progress = [Progress(url)]
+            progress = [Progress(filename.split('/')[-1])]
             def reporter(numblocks, blocksize, totalsize):
                 progress[0] += numblocks*blocksize / totalsize
             try:
