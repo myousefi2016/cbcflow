@@ -6,7 +6,7 @@ __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 import sys, time
-from dolfin import set_log_active, parameters, list_timings, interactive, MPI
+from dolfin import set_log_active, parameters, list_timings, interactive, MPI, warning
 
 from problems import Problem, problems
 from solvers import Solver, solvers
@@ -40,25 +40,34 @@ OPTIONS = {"refinement_level": 0,
            "compute_stress": False,
            "compute_divergence": False,
            "debug": True,
-           "max_steps": None,
            "segregated": False,
            "timer": False,
            "krylov_solver_absolute_tolerance": 1e-25,
            "krylov_solver_relative_tolerance": 1e-12,
            "krylov_solver_monitor_convergence": False,
 
-           # Parameters added for Challenge:
            "casename": None,
-           "test_case": 1,
            "dt": None,
-           "max_t": 1.0,
-           "plot_probes": False,
-           "store_probes": False,
+           "T": None,
 
            # Used for restarting a solution at a given time
            "restart_time": None,
            "restart_timestep": None,
            "restart_casename": None,
+
+           # Parameters for specific problems or solvers. If these become used
+           # in more places, please move them out of this section, and maybe
+           # change the default to None (i.e., move the default to the problem)
+           # if there is no sensible common default.
+
+           # Parameters specific for Challenge
+           "test_case": 1,
+           "plot_probes": False,
+           "store_probes": False,
+
+           # Parameters specific for csf_flow_tapered
+           "waveform": "pulse",
+           "f1": 1.0,
           }
 
 
@@ -112,15 +121,13 @@ def main(args):
     # Get options
     options = OPTIONS.copy()
     for arg in args[2:]:
+        key, value = arg.split("=")
+        if master and not key in options:
+            warning("Unknown command-line argument: %s"%arg)
         try:
-            key, value = arg.split("=")
-            try:
-                options[key] = eval(value)
-            except:
-                options[key] = str(value)
+            options[key] = eval(value)
         except:
-            if master:
-                print "Warning: Unhandled command-line argument", arg
+            options[key] = str(value)
 
     # Set global DOLFIN parameters
     parameters["form_compiler"]["cpp_optimize"] = True

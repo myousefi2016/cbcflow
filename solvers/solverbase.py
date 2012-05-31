@@ -89,11 +89,12 @@ class SolverBase:
         "Update problem at time t"
 
         casedir = os.path.join("results", self.options["casename"])
+        u = _as_object(u)
 
         if self.options['segregated']:
            s = max(ui.vector().norm('linf') for ui in u)
         else:
-           s = self._list_or_function(u).vector().norm('linf')
+           s = u.vector().norm('linf')
         if s > 5 * getattr(problem, 'U', float('inf')):
             warning("A component in u is %.4g times characteristic velocity U"%round(s))
         if s > 1e10:
@@ -108,11 +109,11 @@ class SolverBase:
             check_divergence(u, p.function_space())
 
         # Update problem FIXME: Should this be called before problem.functional??
-        problem.update_problem(t, self._list_or_function(u), p)
+        problem.update_problem(t, u, p)
 
         # Evaluate functional and error
         m = problem.reference(t)
-        M = problem.functional(t, self._list_or_function(u), p)
+        M = problem.functional(t, u, p)
         if m is None:
             e = None
             if master:
@@ -147,7 +148,7 @@ class SolverBase:
                     for i, ui in enumerate(u):
                         self._ufiles[i] << ui
                 else:
-                    self._ufiles << u[0]
+                    self._ufiles << u
                 self._pfile << p
 
         # Save solution at t = T
@@ -157,7 +158,7 @@ class SolverBase:
                 if self._ufiles is None:
                     self._ufiles = [File(os.path.join(casedir, "u%d_at_end.pvd" % i), "compressed")
                                     for i in range(len(u))]
-                else: 
+                else:
                     self._ufiles = File(os.path.join(casedir, "u_at_end.pvd"), "compressed")
                 if self._pfile is None:
                     self._pfile = File(os.path.join(casedir, "p_at_end.pvd"), "compressed")
@@ -167,7 +168,7 @@ class SolverBase:
                     for i, ui in enumerate(u):
                         self._ufiles[i] << ui
                 else:
-                    self._ufiles << u[0]
+                    self._ufiles << u
                 self._pfile << p
 
         # Save vectors in xml format
@@ -180,7 +181,7 @@ class SolverBase:
                         file << ui.vector()
                 else:
                     file = File(os.path.join(casedir, "u_%s.xml.gz" % (timestr,)))
-                    file << u[0].vector()
+                    file << u.vector()
                 file = File(os.path.join(casedir, "p_%s.xml.gz" % (timestr,)))
                 file << p.vector()
 
@@ -219,48 +220,47 @@ class SolverBase:
         U  = getattr(problem, "U", float("nan"))
         nu = problem.nu
         h  = MPI.min(problem.mesh.hmin())
-        "Return time step and number of time steps for problem. Used for debugging / compilation only"
-        if self.options["max_steps"] is not None:
-            dt =  0.25*h**2 / (U*(nu + h*U))
-            n  = self.options["max_steps"]
-            T  = n*dt
-            t_range = linspace(0, T, n + 1)[1:]
-        else:
+
+        try:
             # FIXME: This sequence of ifs make no sense. Clean up...
 
             if self.options["dt"]:
+                if master: print "Using user supplied dt"
                 dt = self.options["dt"]
                 n = int(T / dt + 0.5)
                 dt = T / n
-                if master: print "Using user supplied dt"
 
             elif self.options["dt_division"] != 0 and getattr(problem, "dt", 0) > 0:
+                if master: print 'Using problem.dt and time step refinements'
                 dt = problem.dt / int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                if master: print 'Using problem.dt and time step refinements'
 
             # Use time step specified in problem if available
             elif getattr(problem, "dt", 0) > 0:
+                if master: print 'Using problem.dt'
                 dt = problem.dt
                 n  = int(T / dt)
-                if master: print 'Using problem.dt'
 
             # Otherwise, base time step on mesh size
             elif self.options["dt_division"] != 0:
+                if master: print 'Computing time step according to stability criteria and time step refinements'
                 dt = 0.25*h**2 / (U*(nu + h*U))
                 dt /= int(sqrt(2)**self.options["dt_division"])
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                if master: print 'Computing time step according to stability criteria and time step refinements'
 
             # Otherwise, base time step on mesh size
             else:
+                if master: print 'Computing time step according to stability criteria'
                 # dt =  0.25*h**2 / (U*(nu + h*U))
                 dt =  0.2*(h / U)
                 n  = int(T / dt + 1.0)
                 dt = T / n
-                if master: print 'Computing time step according to stability criteria'
+
+        finally:
+            if dt != dt:
+                warning("Unable to compute dt. Please set U in problem, or specify dt in options")
 
         # Compute range
         t_range = linspace(0,T,n+1)[1:] # FIXME: Comment out [1:] to run g2ref g2ref
@@ -304,12 +304,20 @@ class SolverBase:
         "Return accumulated CPU time."
         return self._cputime
 
-    def _list_or_function(self, u):
-        "Return a single function if possible, else a list."
+    def _as_object(self, u):
+        "Return a single object if possible, else a list."
         if self.options['segregated'] or not isinstance(u, (list, tuple)):
             return u
         else:
+            assert len(u)==1
             return u[0]
+
+    def _as_list(self, u):
+        "Return a list of objects."
+        if isinstance(u, (list, tuple)):
+            return u
+        else:
+            return [u]
 
 def epsilon(u):
     "Return symmetric gradient."

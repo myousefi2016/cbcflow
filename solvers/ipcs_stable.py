@@ -18,8 +18,8 @@ class Solver(SolverBase):
     def solve(self, problem, restart=None):
 
         solver_u_tent_params      = "gmres", "hypre_euclid"
-        solver_p_periodic_params  = "gmres", "hypre_euclid"
-        solver_p_dirichlet_params = "gmres", "ml_amg"
+        solver_p_periodic_params  = "gmres", "ml_amg"
+        solver_p_dirichlet_params = "cg", "ml_amg"
         solver_u_corr_params      = "bicgstab", "hypre_euclid"
 
         # Get problem parameters

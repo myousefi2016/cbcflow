@@ -116,7 +116,7 @@ class Problem(ProblemBase):
 
         # Set current and end-time (Note: Peak systole is 0.275 s)
         self.t = 0.0
-        self.T = self.options["max_t"] # s
+        self.T = self.options["T"] or 1.0 # s
 
         # Compute volume (cm3) and areas (cm2)
         one = Constant(1)

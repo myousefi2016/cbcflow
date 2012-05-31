@@ -108,6 +108,8 @@ class ProblemBase:
             return self.eval(func, point)[component]
 
     def retrieve(self, filename, urlbase='http://simula.no/~jobh/headflow'):
+        if not filename.endswith(".gz"):
+            filename += ".gz"
         if master and not os.path.exists(filename):
             url = urlbase+'/'+filename
             warning('%s not found, fetching from %s'%(filename,url))
