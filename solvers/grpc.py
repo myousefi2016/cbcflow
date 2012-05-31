@@ -8,6 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from solverbase import *
 from numpy import linspace
+from time import time
 class Solver(SolverBase):
     "cG(2/1)cG(1) with generalized Richardson iteration on the Schur complement."
 
@@ -15,30 +16,31 @@ class Solver(SolverBase):
         assert not options['segregated']
         SolverBase.__init__(self, options)
 
-    def solve(self, problem):
-
-        # Get mesh and time step
-        mesh = problem.mesh
-        dt, t, trange = problem.timestep(problem)
-
-        if str(problem) == "Channel":
+    def select_timestep(self, problem):
+        dt, t, trange = SolverBase.select_timestep(self, problem)
+        if str(problem) in ["Channel"]:
             dt /= 3.0
             n = int(trange[-1] / dt + 1.0)
             dt = trange[-1] / n
             t = dt
             trange = linspace(0,trange[-1],n+1)[1:]
+            if MPI.process_number() == 0:
+                print "Number of time steps increased to", len(trange)
+        return dt, t, trange
+
+    def solve(self, problem, restart=None):
+
+        # Get mesh and time step
+        mesh = problem.mesh
+        dt, t, trange = self.select_timestep(problem)
+        if restart:
+            dt, t, trange = restart.select_timestep(dt, problem.T)
 
         # Parameters for Uzawa iteration
         tol = problem.tolerance(problem)
 
-        if str(problem)=="Aneurysm":
-            pc = "jacobi"
-        else:
-            pc = "ilu"
-
-
         #FIXME, channel want go further down.
-#        tol = 1.0e-6 # slightly stricter critera to avoid drivencavity to dance
+        tol = 1.0e-11 # slightly stricter critera to avoid drivencavity to dance
         maxiter = 100
 
         # Gives good convergence on drivencavity and channel (tau_y2 is not important since the fluid is not very viscous)
@@ -69,18 +71,12 @@ class Solver(SolverBase):
         p = TrialFunction(Q)
         h = CellSize(mesh)
 
-        # FIXME: Move this somewhere else
-        if mesh.topology().dim() == 2:
-            shape = triangle
-        else:
-            shape = tetrahedron
-
         # Functions
         u0  = interpolate(u0, V)
         u1  = interpolate(u0, V)
         p01 = interpolate(p0, Q)
         k   = Constant(dt)
-        n   = shape.n
+        n   = FacetNormal(mesh)
         f   = problem.f[0]
         nu  = problem.nu
 
@@ -97,9 +93,8 @@ class Solver(SolverBase):
 
         # Add stabilization in case of Pq - Pq
         if V.ufl_element().degree() == Q.ufl_element().degree():
-            beta  = Constant(0.1)
-            d2 = beta*h*h
-            Rp = Rp + d2*k*inner(grad(q), grad(P))*dx
+            d2 = Constant(0.1)*h*h
+            Rp += d2*k*inner(grad(q), grad(P))*dx
 
         # Assemble preconditioners
         ax  = inner(v, u)*dx + 0.5*k*inner(v, (grad(u)*u0))*dx \
@@ -109,53 +104,74 @@ class Solver(SolverBase):
         ay1 = k**2*(inner(grad(q), grad(p)))*dx
         ay2 = k**2*((1.0/(nu*k)) * q*p)*dx
 
-        Kx  = assemble(ax)
-        Ky1 = assemble(ay1)
-        Ky2 = assemble(ay2)
-        [bc.apply(Kx) for bc in bcu]
-        [bc.apply(Ky1) for bc in bcp]
+        Kx        = assemble(ax, bcs=bcu)
+        Ky1, Ky1a = symmetric_assemble(ay1, bcs=bcp)
+        Ky2, Ky2a = symmetric_assemble(ay2, bcs=bcp)
+        for K in [Kx, Ky1, Ky1a, Ky2, Ky2a]:
+            K.compress()
+
+        # Create solvers
+        print_iterations = True
+        Kx.solver  = LinearSolver("gmres", "hypre_euclid")
+        Ky1.solver = LinearSolver("cg", "ml_amg")
+        Ky2.solver = LinearSolver("cg", "hypre_euclid")
+        for K in [Kx, Ky1, Ky2]:
+            K.solver.set_operator(K)
+            K.solver.parameters["preconditioner"]["reuse"] = True
 
         # Get solution vectors
         x = u1.vector()
         y = p01.vector()
-        delta_x = Vector(x.size())
-        delta_y = Vector(y.size())
+        delta_x = Vector(x) # copies parallel layout; zero'd later
+        delta_y = Vector(y)
 
         # Time loop
         self.start_timing()
         for t in trange:
 
             bcu, bcp = problem.boundary_conditions(V, Q, t)
+            [bc.apply(x) for bc in bcu]
+            [bc.apply(y) for bc in bcp]
+            [bc.homogenize() for bc in bcu+bcp]
 
             # GRPC iteration
-            for iter in range(maxiter):
+            for iter in range(-1, maxiter):
 
-                # Velocity update
-                rx = assemble(Ru)
-                [bc.apply(rx, x) for bc in bcu]
-                delta_x.zero()
-                solve(Kx, delta_x, rx, 'gmres', pc)
-                x.axpy(-1.0, delta_x)
-
-                # Pressure update
-                ry = assemble(Rp)
-                delta_y.zero()
-                if is_periodic(bcp):
-                    solve(Ky1, delta_y, ry)
-                else:
-                    solve(Ky1, delta_y, ry, 'cg', 'hypre_amg')
-                if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
-                y.axpy(-tau_y1, delta_y)
-
-                delta_y.zero()
-                solve(Ky2, delta_y, ry, 'cg', 'jacobi')
-                y.axpy(-tau_y2, delta_y)
-
-                # FIXME: A stricter convergence test should reassmble the residuals here
+                # Velocity residual
+                rx = assemble(Ru, bcs=bcu)
 
                 # Check for convergence
-                r = sqrt(norm(rx)**2 + norm(ry)**2)
-                if has_converged(r, iter, "GRPC", maxiter, tol): break
+                if iter >= 0:
+                    if print_iterations and MPI.process_number() == 0:
+                        print "%d/%d/%d %.3fs"%(it_Kx, it_Ky1, it_Ky2, time()-before),
+                    r = sqrt(norm(rx)**2 + norm(ry)**2)
+                    if has_converged(r, iter, "GRPC", maxiter, tol): break
+                before = time()
+
+                # Velocity update
+                delta_x.zero()
+                it_Kx = Kx.solver.solve(delta_x, rx)
+                x.axpy(-1.0, delta_x) #x -= delta_x
+
+                # Pressure residual
+                ry = assemble(Rp, bcs=bcp)
+
+                # Pressure update 1
+                ry1 = ry - Ky1a*ry
+                delta_y.zero()
+                if is_periodic(bcp):
+                    solve(Ky1, delta_y, ry1)
+                else:
+                    it_Ky1 = Ky1.solver.solve(delta_y, ry1)
+                if len(bcp) == 0 or is_periodic(bcp): normalize(delta_y)
+                y.axpy(-tau_y1, delta_y) #y -= tau_y1*delta_y
+
+                # Pressure update 2
+                ry2 = ry - Ky2a*ry
+                delta_y.zero()
+                it_Ky2 = Ky2.solver.solve(delta_y, ry2)
+                y.axpy(-tau_y2, delta_y) #y -= tau_y2*delta_y
+
 
             # Update
             # FIXME: Might be inaccurate for functionals of the pressure since p01 is the value at the midpoint

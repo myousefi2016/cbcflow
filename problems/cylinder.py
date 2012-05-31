@@ -99,20 +99,17 @@ class Problem(ProblemBase):
             g0.t = t
 
     def functional(self, t, u, p):
-
         if t < self.T:
             return 0.0
 
         x1 = array((xcenter - radius - DOLFIN_EPS, ycenter))
         x2 = array((xcenter + radius + DOLFIN_EPS, ycenter))
 
-        return p(x1) - p(x2)
+        return self.eval(p, x1) - self.eval(p, x2)
 
     def reference(self, t):
-        
         if t < self.T:
             return 0.0
-        
         return -0.111444953719
 
     def __str__(self):

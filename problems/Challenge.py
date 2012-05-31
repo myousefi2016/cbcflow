@@ -40,7 +40,8 @@ class InflowData(object):
                 self.counter += 1
                 self.t = self.problem.t
                 self.val = float(self.velocity*self.counter) / self.N
-                print self.val, self.velocity, self.counter, self.N
+                if master:
+                    print self.val, self.velocity, self.counter, self.N
         else:
             if self.t < self.problem.t:
                 self.t = self.problem.t
@@ -94,9 +95,9 @@ class Problem(ProblemBase):
                 2: "mesh_2mio.xml.gz",
                 3: "mesh_4mio.xml.gz",
             }[refinement]
-        print "Loading mesh..."
+        if master: print "Loading mesh..."
         self.mesh = Mesh(os.path.join("data", "challenge", mesh_filename))
-        print "Done loading mesh."
+        if master: print "Done loading mesh."
 
         # Select flux in cm3/s
         self.testcase = self.options["test_case"]
@@ -115,9 +116,7 @@ class Problem(ProblemBase):
 
         # Set current and end-time (Note: Peak systole is 0.275 s)
         self.t = 0.0
-        self.T = self.options["max_t"] # s
-        if self.options["dt"] is not None:
-            self.dt = self.options["dt"]
+        self.T = self.options["T"] or 1.0 # s
 
         # Compute volume (cm3) and areas (cm2)
         one = Constant(1)
@@ -126,10 +125,11 @@ class Problem(ProblemBase):
         self.A1 = assemble(one*ds(1), mesh=self.mesh)
         self.A2 = assemble(one*ds(2), mesh=self.mesh)
 
-        print "Volume of the geometry is (dx)   ", self.V0, "cm^3"
-        print "Areal  of the no-slip is (ds(0)  ", self.A0, "cm^2"
-        print "Areal  of the inflow is (ds(1))  ", self.A1, "cm^2"
-        print "Areal  of the outflow is (ds(2)) ", self.A2, "cm^2"
+        if master:
+            print "Volume of the geometry is (dx)   ", self.V0, "cm^3"
+            print "Area   of the no-slip is (ds(0)  ", self.A0, "cm^2"
+            print "Area   of the inflow is (ds(1))  ", self.A1, "cm^2"
+            print "Area   of the outflow is (ds(2)) ", self.A2, "cm^2"
 
         # Compute average inflow velocity (cm/s)
         self.velocity = self.flux / self.A1
@@ -138,12 +138,21 @@ class Problem(ProblemBase):
         cfl_factor = 8 #16 # TODO: Is 16 a bit high? Reduce by a factor 2-3 to speed up?
         self.U = self.velocity*cfl_factor
         h = MPI.min(self.mesh.hmin())
+        if MPI.num_processes() == 1:
+            num_vertices = self.mesh.num_vertices()
+            num_cells = self.mesh.num_cells()
+        else:
+            # MPI.sum(num_vertices) counts overlapping vertices twice
+            num_ge = self.mesh.parallel_data().num_global_entities()
+            num_vertices = num_ge[0]
+            num_cells = num_ge[-1]
 
-        print "Characteristic velocity set to", self.U, "cm/s"
-        print "mesh size          ", h, "cm"
-        print "velocity at inflow ", self.velocity, "cm/s"
-        print "Number of cells    ", self.mesh.num_cells()
-        print "Number of vertices ", self.mesh.num_vertices()
+        if master:
+            print "Characteristic velocity set to", self.U, "cm/s"
+            print "mesh size          ", h, "cm"
+            print "velocity at inflow ", self.velocity, "cm/s"
+            print "Number of cells    ", num_cells
+            print "Number of vertices ", num_vertices
 
         self.cl = numpy.loadtxt("data/challenge/cl.dat")
         self.probevalues = numpy.zeros((self.cl.shape[0],))
@@ -183,74 +192,80 @@ class Problem(ProblemBase):
         return 0
 
     def update(self, t, u, p):
-        pass
+        self.probe(t,u,p) # TODO: Not sure where I should do this according to the framework?
 
     def probe(self, t, u, p):
-        pass
-
-    def _probe(self, t, u, p): # Disabled because of parallel issues # FIXME: Test!
         # Sample pressure at probe points from challenge readme1a
         cl = self.cl
+        if hasattr(p, 'gather'):
+            p.gather() # dolfin 1.0
+        else:
+            p.update() # dolfin dev
         for i in range(self.cl.shape[0]):
-            self.probevalues[i] = p(array(self.cl[i,:3]))
+            self.probevalues[i] = self.eval(p, array(self.cl[i,:3]), gather=False)
 
-        if self.options["store_probes"]:
+        if master and self.options["store_probes"]:
             probefilename = os.path.join("results", self.options["casename"], "probes",
                                          "p_t%g" % t)
             f = open(probefilename, "w")
             f.write('\n'.join(map(str,self.probevalues)))
             f.close()
-            print "FIXME: Implement storing of probevalues!"
+            if master: print "FIXME: Implement storing of probevalues!"
 
-        if self.options["plot_probes"]:
+        if master and self.options["plot_probes"]:
             pylab.figure(1)
             pylab.plot(self.cl[:,3], self.probevalues)
             pylab.show() # Not working...
 
     def functional(self, t, u, p):
-        self.probe(t,u,p) # TODO: Not sure where I should do this according to the framework?
-
         n = FacetNormal(self.mesh)
         b0 = assemble(dot(u,n)*ds(0)) 
         b1 = assemble(dot(u,n)*ds(1)) 
         b2 = assemble(dot(u,n)*ds(2)) 
         b3 = assemble(dot(u,n)*ds(3)) 
-        print "flux ds0 ", b0
-        print "flux ds1 ", b1
-        print "flux ds2 ", b2
-        print "flux ds3 ", b3
+        if master:
+            print "flux ds0 ", b0
+            print "flux ds1 ", b1
+            print "flux ds2 ", b2
+            print "flux ds3 ", b3
 
-        p_max = p.vector().max()
-        p_min = p.vector().min()
-        print "p_min ", p_min
-        print "p_max ", p_max
+        p_max = MPI.max(p.vector().max())
+        p_min = MPI.min(p.vector().min())
+        if master:
+            print "p_min ", p_min
+            print "p_max ", p_max
 
         if self.options["segregated"]:
             u_max = max(ui.vector().norm('linf') for ui in u) 
         else:
             u_max = u.vector().norm('linf')  
-        print "u_max ", u_max
-        print "U ", self.U
+        if master:
+            print "u_max ", u_max
+            print "U ", self.U
 
-        #return self._named_probes(t, u, p) # Disabled because of parallell issues
-        return p_max - p_min
+        return self._named_probes(t, u, p)
 
-    def _named_probes(self, t, u, p): # Disabled because of parallell issues
+    def _named_probes(self, t, u, p):
         named_probes = [
             ((-1.75, -2.55, -0.32), "at inlet"),
-            ((-0.17, -0.59, 1.17), "before obstruction"),
-            ((-0.14, -0.91, 1.26), "at obstruction"),
-            ((-0.38, -0.35, 0.89), "after obstruction"),
-            ((-1.17, -0.87, 0.45), "at outlet"),
+            ((-0.17, -0.59,  1.17), "before obstruction"),
+            ((-0.14, -0.91,  1.26), "at obstruction"),
+            ((-0.38, -0.35,  0.89), "after obstruction"),
+            ((-1.17, -0.87,  0.45), "at outlet"),
             ]
-        named_values = dict((name,p(array(x))) for x,name in named_probes)
-        for x,name in named_probes:
-            print "p %s = %g" % (name, named_values[name])
+        if hasattr(p, 'gather'):
+            p.gather() # dolfin 1.0
+        else:
+            p.udate() # dolfin dev
+        named_values = dict((name,self.eval(p,array(x),gather=False)) for x,name in named_probes)
+        if master:
+            for x,name in named_probes:
+                print "p %s = %g" % (name, named_values[name])
 
         return named_values["at outlet"] - named_values["at inlet"]
 
     def reference(self, t):
-        return 0 
+        return 0
 
     def __str__(self):
         return "Challenge"

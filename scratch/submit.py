@@ -8,7 +8,7 @@ params = ['stationary', 'test_case', 'refinement_level',
 template = './ns Challenge ipcs_opt \
 segregated=True \
 save_solution=True \
-save_frequency=%(save_frequency)d \
+save_number=400 \
 save_xml=True \
 store_probes=False \
 plot_probes=False \
@@ -50,8 +50,6 @@ pmax_t = 2.5
 #for dt in (1e-4,):
 #for dt in (1e-3,1e-4,1e-5):
 for dt in (2e-4,2e-5):
-    save_frequency = 10 if dt is None else max(1,int(0.5+1.0/(400*dt)))
-
     #smax_t = pmax_t = dt*10 # Short timespan for debugging!
 
     #for refinement_level in (0,1,2):

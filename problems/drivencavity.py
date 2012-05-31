@@ -74,9 +74,10 @@ class Problem(ProblemBase):
             # Compute stream function and report minimum
             psi = StreamFunction(u)
             vals  = psi.vector().array()
-            vmin = vals.min()
+            vmin = MPI.min(vals.min())
 
-            print "Stream function has minimal value" , vmin
+            if master:
+                print "Stream function has minimal value" , vmin
 
             return vmin
 

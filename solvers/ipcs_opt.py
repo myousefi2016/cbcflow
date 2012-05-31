@@ -1,11 +1,9 @@
-#from __future__ import division
+from __future__ import division
 
-__author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
-__date__ = "2008-02-01"
-__copyright__ = "Copyright (C) 2008-2010 " + __author__
+__author__ = "Joachim B Haga <jobh@simula.no>"
+__date__ = "2011-11-11"
+__copyright__ = "Copyright (C) 2011 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
-
-# Modified by Anders Logg, 2008-2010.
 
 from solverbase import *
 from rhsgenerator import *
@@ -17,16 +15,18 @@ class Solver(SolverBase):
         SolverBase.__init__(self, options)
         self.segregated = options['segregated']
 
-    def solve(self, problem):
+    def solve(self, problem, restart=None):
 
-        solver_u_tent      = "gmres", "hypre_euclid"
-        solver_p_periodic  = "gmres", "hypre_euclid"
-        solver_p_dirichlet = "gmres", "ml_amg"
-        solver_u_corr      = "bicgstab", "hypre_euclid"
+        solver_u_tent_params      = "gmres", "hypre_euclid"
+        solver_p_periodic_params  = "gmres", "ml_amg"
+        solver_p_dirichlet_params = "cg", "ml_amg"
+        solver_u_corr_params      = "bicgstab", "hypre_euclid"
 
         # Get problem parameters
         mesh = problem.mesh
-        dt, t, t_range = problem.timestep(problem)
+        dt, t, t_range = self.select_timestep(problem)
+        if restart:
+            dt, t, t_range = restart.select_timestep(dt, problem.T)
 
         # Define function spaces
         if self.segregated:
@@ -37,8 +37,13 @@ class Solver(SolverBase):
 
         # Get initial and boundary conditions
         ics = problem.initial_conditions(V, Q)
+        if restart:
+            u0 = restart.u(t, V)
+            p0 = restart.p(t, Q)
+        else:
+            u0 = [interpolate(_, V) for _ in ics[:-1]]
+            p0 = interpolate(ics[-1], Q)
         bcs = problem.boundary_conditions(V, Q, t)
-        u0, p0 = ics[:-1], ics[-1]
         bcu, bcp = bcs[:-1], bcs[-1]
 
         # Remove boundary stress term if problem is periodic
@@ -52,11 +57,9 @@ class Solver(SolverBase):
 
         # Functions
         dims = range(len(u0))
-        u0 = [interpolate(_u0, V) for _u0 in u0]
         u1 = [Function(V) for d in dims]
+        p1 = Function(Q)
 
-        p0 = interpolate(p0, Q)
-        p1 = interpolate(p0, Q)
         nu = Constant(problem.nu)
         k  = Constant(dt)
         f  = problem.f
@@ -146,13 +149,13 @@ class Solver(SolverBase):
             bc.apply(A_p_corr)
 
         # Create solvers
-        if is_periodic(bcp): solver_p = solver_p_periodic
-        else:                solver_p = solver_p_dirichlet
-        S_u_tent = [LinearSolver(*solver_u_tent) for d in dims]
-        S_p_corr = LinearSolver(*solver_p)
-        S_u_corr = [LinearSolver(*solver_u_corr) for d in dims]
+        if is_periodic(bcp): solver_p = solver_p_periodic_params
+        else:                solver_p = solver_p_dirichlet_params
+        solver_u_tent = [LinearSolver(*solver_u_tent_params) for d in dims]
+        solver_p_corr = LinearSolver(*solver_p)
+        solver_u_corr = [LinearSolver(*solver_u_corr_params) for d in dims]
 
-        for A,S in zip(A_u_tent, S_u_tent) + [(A_p_corr, S_p_corr)] + zip(A_u_corr, S_u_corr):
+        for A,S in zip(A_u_tent, solver_u_tent) + [(A_p_corr, solver_p_corr)] + zip(A_u_corr, solver_u_corr):
             S.set_operator(A)
             S.parameters['preconditioner']['reuse'] = True
 
@@ -170,29 +173,29 @@ class Solver(SolverBase):
                 assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
 
             # Compute tentative velocity step
-            for d, S, rhs, u1_comp, bcu_comp in zip(dims, S_u_tent, rhs_u_tent, u1, bcu):
+            for d, S, rhs, u1_comp, bcu_comp in zip(dims, solver_u_tent, rhs_u_tent, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
                 self.timer("u0 construct rhs")
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u0 solve (%s, %d, %d)"%(', '.join(solver_u_tent), A.size(0), iter))
+                self.timer("u0 solve (%s, %d, %d)"%(', '.join(solver_u_tent_params), A.size(0), iter))
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp: bc.apply(b)
             self.timer("p1 construct rhs")
-            iter = S_p_corr.solve(p1.vector(), b)
+            iter = solver_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
             self.timer("p1 solve (%s, %d, %d)"%(', '.join(solver_p), A_p_corr.size(0), iter))
 
             # Velocity correction
-            for S, rhs, u1_comp, bcu_comp in zip(S_u_corr, rhs_u_corr, u1, bcu):
+            for S, rhs, u1_comp, bcu_comp in zip(solver_u_corr, rhs_u_corr, u1, bcu):
                 b = rhs()
                 for bc in bcu_comp: bc.apply(b)
                 self.timer("u1 construct rhs")
                 iter = S.solve(u1_comp.vector(), b)
-                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
+                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_corr_params), A.size(0),iter))
 
             # Update
             self.update(problem, t, u1, p1)

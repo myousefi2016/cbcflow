@@ -48,7 +48,7 @@ class Solver(SolverBase):
         mesh = problem.mesh
 
         # Set time step
-        dt, t, t_range = problem.timestep(problem)
+        dt, t, t_range = self.select_timestep(problem)
         if str(problem) == "Channel":
             dt /= 3.0; 
             n = int(t_range[-1] / dt + 1.0)

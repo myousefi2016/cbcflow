@@ -57,10 +57,9 @@ class Problem(ProblemBase):
         self.T = 0.05
 
     def initial_conditions(self, V, Q):
-        if self.options['segregated']:
-            return [Constant(0)] * 4
-        else:
-            return Constant((0, 0, 0)), Constant(0)
+        u0 = self.uConstant((0, 0, 0))
+        p0 = [Constant(0)]
+        return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
 
@@ -91,9 +90,6 @@ class Problem(ProblemBase):
         bcp = zip(bc_outflow)
 
         return bcu + bcp
-
-    def pressure_bc(self, Q):
-        return 0
 
     def update(self, t, u, p):
         for g in self.g_inflow:

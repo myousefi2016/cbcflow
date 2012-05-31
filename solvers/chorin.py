@@ -16,7 +16,7 @@ class Solver(SolverBase):
 
         # Get problem parameters
         mesh = problem.mesh
-        dt, t, t_range = problem.timestep(problem)
+        dt, t, t_range = self.select_timestep(problem)
 
         if str(problem)=="Aneurysm":
             pc = "jacobi"
