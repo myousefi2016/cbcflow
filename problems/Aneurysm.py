@@ -66,7 +66,7 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-        self.mesh = Mesh("data/Aneurysm.xml.gz")
+        self.mesh = Mesh(self.retrieve("data/Aneurysm.xml.gz"))
 
         # The body force term
         self.f = self.uConstant((0, 0, 0))

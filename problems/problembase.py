@@ -1,3 +1,4 @@
+from __future__ import division
 __author__ = "Anders Logg <logg@simula.no>"
 __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
@@ -7,6 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from dolfin import *
 from math import *
+import os
 
 master = MPI.process_number() == 0
 
@@ -104,3 +106,35 @@ class ProblemBase:
             return self.eval(func[component], point)
         else:
             return self.eval(func, point)[component]
+
+    def retrieve(self, filename, urlbase='http://simula.no/~jobh/headflow'):
+        if master and not os.path.exists(filename):
+            url = urlbase+'/'+filename
+            warning('%s not found, fetching from %s'%(filename,url))
+            log_level = get_log_level()
+            set_log_level(PROGRESS)
+            progress = [Progress(url)]
+            def reporter(numblocks, blocksize, totalsize):
+                progress[0] += numblocks*blocksize / totalsize
+            try:
+                DataURLOpener(url, filename).retrieve(reporter)
+            except:
+                if os.path.exists(filename):
+                    os.remove(filename)
+                raise
+            del progress[0]
+            set_log_level(log_level)
+
+        MPI.barrier()
+        return filename
+
+import urllib
+class DataURLOpener(urllib.FancyURLopener):
+    def __init__(self, url, filename):
+        urllib.FancyURLopener.__init__(self)
+        self.url = url
+        self.filename = filename
+    def retrieve(self, reporter=None, data=None):
+        urllib.FancyURLopener.retrieve(self, self.url, self.filename, reporter, data)
+    def http_error_default(self, url, fp, errcode, errmsg, headers):
+        raise IOError(str(errcode)+" "+errmsg+", "+self.url)
