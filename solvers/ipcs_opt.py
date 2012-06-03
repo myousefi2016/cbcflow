@@ -157,7 +157,8 @@ class Solver(SolverBase):
 
         for A,S in zip(A_u_tent, solver_u_tent) + [(A_p_corr, solver_p_corr)] + zip(A_u_corr, solver_u_corr):
             S.set_operator(A)
-            S.parameters['preconditioner']['reuse'] = True
+            if 'preconditioner' in S.parameters:
+                S.parameters['preconditioner']['reuse'] = True
 
         # Time loop
         self.start_timing()
@@ -202,7 +203,7 @@ class Solver(SolverBase):
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
 
-        return self._list_or_function(u1), p1
+        return as_object(u1), p1
 
     def __str__(self):
         name = "IPCS_opt"

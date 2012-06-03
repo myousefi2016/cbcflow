@@ -117,11 +117,11 @@ class SolverBase:
         if m is None:
             e = None
             if master:
-                print "M = %g (missing reference value)" % M
+                print "M = %s (missing reference value)" % fmt(M)
         else:
             e = abs(M - m)
             if master:
-                print "M = %g (reference %g), error = %g (maximum %g)" % (M, m, e, max([e] + self._e))
+                print "M = %s (reference %s), error = %s (maximum %g)" % (fmt(M), fmt(m), fmt(e), max([e] + self._e))
 
         # Store values
         self._t.append(t)
@@ -303,6 +303,12 @@ class SolverBase:
     def cputime(self):
         "Return accumulated CPU time."
         return self._cputime
+
+    def fmt(M, format="%g"):
+        if hasattr(M, "__iter__"):
+            return "[%s]"%", ".join(format%m for m in M)
+        else:
+            return format%M
 
 def as_object(u):
     "Return a single object if possible, else a list."

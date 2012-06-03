@@ -165,7 +165,7 @@ class Solver(SolverBase):
             for d in dims: u0[d].assign(u1[d])
             p0.assign(p1)
 
-        return self._list_or_function(u1), p1
+        return as_object(u1), p1
 
     def __str__(self):
         name = "IPCS_symm"

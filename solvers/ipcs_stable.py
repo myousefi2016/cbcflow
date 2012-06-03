@@ -185,7 +185,7 @@ class Solver(SolverBase):
             for d in dims: u_curr[d].assign(u_next[d])
             p_curr.assign(p_next)
 
-        return self._list_or_function(u_next), p_curr
+        return as_object(u_next), p_curr
 
     def __str__(self):
         name = "IPCS_stable"
