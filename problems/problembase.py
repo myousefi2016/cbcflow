@@ -109,6 +109,9 @@ class ProblemBase:
 
     def retrieve(self, filename, urlbase='http://simula.no/~jobh/headflow'):
         if not filename.endswith(".gz"):
+            # Enforcing .gz extension is a quick fix to avoid trouble when
+            # httpserver serves .gz file without extension, which is then
+            # unreadable for dolfin.
             filename += ".gz"
         if master and not os.path.exists(filename):
             url = urlbase+'/'+filename
@@ -118,12 +121,15 @@ class ProblemBase:
             progress = [Progress(filename.split('/')[-1])]
             def reporter(numblocks, blocksize, totalsize):
                 progress[0] += numblocks*blocksize / totalsize
+
+            os.makedirs(filename[:filename.rfind('/')])
             try:
                 DataURLOpener(url, filename).retrieve(reporter)
             except:
                 if os.path.exists(filename):
                     os.remove(filename)
                 raise
+
             del progress[0]
             set_log_level(log_level)
 

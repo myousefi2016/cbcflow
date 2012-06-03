@@ -304,11 +304,11 @@ class SolverBase:
         "Return accumulated CPU time."
         return self._cputime
 
-    def fmt(M, format="%g"):
-        if hasattr(M, "__iter__"):
-            return "[%s]"%", ".join(format%m for m in M)
-        else:
-            return format%M
+def fmt(M, format="%g"):
+    if hasattr(M, "__iter__"):
+        return "[%s]"%", ".join(format%m for m in M)
+    else:
+        return format%M
 
 def as_object(u):
     "Return a single object if possible, else a list."
