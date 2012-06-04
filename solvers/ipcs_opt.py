@@ -144,12 +144,10 @@ class Solver(SolverBase):
             bc.apply(A_p_corr)
 
         # Create solvers
-        solver_p_params = self.options['solver.p']
-        if not solver_p_params:
-            if len(bcp)==0 or is_periodic(bcp):
-                solver_p_params = self.options['solver.p_neumann']
-            else:
-                solver_p_params = self.options['solver.p_dirichlet']
+        if len(bcp)==0 or is_periodic(bcp):
+            solver_p_params = self.options['solver.p'] or self.options['solver.p_neumann']
+        else:
+            solver_p_params = self.options['solver.p'] or self.options['solver.p_dirichlet']
         solver_u_tent = [LinearSolver(*self.options['solver.u_tent']) for d in dims]
         solver_p_corr = LinearSolver(*solver_p_params)
         solver_u_corr = [LinearSolver(*self.options['solver.u_corr']) for d in dims]

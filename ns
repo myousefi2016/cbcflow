@@ -62,7 +62,7 @@ OPTIONS = {"refinement_level": 0,
 
            # ipcs solvers
            "solver.u_tent": "gmres,hypre_euclid",
-           "solver.p_neumann": "gmres,ml_amg",
+           "solver.p_neumann": "gmres,hypre_amg",
            "solver.p_dirichlet": "gmres,ml_amg",
            "solver.p": None, # overrides neumann/dirichlet if given
            "solver.u_corr": "bicgstab,hypre_euclid",
