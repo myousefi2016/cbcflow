@@ -60,6 +60,15 @@ OPTIONS = {"refinement_level": 0,
            # change the default to None (i.e., move the default to the problem)
            # if there is no sensible common default.
 
+           # ipcs solvers
+           "solver.u_tent": "gmres,hypre_euclid",
+           "solver.p_neumann": "gmres,ml_amg",
+           "solver.p_dirichlet": "gmres,ml_amg",
+           "solver.p": None, # overrides neumann/dirichlet if given
+           "solver.u_corr": "bicgstab,hypre_euclid",
+
+           # grpc solver
+
            # Parameters specific for Challenge
            "test_case": 1,
            "plot_probes": False,
@@ -127,7 +136,11 @@ def main(args):
         try:
             options[key] = eval(value)
         except:
-            options[key] = str(value)
+            options[key] = value
+
+    for key, value in options.iteritems():
+        if key.startswith("solver.") and isinstance(value, str):
+            options[key] = value.split(',')
 
     # Set global DOLFIN parameters
     parameters["form_compiler"]["cpp_optimize"] = True

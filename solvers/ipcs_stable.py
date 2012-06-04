@@ -17,11 +17,6 @@ class Solver(SolverBase):
 
     def solve(self, problem, restart=None):
 
-        solver_u_tent_params      = "gmres", "hypre_euclid"
-        solver_p_periodic_params  = "gmres", "ml_amg"
-        solver_p_dirichlet_params = "cg", "ml_amg"
-        solver_u_corr_params      = "bicgstab", "hypre_euclid"
-
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
@@ -122,15 +117,20 @@ class Solver(SolverBase):
             bc.apply(A_p_corr)
 
         # Create solvers
-        if is_periodic(bcp): solver_p_params = solver_p_periodic_params
-        else:                solver_p_params = solver_p_dirichlet_params
-        solver_u_tent = LinearSolver(*solver_u_tent_params)
+        solver_p_params = self.options['solver.p']
+        if not solver_p_params:
+            if len(bcp)==0 or is_periodic(bcp):
+                solver_p_params = self.options['solver.p_neumann']
+            else:
+                solver_p_params = self.options['solver.p_dirichlet']
+        solver_u_tent = LinearSolver(*self.options['solver.u_tent'])
         solver_p_corr = LinearSolver(*solver_p_params)
-        solver_u_corr = LinearSolver(*solver_u_corr_params)
+        solver_u_corr = LinearSolver(*self.options['solver.u_corr'])
 
         for A,S in [(A_u_tent, solver_u_tent), (A_p_corr, solver_p_corr), (A_u_corr, solver_u_corr)]:
             S.set_operator(A)
-            S.parameters['preconditioner']['reuse'] = True
+            if 'preconditioner' in S.parameters:
+                S.parameters['preconditioner']['reuse'] = True
 
         # Time loop
         self.start_timing()
@@ -162,7 +162,7 @@ class Solver(SolverBase):
                 b = rhs_u_tent[d](bcs=bcu[d])
                 self.timer("u_tent construct rhs")
                 iter = solver_u_tent.solve(u_next[d].vector(), b)
-                self.timer("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_tent_params), b.size(), iter))
+                self.timer("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(self.options['solver.u_tent']), b.size(), iter))
 
             # Pressure correction
             b = rhs_p_corr(bcs=bcp)
@@ -177,7 +177,7 @@ class Solver(SolverBase):
                 b = rhs_u_corr[d](bcs=bcu[d])
                 self.timer("u_corr construct rhs")
                 iter = solver_u_corr.solve(u_next[d].vector(), b)
-                self.timer("u_corr solve (%s, %d dofs, %d iter)"%(', '.join(solver_u_corr_params), b.size(), iter))
+                self.timer("u_corr solve (%s, %d dofs, %d iter)"%(', '.join(self.options['solver.u_corr']), b.size(), iter))
 
             # Update
             self.update(problem, t, u_next, p_next)

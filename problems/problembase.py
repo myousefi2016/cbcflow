@@ -116,13 +116,16 @@ class ProblemBase:
         if master and not os.path.exists(filename):
             url = urlbase+'/'+filename
             warning('%s not found, fetching from %s'%(filename,url))
+
+            targetdir = os.path.abspath(filename[:filename.rfind('/')])
             log_level = get_log_level()
             set_log_level(PROGRESS)
             progress = [Progress(filename.split('/')[-1])]
             def reporter(numblocks, blocksize, totalsize):
                 progress[0] += numblocks*blocksize / totalsize
 
-            os.makedirs(filename[:filename.rfind('/')])
+            if not os.path.isdir(targetdir):
+                os.makedirs(targetdir)
             try:
                 DataURLOpener(url, filename).retrieve(reporter)
             except:

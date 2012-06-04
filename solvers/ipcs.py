@@ -18,11 +18,6 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        solver_u_tent      = "gmres", "hypre_euclid"
-        solver_p_periodic  = "gmres", "ml_amg"
-        solver_p_dirichlet = "cg", "ml_amg"
-        solver_u_corr      = "bicgstab", "hypre_euclid"
-
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
@@ -95,28 +90,30 @@ class Solver(SolverBase):
             b = assemble(L_u_tent)
             for bc in bcu: bc.apply(A_u_tent, b)
             self.timer("u1 construct rhs")
-            iter = solve(A_u_tent, u1.vector(), b, *solver_u_tent)
-            self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_tent), b.size(), iter))
+            solver = self.options['solver.u_tent']
+            iter = solve(A_u_tent, u1.vector(), b, *solver)
+            self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver), b.size(), iter))
 
             # Pressure correction
             b = assemble(L_p_corr)
             if len(bcp) == 0 or is_periodic(bcp):
-                solver_p = solver_p_periodic
+                solver = self.options['solver.p'] or self.options['solver.p_neumann']
                 normalize(b)
             else:
-                solver_p = solver_p_dirichlet
+                solver = self.options['solver.p'] or self.options['solver.p_dirichlet']
             for bc in bcp: bc.apply(A_p_corr, b)
             self.timer("p construct rhs")
-            iter = solve(A_p_corr, p1.vector(), b, *solver_p)
+            iter = solve(A_p_corr, p1.vector(), b, *solver)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p solve (%s, %d, %d)"%(', '.join(solver_p), b.size(), iter))
+            self.timer("p solve (%s, %d, %d)"%(', '.join(solver), b.size(), iter))
 
             # Velocity correction
             b = assemble(L_u_corr)
             for bc in bcu: bc.apply(A_u_corr, b)
             self.timer("u2 construct rhs")
-            iter = solve(A_u_corr, u1.vector(), b, *solver_u_corr)
-            self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), b.size(),iter))
+            solver = self.options['solver.u_corr']
+            iter = solve(A_u_corr, u1.vector(), b, *solver)
+            self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver), b.size(),iter))
 
             # Update
             self.update(problem, t, u1, p1)

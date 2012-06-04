@@ -17,11 +17,6 @@ class Solver(SolverBase):
 
     def solve(self, problem):
 
-        solver_u_tent      = "gmres", "hypre_euclid"
-        solver_p_periodic  = "gmres", "ml_amg"
-        solver_p_dirichlet = "cg", "ml_amg"
-        solver_u_corr      = "bicgstab", "hypre_euclid"
-
         # Get problem parameters
         mesh = problem.mesh
         dt, t, t_range = self.select_timestep(problem)
@@ -126,36 +121,38 @@ class Solver(SolverBase):
                 b = assemble(L)
                 for bc in bcu_comp: bc.apply(A, b)
                 self.timer("u1 construct rhs")
-                iter = solve(A, u1_comp.vector(), b, *solver_u_tent)
-                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver_u_tent), A.size(0), iter))
+                solver = self.options['solver.u_tent']
+                iter = solve(A, u1_comp.vector(), b, *solver)
+                self.timer("u1 solve (%s, %d, %d)"%(', '.join(solver), A.size(0), iter))
 
             # Pressure correction
             b = assemble(L_p_corr)
             if len(bcp) == 0 or is_periodic(bcp):
-                solver_p = solver_p_periodic
+                solver = self.options['solver.p'] or self.options['solver.p_neumann']
                 normalize(b)
             else:
-                solver_p = solver_p_dirichlet
+                solver = self.options['solver.p'] or self.options['solver.p_dirichlet']
             for bc in bcp: bc.apply(A_p_corr, b)
             self.timer("p construct rhs")
-            iter = solve(A_p_corr, p1.vector(), b, *solver_p)
+            iter = solve(A_p_corr, p1.vector(), b, *solver)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            self.timer("p solve (%s, %d, %d)"%(', '.join(solver_p), A_p_corr.size(0), iter))
+            self.timer("p solve (%s, %d, %d)"%(', '.join(solver), A_p_corr.size(0), iter))
 
             # Velocity correction
             for A, L, u1_comp, bcu_comp in zip(A_u_corr, L_u_corr, u1, bcu):
                 b = assemble(L)
                 for bc in bcu_comp: bc.apply(A, b)
                 self.timer("u2 construct rhs")
-                iter = solve(A, u1_comp.vector(), b, *solver_u_corr)
-                self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver_u_corr), A.size(0),iter))
+                solver = self.options['solver.u_corr']
+                iter = solve(A, u1_comp.vector(), b, *solver)
+                self.timer("u2 solve (%s, %d, %d)"%(', '.join(solver), A.size(0),iter))
 
             # Update
             self.update(problem, t, u1, p1)
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
 
-        return self.as_object(u1), p1
+        return as_object(u1), p1
 
     def __str__(self):
         name = "IPCS_p1p1"
