@@ -98,7 +98,8 @@ class Problem(ProblemBase):
 
         # Set current and end-time
         self.t = 0.0
-        self.T = 2.*self.dimen.max()/(mean(self.peakU)/2.)  # calculate based on mean (not peak) velocity
+        # calculate T based on mean (not peak) velocity
+        self.T = self.options['T'] or 2.*self.dimen.max()/(mean(self.peakU)/2.)
 
         self.wall = 0
         self.inlet = zeros(2, 'int')

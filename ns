@@ -94,8 +94,12 @@ def save_results(casename, problem, solver, num_dofs, cputime, wct, functional, 
         print "Overhead   |", wct - cputime
         print "Functional |", functional
         print "Error      |", error
-        if functional != 0 and error != functional:
-            print "Error (%)  |", 100*error/functional
+        try:
+            if error != functional:
+                errpct = 100*error/functional
+                print "Error (%)  |", errpct
+        except:
+            pass
 
         # Print DOLFIN summary
         set_log_active(True)
@@ -103,10 +107,13 @@ def save_results(casename, problem, solver, num_dofs, cputime, wct, functional, 
 
         # Append to file
         filename = os.path.join("results", casename, "results.log")
-        file = open(filename, "a")
-        file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
-                   (time.asctime(), problem, solver, num_dofs, cputime, wct, functional, str(dt_division) , str(error)))
-        file.close()
+        try:
+            with open(filename, "a") as file:
+                file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
+                           (time.asctime(), problem, solver, num_dofs, cputime, wct,
+                            functional, str(dt_division) , str(error)))
+        except Exception as e:
+            warning("Failed to write final results to log file: %s"%str(e))
 
 def usage():
     "Print usage"
