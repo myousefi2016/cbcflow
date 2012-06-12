@@ -130,7 +130,6 @@ class Problem(ProblemBase):
     def update(self, t, u, p):
         for g in self.g0 + self.g1 + self.g2:
             g.t = t
-        if t>15*self.dt: exit()
 
     def boundary_conditions(self, V, Q, t):
 
