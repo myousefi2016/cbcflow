@@ -64,5 +64,5 @@ class stenosis85_ref(casebase):
 
 class straight_nerves(casebase):
     mesh_name = "data/meshes/chiari/straight_nerves_bl.xml.gz"
-    z_min = -4.97
-    z_max = 4.98
+    z_min = -4.9718099999999996
+    z_max = 4.9809900000000003
