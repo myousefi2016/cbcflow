@@ -5,7 +5,6 @@ class casebase(object):
         self.case = EllipticPipeMesh(self.mesh_name,
                                      self.a1, self.b1,
                                      self.a2, self.b2,
-                                     self.z_min, self.z_max,
                                      self.x_index, self.y_index, self.z_index,
                                      a1_i=self.a1_i, b1_i=self.b1_i,
                                      a2_i=self.a2_i, b2_i=self.b2_i)
@@ -33,8 +32,6 @@ class casebase(object):
     a2 = 0.75
     b1 = 0.75
     b2 = 0.75
-    z_min = -5.0
-    z_max = 5.0
     x_index = 0
     y_index = 1
     z_index = 2
@@ -64,5 +61,3 @@ class stenosis85_ref(casebase):
 
 class straight_nerves(casebase):
     mesh_name = "data/meshes/chiari/straight_nerves_bl.xml.gz"
-    z_min = -4.97
-    z_max = 4.98
