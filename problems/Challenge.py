@@ -205,12 +205,14 @@ class Problem(ProblemBase):
             self.probevalues[i] = self.eval(p, array(self.cl[i,:3]), gather=False)
 
         if master and self.options["store_probes"]:
-            probefilename = os.path.join("results", self.options["casename"], "probes",
-                                         "p_t%g" % t)
+            probedir = os.path.join(self.options["casedir"], "probes")
+            if not os.path.exists(probedir):
+                os.mkdir(probedir)
+            probefilename = os.path.join(probedir, "p_t%g"%t)
             f = open(probefilename, "w")
             f.write('\n'.join(map(str,self.probevalues)))
             f.close()
-            if master: print "FIXME: Implement storing of probevalues!"
+            print "FIXME: Implement storing of probevalues!"
 
         if master and self.options["plot_probes"]:
             pylab.figure(1)

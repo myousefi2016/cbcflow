@@ -47,6 +47,7 @@ OPTIONS = {"refinement_level": 0,
            "krylov_solver_monitor_convergence": False,
 
            "casename": None,
+           "postfix": None,
            "dt": None,
            "T": None,
 
@@ -80,7 +81,7 @@ OPTIONS = {"refinement_level": 0,
           }
 
 
-def save_results(casename, problem, solver, num_dofs, cputime, wct, functional, dt_division, error):
+def save_results(case_dir, problem, solver, num_dofs, cputime, wct, functional, dt_division, error):
     "Save results to file."
 
     # Print summary
@@ -106,7 +107,7 @@ def save_results(casename, problem, solver, num_dofs, cputime, wct, functional, 
         list_timings()
 
         # Append to file
-        filename = os.path.join("results", casename, "results.log")
+        filename = os.path.join(case_dir, "results.log")
         try:
             with open(filename, "a") as file:
                 file.write("%s, %s, %s, %d, %.15g, %.15g, %.15g, %s, %s\n" %
@@ -173,11 +174,19 @@ def main(args):
         print "Problem: " + str(problem)
         print "Solver:  " + str(solver)
 
-    # Make directory for result files
-    if options["casename"] is None: # Lazy attempt at keeping compatibility with old way
+    # Lazy attempt at keeping compatibility with old way
+    if options["casename"] is None:
         options["casename"] = solver.prefix(problem) + \
             "_refinement_level_"+ str(options["refinement_level"])
-    casedir = os.path.join("results", options["casename"])
+
+    if options["postfix"] is None:
+        options["casename_full"] = options["casename"]
+    else:
+        options["casename_full"] = options["casename"]+"_"+options["postfix"]
+
+    # Make directory for result files
+    casedir = os.path.join("results", options["casename_full"])
+    options["casedir"] = casedir
     if master:
         if not os.path.exists(casedir):
             os.mkdir(casedir)
@@ -189,14 +198,14 @@ def main(args):
     wct = time.time()
     if options["restart_timestep"] is not None:
         from solvers.restartinfo import RestartInfo
-        restart = RestartInfo(options["restart_casename"] or options["casename"],
+        restart = RestartInfo(options["restart_casename"] or options["casename_full"],
                               timestep=options["restart_timestep"])
         if master:
             print "Restarting from timestep %d (time %.3g)" % (restart.timestep, restart.t)
         u, p = solver.solve(problem, restart)
     elif options["restart_time"] is not None:
         from solvers.restartinfo import RestartInfo
-        restart = RestartInfo(options["restart_casename"] or options["casename"],
+        restart = RestartInfo(options["restart_casename"] or options["casename_full"],
                               t=options["restart_time"])
         if master:
             print "Restarting from timestep %d (time %.3g)" % (restart.timestep, restart.t)
@@ -217,7 +226,7 @@ def main(args):
     functional, error = solver.eval()
 
     # Save results
-    save_results(options["casename"], problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
+    save_results(casedir, problem, solver, num_dofs, solver.cputime(), wct, functional, dt_division, error)
 
     if options['plot_solution']:
         interactive()

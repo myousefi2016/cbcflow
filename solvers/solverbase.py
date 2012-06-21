@@ -88,7 +88,7 @@ class SolverBase:
     def update(self, problem, t, u, p):
         "Update problem at time t"
 
-        casedir = os.path.join("results", self.options["casename"])
+        casedir = self.options["casedir"]
         u = as_object(u)
 
         if self.options['segregated']:
