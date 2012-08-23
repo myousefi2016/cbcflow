@@ -1,0 +1,7 @@
+
+Build instructions:
+cmake . && make
+
+Run instructions:
+./analysemesh meshfile.xml.gz
+

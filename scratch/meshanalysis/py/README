@@ -1,0 +1,4 @@
+
+Run instructions:
+./analysemesh.py meshfile.xml.gz
+
