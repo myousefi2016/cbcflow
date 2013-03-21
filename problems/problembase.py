@@ -52,6 +52,10 @@ class ProblemBase:
         "Return tolerance (used as local convergence criterion)."
         return 1e-6
 
+    def preconditioner_name(self):
+        "Return name of preconditioner."
+        return "ilu"
+
     def pressure_bc(self, Q):
         if master:
             warning("Using default pressure 0, please set pressure bc in boundary_conditions()")

@@ -56,6 +56,9 @@ class Problem(ProblemBase):
         # Set end-time
         self.T = 0.05
 
+    def preconditioner_name(self):
+        return "jacobi"
+
     def initial_conditions(self, V, Q):
         u0 = self.uConstant((0, 0, 0))
         p0 = [Constant(0)]

@@ -84,6 +84,9 @@ class Problem(ProblemBase):
     def initial_conditions(self, V, Q):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
 
+    def preconditioner_name(self):
+        return "jacobi"
+
     def resistance(self, mesh, mark, C, p0):
         if not hasattr(self, "u"):
             if master:
