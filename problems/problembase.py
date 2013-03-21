@@ -50,12 +50,7 @@ class ProblemBase:
 
     def tolerance(self, problem):
         "Return tolerance (used as local convergence criterion)."
-        if str(problem) == 'Channel':
-            return 1e-11
-        elif str(problem) == 'Cylinder':
-            return 1e-7
-        else:
-            return 1e-6
+        return 1e-6
 
     def pressure_bc(self, Q):
         if master:
@@ -152,7 +147,9 @@ class DataURLOpener(urllib.FancyURLopener):
         urllib.FancyURLopener.__init__(self)
         self.url = url
         self.filename = filename
+
     def retrieve(self, reporter=None, data=None):
         urllib.FancyURLopener.retrieve(self, self.url, self.filename, reporter, data)
+
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise IOError(str(errcode)+" "+errmsg+", "+self.url)

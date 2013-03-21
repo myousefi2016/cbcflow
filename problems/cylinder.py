@@ -112,5 +112,8 @@ class Problem(ProblemBase):
             return 0.0
         return -0.111444953719
 
+    def tolerance(self, problem):
+        return 1e-7
+
     def __str__(self):
         return "Cylinder"

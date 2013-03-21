@@ -95,5 +95,8 @@ class Problem(ProblemBase):
                 u += a*exp(-b*t)*c
             return u
 
+    def tolerance(self, problem):
+        return 1e-11
+
     def __str__(self):
         return "Channel"
