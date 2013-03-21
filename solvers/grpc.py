@@ -18,7 +18,7 @@ class Solver(SolverBase):
 
     def select_timestep(self, problem):
         dt, t, trange = SolverBase.select_timestep(self, problem)
-        if str(problem) in ["Channel"]:
+        if str(problem) == "Channel": # FIXME: Really??? I don't dare touching this.
             dt /= 3.0
             n = int(trange[-1] / dt + 1.0)
             dt = trange[-1] / n

@@ -39,23 +39,28 @@ class Solver(SolverBase):
         assert not options['segregated']
         SolverBase.__init__(self, options)
 
+    def select_timestep(self, problem):
+        dt, t, trange = SolverBase.select_timestep(self, problem)
+        if str(problem) == "Channel": # FIXME: Really??? I don't dare touching this.
+            dt /= 3.0; 
+            n = int(t_range[-1] / dt + 1.0)
+            dt = t_range[-1] / n
+            t = dt
+            t_range = linspace(0,t_range[-1],n+1)[1:]
+            if MPI.process_number() == 0:
+                print "Number of time steps increased to", len(trange)
+        return dt, t, trange
+
     def solve(self, problem):
 
         # Check if we should use reference implementation (Unicorn)
-        g2ref = str(problem) == "G2ref"
+        g2ref = str(problem) == "G2ref" # FIXME: We can't have code like this in a generic solver...
 
         # Get problem parameters
         mesh = problem.mesh
 
         # Set time step
         dt, t, t_range = self.select_timestep(problem)
-        if str(problem) == "Channel":
-            dt /= 3.0; 
-            n = int(t_range[-1] / dt + 1.0)
-            dt = t_range[-1] / n
-            t = dt
-            t_range = linspace(0,t_range[-1],n+1)[1:]
-
 
         # Define function spaces
         V = VectorFunctionSpace(mesh, "CG", 1)
