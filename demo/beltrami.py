@@ -12,11 +12,11 @@ from numpy import array
 from math import pi, e
 
 # Problem definition
-class Problem(ProblemBase):
+class Problem(NSProblem):
     "3D test problem with known analytical solution."
 
     def __init__(self, options):
-        ProblemBase.__init__(self, options)
+        NSProblem.__init__(self, options)
 
         # We start with a UnitCube and modify it to get the mesh we
         # want: (-1, 1) x (-1, 1) x (-1, 1)

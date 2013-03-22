@@ -67,17 +67,6 @@ OPTIONS = {"refinement_level": 0,
            "solver.p_dirichlet": "gmres,ml_amg",
            "solver.p": None, # overrides neumann/dirichlet if given
            "solver.u_corr": "bicgstab,hypre_euclid",
-
-           # grpc solver
-
-           # Parameters specific for Challenge
-           "test_case": 1,
-           "plot_probes": False,
-           "store_probes": False,
-
-           # Parameters specific for csf_flow_tapered
-           "waveform": "pulse",
-           "f1": 1.0,
           }
 
 
@@ -239,4 +228,3 @@ if __name__ == "__main__":
     result = main(args)
     if master: print "Result from main is", result
     sys.exit(result)
-

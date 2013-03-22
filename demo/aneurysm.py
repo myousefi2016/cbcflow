@@ -33,11 +33,11 @@ class AneurysmCutoff(Expression):
             values[0] = 1.0
 
 # Problem definition
-class Problem(ProblemBase):
+class Problem(NSProblem):
     "3D artery with a saccular aneurysm."
 
     def __init__(self, options):
-        ProblemBase.__init__(self, options)
+        NSProblem.__init__(self, options)
 
         # Load mesh
         refinement_level = options["refinement_level"]
@@ -134,6 +134,6 @@ class Problem(ProblemBase):
 if __name__ == "__main__":
     import sys
     from headflow import NSSolver, parse_cmdline_params
-    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver = NSSolver(problem, params=parse_cmdline_params(sys.argv[1:]))
     solver.solve()
 

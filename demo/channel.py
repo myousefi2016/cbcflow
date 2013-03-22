@@ -24,15 +24,15 @@ class NoslipBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
 
-class Problem(ProblemBase):
+class Problem(NSProblem):
     "2D channel test problem with known analytical solution."
 
     def __init__(self, options):
-        ProblemBase.__init__(self, options)
+        NSProblem.__init__(self, options)
 
         # Create mesh
         N = options["N"]
-        self.mesh = UnitSquare(N, N)
+        self.mesh = UnitSquareMesh(N, N)
 
         # Create right-hand side function with pressure gradient as body force
         self.f = self.uConstant((0, 0))
@@ -102,5 +102,5 @@ class Problem(ProblemBase):
 if __name__ == "__main__":
     import sys
     from headflow import NSSolver, parse_cmdline_params
-    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver = NSSolver(problem, params=parse_cmdline_params(sys.argv[1:]))
     solver.solve()

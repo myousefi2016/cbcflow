@@ -3,7 +3,13 @@ __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from headflow.problembase import *
+import sys
+sys.path.insert(0,"../site-packages")
+
+from dolfin import *
+from headflow import *
+
+master = MPI.process_number() == 0
 
 # Boundary value
 def boundaryvalue(x):
@@ -26,15 +32,15 @@ class BoundaryValueComp(Expression):
         values[0] = boundaryvalue(x)[self.component]
 
 # Problem definition
-class Problem(ProblemBase):
+class Problem(NSProblem):
     "2D lid-driven cavity test problem with known reference value."
 
     def __init__(self, options):
-        ProblemBase.__init__(self, options)
+        NSProblem.__init__(self, options)
 
         # Create mesh
         N = options["N"]
-        self.mesh = UnitSquare(N, N)
+        self.mesh = UnitSquareMesh(N, N)
 
         # Create right-hand side function
         self.f = self.uConstant((0, 0))
@@ -47,14 +53,11 @@ class Problem(ProblemBase):
         self.T = 2.5
 
     def initial_conditions(self, V, Q):
-
         u0 = self.uConstant((0, 0))
         p0 = self.uConstant(0)
-
         return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
-
         if self.options['segregated']:
             element = FiniteElement("CG", triangle, 1)
             self.g = [BoundaryValueComp(d, element=element) for d in range(2)]
@@ -66,7 +69,6 @@ class Problem(ProblemBase):
         return zip(bc) + [()]
 
     def functional(self, t, u, p):
-
         # Only check final time
         if t < self.T:
             return 0
@@ -82,11 +84,9 @@ class Problem(ProblemBase):
             return vmin
 
     def reference(self, t):
-
         # Only check final time
         if t < self.T:
             return 0.0
-
         return -0.061076605
 
     def __str__(self):
@@ -126,7 +126,34 @@ def StreamFunction(u):
 
 if __name__ == "__main__":
     import sys
-    from headflow import NSSolver, parse_cmdline_params
-    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
-    solver.solve()
+    from headflow import parse_cmdline_params
+    options = parse_cmdline_params(sys.argv[1:])
+    options["casedir"] = "tempcase"
+    for key, value in options.iteritems():
+        if key.startswith("solver.") and isinstance(value, str):
+            options[key] = value.split(',')
 
+    # Set global DOLFIN parameters
+    parameters["form_compiler"]["cpp_optimize"] = True
+    parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
+    parameters["krylov_solver"]["relative_tolerance"] = options["krylov_solver_relative_tolerance"]
+    parameters["krylov_solver"]["monitor_convergence"] = options["krylov_solver_monitor_convergence"]
+
+    # Set debug level
+    set_log_active(options["debug"])
+
+    # Create instance of problem defined above
+    problem = Problem(options)
+
+    # For now just fetch the solver and start it manually:
+    from headflow.solvers.ipcs_opt import Solver
+    scheme = Solver(options)
+    scheme.solve(problem)
+
+    # ...
+
+    # Later we should have a generic interface:
+    from headflow import NSSolver
+    solver = NSSolver(problem, params=options)
+
+    solver.solve()
