@@ -1,43 +1,62 @@
-NSbench is a collection of Python scripts based on FEniCS/DOLFIN for
-benchmarking a number of common methods for solving the incompressible
-Navier-Stokes equations.
+Headflow
+========
 
-It consists of a collection of test problems and a collection of
-reference/prototype solvers. Problem implementations can be found in
-the 'problem' directory and solver implementations can be found in the
-'solver' directory.
+Description
+-----------
 
-Two main scripts are provided for running the solvers: 'ns' and 'bench'.
+Headflow is a collection of solvers for the incompressible Navier Stokes equations,
+built on the FEniCS project. It is originally based on solvers from the NSbench project.
 
-The script 'ns' can be used to solve a specific problem with a specific
-solver:
+Authors
+-------
 
-  ./ns problem solver
+Headflow is developed by
 
-Without any arguments, the 'ns' script will list available problems
-and solvers.
+  * Øyvind Evju
+  * Martin Sandve Alnæs
+  * Kent-Andre Mardal
 
-The script 'bench' can be used to run all problems for all solvers,
-one specific problem for all solvers, or one specific solver for all
-problems:
+The original NSbench was written by
 
-  ./bench
-  ./bench problem
-  ./bench solver
+  * Kristian Valen-Sendstad
+  * Anders Logg
+  * Kent-Andre Mardal
+  * Harish Narayanan
+  * Mikael Mortensen
 
-This version of NSbench requires DOLFIN version 1.0-beta.
+Licence
+-------
 
-NSbench is written by
-
-  Kristian Valen-Sendstad
-  Anders Logg
-  Kent-Andre Mardal
-  Harish Narayanan
-  Mikael Mortensen
-  Martin Sandve Alnæs
-
-and is licensed under the GNU GPL, version 3 or (at your option) any
+Headflow is licensed under the GNU GPL, version 3 or (at your option) any
 later version.
 
-Simula Research Laboratory
-Oslo, 2011
+Headflow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
+
+Documentation
+-------------
+
+The solvers in the original NSbench project is documented in
+
+  K. Valen-Sendstad, A. Logg, Kent-A. Mardal, H. Narayanan, and M. Mortensen.
+  A Comparison of Some Common Finite Element Schemes for the Incompressible Navier-Stokes Equations,
+  In: Automated Solution of Differential Equations by the Finite Element Method,
+  ed. by Logg, Anders and Mardal, Kent-Andre and Wells, Garth N.. Springer,
+  vol. 84, chap. 21, pp. 395-418.
+  Lecture Notes in Computational Science and Engineering. (ISBN: 978-3-642-23098-1), 2012.
+
+Installation
+------------
+
+Headflow requires an installation of FEniCS version (???), see www.fenicsproject.org.
+
+Simply run
+
+  python setup.py install --prefix=/path/to/your/favourite/site-packages
+
+Contact
+-------
+
+Report bugs and other issues through the bitbucket issue tracker at:
+
+  www.bitbucket.org/martinal/headflow/issues
+

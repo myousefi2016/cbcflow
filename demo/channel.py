@@ -1,0 +1,138 @@
+__author__ = "Kent-Andre Mardal <kent-and@simula.no>"
+__date__ = "2008-04-03"
+__copyright__ = "Copyright (C) 2008-2010 " + __author__
+__license__  = "GNU GPL version 3 or any later version"
+
+# Modified by Anders Logg, 2008-2010.
+# Modified by Kristian Valen-Sendstad, 2008-2010.
+# Modified by Harish Narayanan, 2009.
+# Modified by Mikael Mortensen, 2009.
+# Modified by Martin Alnaes, 2013.
+
+import sys
+sys.path.insert(0,"../site-packages")
+
+from dolfin import *
+from headflow import *
+from numpy import array
+
+class InflowBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] < DOLFIN_EPS
+
+class OutflowBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] > 1 - DOLFIN_EPS
+
+class NoslipBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
+
+class Problem(NSProblem):
+    "2D channel test problem with known analytical solution."
+
+    def __init__(self, options):
+        NSProblem.__init__(self, options)
+
+        # Create mesh
+        N = options["N"]
+        self.mesh = UnitSquareMesh(N, N)
+
+        # Create right-hand side function with pressure gradient as body force
+        self.f = self.uConstant((0, 0))
+
+        # Set viscosity (Re = 8)
+        self.nu = 1.0 / 8.0
+
+        # Characteristic velocity in the domain (used to determine timestep)
+        self.U = 1.0
+
+        # Set end-time
+        self.T = 0.5
+
+    def initial_conditions(self, V, Q):
+
+        u0 = self.uConstant((0, 0))
+        p0 = [Expression("1 - x[0]")]
+
+        return u0 + p0
+
+    def boundary_conditions(self, V, Q, t):
+
+        # Create no-slip boundary condition for velocity
+        g_noslip = self.uConstant((0, 0))
+        bv = [DirichletBC(V, g, NoslipBoundary()) for g in g_noslip]
+
+        # Create boundary conditions for pressure
+        bp0 = [DirichletBC(Q, self.pressure_bc(Q), InflowBoundary())]
+        bp1 = [DirichletBC(Q, self.pressure_bc(Q), OutflowBoundary())]
+
+        bcu   = zip(bv)
+        bcp   = zip(bp0, bp1)
+
+        return bcu + bcp
+
+    def pressure_bc(self, Q):
+        element = FiniteElement("CG", triangle, 1)
+        return Expression("1 - x[0]", element=element)
+
+    def functional(self, t, u, p):
+        if t < self.T:
+            return 0
+        else:
+            return self.uEval(u, 0, (1.0, 0.5))
+
+    def reference(self, t):
+        if t < self.T:
+            return 0
+        else:
+            num_terms = 10000
+            u = 1.0
+            c = 1.0
+            for n in range(1, 2*num_terms, 2):
+                a = 32.0 / (DOLFIN_PI**3*n**3)
+                b = (1/8.0)*DOLFIN_PI**2*n**2
+                c = -c
+                u += a*exp(-b*t)*c
+            return u
+
+    def tolerance(self, problem):
+        return 1e-11
+
+    def __str__(self):
+        return "Channel"
+
+
+if __name__ == "__main__":
+    import sys
+    from headflow import parse_cmdline_params
+    options = parse_cmdline_params(sys.argv[1:])
+    options["casedir"] = "tempcase"
+    for key, value in options.iteritems():
+        if key.startswith("solver.") and isinstance(value, str):
+            options[key] = value.split(',')
+
+    # Set global DOLFIN parameters
+    parameters["form_compiler"]["cpp_optimize"] = True
+    parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
+    parameters["krylov_solver"]["relative_tolerance"] = options["krylov_solver_relative_tolerance"]
+    parameters["krylov_solver"]["monitor_convergence"] = options["krylov_solver_monitor_convergence"]
+
+    # Set debug level
+    set_log_active(options["debug"])
+
+    # Create instance of problem defined above
+    problem = Problem(options)
+
+    # For now just fetch the solver and start it manually:
+    from headflow.solvers.ipcs_opt import Solver
+    scheme = Solver(options)
+    scheme.solve(problem)
+
+    # ...
+
+    # Later we should have a generic interface:
+    from headflow import NSSolver
+    solver = NSSolver(problem, params=options)
+
+    solver.solve()

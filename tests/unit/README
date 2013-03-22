@@ -1,0 +1,4 @@
+This directory contains unit tests of the headflow solver project.
+
+Please keep them short and fast, without doing large computations
+or accessing external resources like the file system.
