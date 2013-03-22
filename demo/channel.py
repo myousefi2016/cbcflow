@@ -7,26 +7,23 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Kristian Valen-Sendstad, 2008-2010.
 # Modified by Harish Narayanan, 2009.
 # Modified by Mikael Mortensen, 2009.
+# Modified by Martin Alnaes, 2013.
 
-from problembase import *
+from headflow.problembase import *
 from numpy import array
 
-# Inflow boundary
 class InflowBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] < DOLFIN_EPS
 
-# Outflow boundary
 class OutflowBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] > 1 - DOLFIN_EPS
 
-# No-slip boundary
 class NoslipBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
 
-# Problem definition
 class Problem(ProblemBase):
     "2D channel test problem with known analytical solution."
 
@@ -100,3 +97,10 @@ class Problem(ProblemBase):
 
     def __str__(self):
         return "Channel"
+
+
+if __name__ == "__main__":
+    import sys
+    from headflow import NSSolver, parse_cmdline_params
+    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver.solve()

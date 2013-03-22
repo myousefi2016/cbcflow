@@ -44,3 +44,19 @@ The solvers in the original NSbench project is documented in
   vol. 84, chap. 21, pp. 395-418.
   Lecture Notes in Computational Science and Engineering. (ISBN: 978-3-642-23098-1), 2012.
 
+Installation
+------------
+
+Headflow requires an installation of FEniCS version (???), see www.fenicsproject.org.
+
+Simply run
+
+  python setup.py install --prefix=/path/to/your/favourite/site-packages
+
+Contact
+-------
+
+Report bugs and other issues through the bitbucket issue tracker at:
+
+  www.bitbucket.org/martinal/headflow/issues
+

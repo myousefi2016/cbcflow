@@ -5,8 +5,9 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Kristian Valen-Sendstad, 2009.
 # Modified by Anders Logg, 2010.
+# Modified by Martin Alnaes, 2013.
 
-from problembase import *
+from headflow.problembase import *
 from numpy import array
 from math import pi, e
 

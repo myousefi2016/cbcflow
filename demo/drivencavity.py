@@ -3,7 +3,7 @@ __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from problembase import *
+from headflow.problembase import *
 
 # Boundary value
 def boundaryvalue(x):
@@ -122,3 +122,11 @@ def StreamFunction(u):
     solve(a == L, psi, bc)
 
     return psi
+
+
+if __name__ == "__main__":
+    import sys
+    from headflow import NSSolver, parse_cmdline_params
+    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver.solve()
+

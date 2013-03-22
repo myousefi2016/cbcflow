@@ -5,7 +5,9 @@ __date__ = "2011-11-11"
 __copyright__ = "Copyright (C) 2011 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from problembase import *
+# Modified by Martin Alnaes, 2013.
+
+from headflow.problembase import *
 from scipy import *
 from numpy import array
 from math import pi
@@ -66,7 +68,7 @@ class Problem(ProblemBase):
         ProblemBase.__init__(self, options)
 
         # Load mesh
-        self.mesh = Mesh(self.retrieve("data/Aneurysm.xml.gz"))
+        self.mesh = Mesh(retrieve("data/Aneurysm.xml.gz"))
 
         # The body force term
         self.f = self.uConstant((0, 0, 0))
@@ -157,3 +159,10 @@ class Problem(ProblemBase):
 
     def __str__(self):
         return "Aneurysm"
+
+if __name__ == "__main__":
+    import sys
+    from headflow import NSSolver, parse_cmdline_params
+    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver.solve()
+

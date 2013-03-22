@@ -5,8 +5,9 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Harish Narayanan, 2009.
 # Modified by Anders Logg, 2010.
+# Modified by Martin Alnaes, 2013.
 
-from problembase import *
+from headflow.problembase import *
 from scipy import *
 from numpy import array
 from math import pi
@@ -129,3 +130,10 @@ class Problem(ProblemBase):
 
     def __str__(self):
         return "Aneurysm"
+
+if __name__ == "__main__":
+    import sys
+    from headflow import NSSolver, parse_cmdline_params
+    solver = NSSolver(problem, parse_cmdline_params(sys.argv[1:]))
+    solver.solve()
+
