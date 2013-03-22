@@ -1,0 +1,7 @@
+This directory contains all tests of the headflow solver project.
+
+Subdirs contain different types of tests, which can be run separately.
+The topmost test.sh beside this file runs all tests.
+
+TODO: Improve test framework as we see what we need.
+
