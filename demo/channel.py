@@ -9,9 +9,6 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Mikael Mortensen, 2009.
 # Modified by Martin Alnaes, 2013.
 
-import sys
-sys.path.insert(0,"../site-packages")
-
 from dolfin import *
 from headflow import *
 from numpy import array

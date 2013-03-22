@@ -1,4 +1,8 @@
 
+import sys
+sys.path.insert(0,"../site-packages")
+
+
 import dolfin
 from channel import Problem
 
