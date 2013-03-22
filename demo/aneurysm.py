@@ -131,9 +131,3 @@ class Problem(NSProblem):
     def __str__(self):
         return "Aneurysm"
 
-if __name__ == "__main__":
-    import sys
-    from headflow import NSSolver, parse_cmdline_params
-    solver = NSSolver(problem, params=parse_cmdline_params(sys.argv[1:]))
-    solver.solve()
-
