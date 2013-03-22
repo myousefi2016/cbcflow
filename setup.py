@@ -45,6 +45,7 @@ setup(name = "headflow",
           ],
       scripts = scripts,
       packages = ["headflow",
+                  "headflow.core",
                   "headflow.solvers",
                   # TODO: Add submodules here
                   ],
