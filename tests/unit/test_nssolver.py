@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0,"../../site-packages")
+
 import unittest
 
 from headflow import NSProblem, NSScheme, NSSolver

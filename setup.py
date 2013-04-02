@@ -47,6 +47,7 @@ setup(name = "headflow",
       packages = ["headflow",
                   "headflow.core",
                   "headflow.solvers",
+                  "headflow.bcs",
                   # TODO: Add submodules here
                   ],
       package_dir = {"headflow": "site-packages/headflow"},
