@@ -1,5 +1,9 @@
-import sys
-sys.path.insert(0,"../../site-packages")
+"""
+Tests of the interaction between the NSSsolver
+class and the user overloaded subclasses.
+These tests should act as a documentation of
+the control and data flow between the classes.
+"""
 
 import unittest
 
@@ -31,7 +35,8 @@ class MockScheme(NSScheme):
 
 class TestNSSolver(unittest.TestCase):
     def test_base_class_data_flow(self):
-        # TODO: Set up mock classes that validate the generic data flow between the problem, scheme and post processor classes
+        # TODO: Set up mock classes that validate the generic data flow
+        #       between the problem, scheme and post processor classes
 
         problem = MockProblem({})
         self.assertEqual(1, problem.params.p)
@@ -47,4 +52,3 @@ class TestNSSolver(unittest.TestCase):
 	#solver.solve()
 
         self.assertEqual(1, 1)
-
