@@ -32,11 +32,11 @@ class BoundaryValueComp(Expression):
 class Problem(NSProblem):
     "2D lid-driven cavity test problem with known reference value."
 
-    def __init__(self, options):
-        NSProblem.__init__(self, options)
+    def __init__(self, params):
+        NSProblem.__init__(self, params)
 
         # Create mesh
-        N = options["N"]
+        N = self.params.N
         self.mesh = UnitSquareMesh(N, N)
 
         # Create right-hand side function
@@ -49,13 +49,18 @@ class Problem(NSProblem):
         # Set end-time
         self.T = 2.5
 
+    @classmethod
+    def default_problem_params(cls):
+        params = ParamDict(N=16)
+        return params
+
     def initial_conditions(self, V, Q):
         u0 = self.uConstant((0, 0))
         p0 = self.uConstant(0)
         return u0 + p0
 
     def boundary_conditions(self, V, Q, t):
-        if self.options['segregated']:
+        if self.params.segregated:
             element = FiniteElement("CG", triangle, 1)
             self.g = [BoundaryValueComp(d, element=element) for d in range(2)]
         else:

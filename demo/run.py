@@ -1,41 +1,49 @@
 
+# Hack to run without installing, useful while working
 import sys
 sys.path.insert(0,"../site-packages")
 
-
 import dolfin
+from headflow import NSSolver
 from channel import Problem
+from headflow.schemes.ipcs_opt import Scheme
 
 if __name__ == "__main__":
-    import sys
-    from headflow import parse_cmdline_params
-    options = parse_cmdline_params(sys.argv[1:])
-    options["casedir"] = "tempcase"
-    for key, value in options.iteritems():
-        if key.startswith("solver.") and isinstance(value, str):
-            options[key] = value.split(',')
+
+    # TODO: Parse commandline options to overwrite default params, use utils in ParamDict class
 
     # Set global DOLFIN parameters
+    options = {
+        "debug": False,
+        "krylov_solver_absolute_tolerance": 1e-25,
+        "krylov_solver_relative_tolerance": 1e-12,
+        "krylov_solver_monitor_convergence": False,
+        }
+    dolfin.set_log_active(options["debug"])
     dolfin.parameters["form_compiler"]["cpp_optimize"] = True
     dolfin.parameters["krylov_solver"]["absolute_tolerance"] = options["krylov_solver_absolute_tolerance"]
     dolfin.parameters["krylov_solver"]["relative_tolerance"] = options["krylov_solver_relative_tolerance"]
     dolfin.parameters["krylov_solver"]["monitor_convergence"] = options["krylov_solver_monitor_convergence"]
 
-    # Set debug level
-    dolfin.set_log_active(options["debug"])
+    # FIXME: Restarting! Extract logic from ns script. Make part of NSSolver?
 
-    # Create instance of problem defined above
-    problem = Problem(options)
+    # Create instance of problem
+    p_params = Problem.default_params()
+    problem = Problem(p_params)
 
-    # For now just fetch the solver and start it manually:
-    from headflow.solvers.ipcs_opt import Solver
-    scheme = Solver(options)
-    scheme.solve(problem)
+    # Create instance of postprocessor
+    #pp_params = PostProcessor.default_params()
+    postproc = None #PostProcessor(pp_params)
 
-    # ...
+    # Create instance of scheme
+    s_params = Scheme.default_params()
+    scheme = Scheme(s_params)
 
-    # Later we should have a generic interface:
-    from headflow import NSSolver
-    solver = NSSolver(problem, params=options)
-
+    # Instantiate generic solver
+    ns_params = NSSolver.default_params()
+    solver = NSSolver(problem,
+                      scheme=scheme,
+                      postprocessor=postproc,
+                      params=ns_params)
     solver.solve()
+

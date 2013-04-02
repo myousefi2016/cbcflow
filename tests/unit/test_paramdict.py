@@ -1,7 +1,7 @@
 
 import unittest
 
-from simfra.paramdict import ParamDict
+from headflow import ParamDict
 
 class TestParamDict(unittest.TestCase):
     def test_init_from_dict(self):

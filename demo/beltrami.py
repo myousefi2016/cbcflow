@@ -7,25 +7,26 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow.problembase import *
-from numpy import array
+from dolfin import *
+from headflow import NSProblem
+
+from headflow.problembase import * # TODO: Import only what's needed
+
 from math import pi, e
 
 # Problem definition
 class Problem(NSProblem):
     "3D test problem with known analytical solution."
 
-    def __init__(self, options):
-        NSProblem.__init__(self, options)
+    def __init__(self, params):
+        NSProblem.__init__(self, params)
 
-        # We start with a UnitCube and modify it to get the mesh we
+        # Create mesh
+        # We start with a UnitCubeMesh and modify it to get the mesh we
         # want: (-1, 1) x (-1, 1) x (-1, 1)
-
         mesh_sizes = [5, 8, 11, 16, 23, 32]
-        level = options["refinement_level"]
-        N = int(mesh_sizes[level])
-
-        self.mesh = UnitCube(N, N, N)
+        N = int(mesh_sizes[self.params.refinement_level])
+        self.mesh = UnitCubeMesh(N, N, N)
         self.scale  = 2*(self.mesh.coordinates() - 0.5)
         self.mesh.coordinates()[:, :] = self.scale
 
@@ -55,8 +56,12 @@ class Problem(NSProblem):
         self.u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,             'etabyrho': 1.0, 't': 0.0}
         self.p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
 
-    def initial_conditions(self, V, Q):
+    @classmethod
+    def default_problem_params(cls):
+        params = ParamDict(refinement_level=2)
+        return params
 
+    def initial_conditions(self, V, Q):
         # Use analytical solutions at t = 0 as initial values
         self.exact_u = self.uExpr(self.analytical_u, degree=3, **self.u_params)
         self.exact_p = self.uExpr(self.analytical_p, degree=3, **self.p_params)
@@ -84,7 +89,7 @@ class Problem(NSProblem):
         else:
             for expr in self.exact_u + self.exact_p:
                 expr.t = t
-            if not self.options['segregated']:
+            if not self.params.segregated:
                 u = [u]
             error = 0
             for exact_u, calc_u in zip(self.exact_u, u):

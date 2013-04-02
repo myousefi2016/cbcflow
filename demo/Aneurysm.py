@@ -64,8 +64,8 @@ class InflowComp(Expression):
 class Problem(NSProblem):
     "3D artery with a saccular aneurysm."
 
-    def __init__(self, options):
-        NSProblem.__init__(self, options)
+    def __init__(self, params):
+        NSProblem.__init__(self, params)
 
         # Load mesh
         self.mesh = Mesh(retrieve("data/Aneurysm.xml.gz"))
@@ -108,7 +108,7 @@ class Problem(NSProblem):
         bc_noslip = [DirichletBC(V, g, 0) for g in self.g_noslip]
 
         # Create inflow boundary condition for velocity
-        if self.options['segregated']:
+        if self.params.segregated:
             self.g_inflow = [InflowComp(V, self, d) for d in range(3)]
         else:
             self.g_inflow = [InflowVec(V, self)]

@@ -28,11 +28,11 @@ class NoslipBoundary(SubDomain):
 class Problem(NSProblem):
     "2D channel test problem with known analytical solution."
 
-    def __init__(self, options):
-        NSProblem.__init__(self, options)
+    def __init__(self, params):
+        NSProblem.__init__(self, params)
 
         # Create mesh
-        N = options["N"]
+        N = self.params.N
         self.mesh = UnitSquareMesh(N, N)
 
         # Create right-hand side function with pressure gradient as body force
@@ -47,11 +47,14 @@ class Problem(NSProblem):
         # Set end-time
         self.T = 0.5
 
-    def initial_conditions(self, V, Q):
+    @classmethod
+    def default_problem_params(cls):
+        params = ParamDict(N=16)
+        return params
 
+    def initial_conditions(self, V, Q):
         u0 = self.uConstant((0, 0))
         p0 = [Expression("1 - x[0]")]
-
         return u0 + p0
 
     def boundary_conditions(self, V, Q, t):

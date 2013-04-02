@@ -36,14 +36,14 @@ class AneurysmCutoff(Expression):
 class Problem(NSProblem):
     "3D artery with a saccular aneurysm."
 
-    def __init__(self, options):
-        NSProblem.__init__(self, options)
+    def __init__(self, params):
+        NSProblem.__init__(self, params)
 
         # Load mesh
-        refinement_level = options["refinement_level"]
-        if refinement_level > 4:
-            raise RuntimeError, "No mesh available for refinement level %d" % refinement_level
-        self.mesh = Mesh("data/aneurysm_%d.xml.gz" % refinement_level)
+        if self.params.refinement_level > 4:
+            raise RuntimeError("No mesh available for refinement level %d" % self.params.refinement_level)
+        meshfilename = "data/aneurysm_%d.xml.gz" % self.params.refinement_level
+        self.mesh = Mesh(meshfilename)
 
         # The body force term
         self.f = self.uConstant((0, 0, 0))
@@ -57,6 +57,11 @@ class Problem(NSProblem):
         # Set end-time
         self.T = 0.05
 
+    @classmethod
+    def default_problem_params(cls):
+        params = ParamDict(refinement_level=1)
+        return params
+
     def preconditioner_name(self):
         return "jacobi"
 
@@ -68,7 +73,7 @@ class Problem(NSProblem):
     def boundary_conditions(self, V, Q, t):
 
         # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
-        boundary_markers = MeshFunction("uint", V.mesh(), 2)
+        boundary_markers = MeshFunction("size_t", V.mesh(), 2)
         boundary_markers.set_all(3)
         DomainBoundary().mark(boundary_markers, 0)
         Inflow().mark(boundary_markers, 1)
