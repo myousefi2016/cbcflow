@@ -6,8 +6,8 @@ def run(modulename, modulepath, verbosity):
         # Insert path, intended to import local module instead of installed one
         sys.path.insert(0, modulepath)
     mod = __import__(modulename)
-    print("Running tests with %s version %s, date %s." % (
-            modulename, mod.__version__, mod.__date__))
+    print("Running tests with %s version %s, date %s, imported from\n%s" % (
+            modulename, mod.__version__, mod.__date__, mod.__file__))
 
     # Running tests from all test_foo.py files
     testpattern = "test_*.py"
