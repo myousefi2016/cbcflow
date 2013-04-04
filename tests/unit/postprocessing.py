@@ -18,9 +18,6 @@ class MockA(PPFieldBase):
         PPFieldBase.__init__(self, **kwargs)
     
     def update(self, u, p, t, timestep):
-        if not update_check(self, t, timestep):
-            return
-        
         value = timestep+10
         self.set_data(t, timestep, value)
         
@@ -32,13 +29,11 @@ class MockB(PPFieldBase):
         PPFieldBase.__init__(self, **kwargs)
        
     def update(self, u, p, t, timestep):
-        if not update_check(self, t, timestep):
-            return
-        
+        # Get parent data
         parent_datadict = self.parent.get_data()
         parent_data = parent_datadict["data"]
+        
         value = parent_data**0.5
-
         self.set_data(t, timestep, value)
         
     
@@ -48,15 +43,12 @@ class MockC(PPFieldBase):
         PPFieldBase.__init__(self, **kwargs)
 
     def update(self, u, p, t, timestep):
-        if not update_check(self, t, timestep):
-            return
-        
         # Get parent data
         parent_datadict = self.parent.get_data()
         parent_data = parent_datadict["data"]
         
-        self.value = parent_data**2
-        self.set_data(t, timestep, self.value)
+        value = parent_data**2
+        self.set_data(t, timestep, value)
         
 # Create postprocessor
 PP = MockPostProcessor()
