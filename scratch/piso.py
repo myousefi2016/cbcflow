@@ -69,42 +69,42 @@ class Solver(SolverBase):
         num_dofs = u0.vector().size() + p0.vector().size()
         print 'tot num dofs is ', num_dofs
 
-	if False: # Cebral implementation of SUPG parameter
-	        dl = ((12/sqrt(2))*(tetrahedron.volume))**.33333333
-	        supg =   (1/k)*(dl**2/(2*sqrt(inner(u0,u0))*dl+4*nu))
-	        supgII = (1/k)*(dl**2/(2*sqrt(inner(u2,u2))*dl+4*nu))
-		print 'Using supg with dl**2/(2*sqrt(inner(u,u))*dl+4*nu)/k'
-	else:
-		supg = Constant(1)
-		supgII = Constant(1)
-		print 'Using supg with Constant(1)'
+        if False: # Cebral implementation of SUPG parameter
+            dl = ((12/sqrt(2))*(tetrahedron.volume))**.33333333
+            supg =   (1/k)*(dl**2/(2*sqrt(inner(u0,u0))*dl+4*nu))
+            supgII = (1/k)*(dl**2/(2*sqrt(inner(u2,u2))*dl+4*nu))
+            print 'Using supg with dl**2/(2*sqrt(inner(u,u))*dl+4*nu)/k'
+        else:
+            supg = Constant(1)
+            supgII = Constant(1)
+            print 'Using supg with Constant(1)'
 
         # Predictor
         F_u_tent = (1/k)*inner(v, un - u0)*dx  + inner(v,grad(p0))*dx + inner(v, grad(un)*un)*dx + nu*inner(grad(v), grad(un))*dx \
-            - inner(v, f)*dx + supg*k*inner(grad(v)*un, grad(un)*(un))*dx 
+            - inner(v, f)*dx + supg*k*inner(grad(v)*un, grad(un)*(un))*dx
 
-        # C1, Pressure correction I 
-        a_p_corr = inner(grad(q), grad(p))*dx 
+        # C1, Pressure correction I
+        a_p_corr = inner(grad(q), grad(p))*dx
         L_p_corr = inner(grad(q), grad(p0))*dx  - (1/k)*q*div(un)*dx
 
-        # C1, Velocity correction I 
+        # C1, Velocity correction I
         a_u_corr = inner(v, u)*dx
         L_u_corr = inner(v, un)*dx - k*inner(v, grad(p1-p0))*dx
-        
-        # C2, Pressure correction II 
-        a_p_corrII = inner(grad(q), grad(p))*dx 
+
+        # C2, Pressure correction II
+        a_p_corrII = inner(grad(q), grad(p))*dx
         L_p_corrII = inner(grad(q), grad(p1))*dx - (1/k)*q*div(u2)*dx
 
-        # C2, Velocity correction I 
+        # C2, Velocity correction I
         F_u_corrm = (1/k)*inner(v, unc - u0)*dx + inner(v, grad(p1))*dx + inner(v, grad(unc)*unc)*dx  + nu*inner(grad(v), grad(unc))*dx \
-            - inner(v, f)*dx + supgII*k*inner(grad(v)*unc, grad(unc)*(unc))*dx 
+            - inner(v, f)*dx + supgII*k*inner(grad(v)*unc, grad(unc)*(unc))*dx
 
 
         # Assemble matrices
         A_p_corr = assemble(a_p_corr)
         A_u_corr = assemble(a_u_corr)
         A_p_corrII = assemble(a_p_corrII)
-	print 'assemble  ok'
+        print 'assemble  ok'
 
 
         J = derivative(F_u_tent, un, u)
@@ -142,7 +142,7 @@ class Solver(SolverBase):
         prmc['krylov_solver']['monitor_convergence'] = True
         prmc['krylov_solver']['nonzero_initial_guess'] = False
         prmc['krylov_solver']['gmres']['restart'] = 40
-	print 'Second Newton solver ok'
+        print 'Second Newton solver ok'
 
 
         # Time loop
@@ -152,9 +152,9 @@ class Solver(SolverBase):
             set_log_active(True)
 
             # Compute tentative velocity step
-            usolver.solve() 
+            usolver.solve()
 
-            # Pressure correction I 
+            # Pressure correction I
             b = assemble(L_p_corr)
             if len(bcp) == 0 or is_periodic(bcp):
                 solver_p = solver_p_periodic
@@ -165,13 +165,13 @@ class Solver(SolverBase):
             iter = solve(A_p_corr, p1.vector(), b, *solver_p)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 
-            # Velocity correction I 
+            # Velocity correction I
             b = assemble(L_u_corr)
             for bc in bcu: bc.apply(A_u_corr, b)
             iter = solve(A_u_corr, u2.vector(), b, *solver_u_corr)
 
 
-            # Pressure correction II 
+            # Pressure correction II
             b = assemble(L_p_corrII)
             if len(bcp) == 0 or is_periodic(bcp):
                 solver_p = solver_p_periodic
@@ -182,8 +182,8 @@ class Solver(SolverBase):
             iter = solve(A_p_corrII, p1.vector(), b, *solver_p)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
 
-            # Velocity correction momentum eq 
-	    unc.assign(u2)
+            # Velocity correction momentum eq
+            unc.assign(u2)
             ucsolver.solve()
 
             self.update(problem, t, unc, p1)
