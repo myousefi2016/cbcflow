@@ -21,8 +21,8 @@ class TestBoundaryConditions(unittest.TestCase):
         # TODO: Expand
         for i, bc in enumerate(bcs):
             self.assertTrue(isinstance(bc, Expression))
-            dbc = DirichletBC(V.sub(i), bc, 1)
-            dbc.apply(u.vector())
+            dbc = DirichletBC(self.V.sub(i), bc, 1)
+            dbc.apply(self.u.vector())
 
     def test_pouseille(self):
         bcs = Pouseille(self.coeffs, self.mesh, 1)
