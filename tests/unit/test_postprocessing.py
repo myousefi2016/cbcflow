@@ -1,7 +1,9 @@
-import sys
-sys.path.insert(0,"../../site-packages")
+"""
+Tests of the postprocessing framework in headflow.
+"""
 
-from headflow import *
+import unittest
+from headflow import PostProcessorBase, PPFieldBase, ParamDict
 
 class MockPostProcessor(PostProcessorBase):
     def __init__(self):
@@ -10,6 +12,10 @@ class MockPostProcessor(PostProcessorBase):
     def print_data(self):
         for inst in self.list_all:
             print inst.get_data()
+            
+    def print_all_params(self):
+        for inst in self.list_all:
+            print inst.params
 
 
 class MockA(PPFieldBase):
@@ -50,25 +56,28 @@ class MockC(PPFieldBase):
         value = parent_data**2
         self.set_data(t, timestep, value)
         
-# Create postprocessor
-PP = MockPostProcessor()
-            
-# MockB and MockC needs a MockA instance as parent
-a = MockA(start_timestep=5, end_timestep=15)
-b = MockB(parent=a, start_timestep=1, end_timestep=10)
-c = MockC(parent=a, start_timestep=5, end_timestep=18, step_frequency=3)
-
-# Add fields to postprocessor
-PP.add_field(a)
-PP.add_field(b)
-PP.add_field(c)
-
-
-from numpy import linspace
-t_range = linspace(0,1,21)
-
-# Dummy timeloop
-for timestep, t in enumerate(t_range):
-    #print "######### Finished timestep %d (t=%f) ###########" %(timestep, t)
-    PP.update_all(None, None, t, timestep)
-    #PP.print_data()
+        
+class TestPostProcessing(unittest.TestCase):
+    def test_postprocessing(self):
+        # Create postprocessor
+        PP = MockPostProcessor()
+                    
+        # MockB and MockC needs a MockA instance as parent
+        a = MockA(params=ParamDict(start_timestep=5, end_timestep=15))
+        b = MockB(parent=a, params=ParamDict(start_timestep=1, end_timestep=10))
+        c = MockC(parent=a, params=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4))
+        
+        # Add fields to postprocessor
+        PP.add_field(a)
+        PP.add_field(b)
+        PP.add_field(c)
+        
+        from numpy import linspace
+        t_range = linspace(0,1,21)
+        
+        # Dummy timeloop
+        for timestep, t in enumerate(t_range):
+            #print "######### Finished timestep %d (t=%f) ###########" %(timestep, t)
+            PP.update_all(None, None, t, timestep)
+            #PP.print_data()
+        #PP.print_all_params()
