@@ -23,7 +23,7 @@ class MockA(PPFieldBase):
     def __init__(self, **kwargs):
         PPFieldBase.__init__(self, **kwargs)
     
-    def update(self, u, p, t, timestep):
+    def update(self, u, p, t, timestep, problem):
         value = timestep+10
         self.set_data(t, timestep, value)
         
@@ -34,7 +34,7 @@ class MockB(PPFieldBase):
         assert("parent" in kwargs.keys())
         PPFieldBase.__init__(self, **kwargs)
        
-    def update(self, u, p, t, timestep):
+    def update(self, u, p, t, timestep, problem):
         # Get parent data
         parent_datadict = self.parent.get_data()
         parent_data = parent_datadict["data"]
@@ -48,7 +48,7 @@ class MockC(PPFieldBase):
         assert("parent" in kwargs.keys())
         PPFieldBase.__init__(self, **kwargs)
 
-    def update(self, u, p, t, timestep):
+    def update(self, u, p, t, timestep, problem):
         # Get parent data
         parent_datadict = self.parent.get_data()
         parent_data = parent_datadict["data"]
@@ -63,9 +63,9 @@ class TestPostProcessing(unittest.TestCase):
         PP = MockPostProcessor()
                     
         # MockB and MockC needs a MockA instance as parent
-        a = MockA(params=ParamDict(start_timestep=5, end_timestep=15))
-        b = MockB(parent=a, params=ParamDict(start_timestep=1, end_timestep=10))
-        c = MockC(parent=a, params=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4))
+        a = MockA(timeparams=ParamDict(start_timestep=5, end_timestep=15))
+        b = MockB(parent=a, timeparams=ParamDict(start_timestep=1, end_timestep=10))
+        c = MockC(parent=a, timeparams=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4))
         
         # Add fields to postprocessor
         PP.add_field(a)
@@ -78,6 +78,6 @@ class TestPostProcessing(unittest.TestCase):
         # Dummy timeloop
         for timestep, t in enumerate(t_range):
             #print "######### Finished timestep %d (t=%f) ###########" %(timestep, t)
-            PP.update_all(None, None, t, timestep)
+            PP.update_all(None, None, t, timestep, None)
             #PP.print_data()
         #PP.print_all_params()
