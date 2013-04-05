@@ -14,7 +14,7 @@ class MockProblem(NSProblem):
         NSProblem.__init__(self, params)
 
     @classmethod
-    def default_problem_params(cls):
+    def default_user_params(cls):
         return ParamDict(p=1)
 
 class MockPostProcessor(NSPostProcessor):
@@ -22,16 +22,16 @@ class MockPostProcessor(NSPostProcessor):
         NSPostProcessor.__init__(self, params)
 
     @classmethod
-    def default_postprocessor_params(cls):
-        return ParamDict(pp=1)
+    def default_user_params(cls):
+        return ParamDict(pp=2)
 
 class MockScheme(NSScheme):
     def __init__(self, params):
         NSScheme.__init__(self, params)
 
     @classmethod
-    def default_scheme_params(cls):
-        return ParamDict(s=1)
+    def default_user_params(cls):
+        return ParamDict(s=3)
 
 class TestNSSolver(unittest.TestCase):
     def test_base_class_data_flow(self):
@@ -42,10 +42,10 @@ class TestNSSolver(unittest.TestCase):
         self.assertEqual(1, problem.params.p)
 
         postproc = MockPostProcessor({})
-        self.assertEqual(1, postproc.params.pp)
+        self.assertEqual(2, postproc.params.pp)
 
         scheme = MockScheme({})
-        self.assertEqual(1, scheme.params.s)
+        self.assertEqual(3, scheme.params.s)
 
         solver = NSSolver(problem, postproc, scheme, {})
 

@@ -57,7 +57,7 @@ class Problem(NSProblem):
         self.p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
 
     @classmethod
-    def default_problem_params(cls):
+    def default_user_params(cls):
         params = ParamDict(refinement_level=2)
         return params
 
