@@ -50,7 +50,7 @@ class Problem(NSProblem):
         self.T = 2.5
 
     @classmethod
-    def default_problem_params(cls):
+    def default_user_params(cls):
         params = ParamDict(N=16)
         return params
 

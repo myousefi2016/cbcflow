@@ -48,10 +48,10 @@ setup(name = "headflow",
                   "headflow.core",
                   "headflow.schemes",
                   "headflow.bcs",
+                  "headflow.postprocessing",
                   # TODO: Add submodules here
                   ],
       package_dir = {"headflow": "site-packages/headflow"},
 #     data_files = [(pjoin("share", "man", "man1"),
 #                    [pjoin("doc", "man", "man1", "headflow.1.gz")])]
     )
-

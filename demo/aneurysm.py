@@ -58,7 +58,7 @@ class Problem(NSProblem):
         self.T = 0.05
 
     @classmethod
-    def default_problem_params(cls):
+    def default_user_params(cls):
         params = ParamDict(refinement_level=1)
         return params
 
