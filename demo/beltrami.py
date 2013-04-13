@@ -8,14 +8,14 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Martin Alnaes, 2013.
 
 from dolfin import *
-from headflow import NSProblem
+from headflow import *
 
-from headflow.problembase import * # TODO: Import only what's needed
+#from headflow.problembase import * # TODO: Import only what's needed
 
 from math import pi, e
 
 # Problem definition
-class Problem(NSProblem):
+class Beltrami(NSProblem):
     "3D test problem with known analytical solution."
 
     def __init__(self, params):
@@ -24,17 +24,19 @@ class Problem(NSProblem):
         # Create mesh
         # We start with a UnitCubeMesh and modify it to get the mesh we
         # want: (-1, 1) x (-1, 1) x (-1, 1)
-        mesh_sizes = [5, 8, 11, 16, 23, 32]
-        N = int(mesh_sizes[self.params.refinement_level])
+
+        N = self.params.N
         self.mesh = UnitCubeMesh(N, N, N)
         self.scale  = 2*(self.mesh.coordinates() - 0.5)
         self.mesh.coordinates()[:, :] = self.scale
 
         # The body force term
-        self.f = self.uConstant((0, 0, 0))
+        self.f = [Constant(0), Constant(0), Constant(0)]
 
-        # Set the kinematic viscosity (nu = eta/rho)
-        self.nu = 1.0
+        # Set the viscosity
+        self.mu = 1.0
+        self.rho = 1.0
+        nu = self.mu/self.rho
 
         # Characteristic velocity in the domain (used to determine timestep)
         self.U = 1.0
@@ -45,40 +47,48 @@ class Problem(NSProblem):
         # The analytical solution
         # Velocity
         self.analytical_u = \
-            ('-((a*(pow(E,a*x[2])*cos(a*x[0] + d*x[1]) + pow(E,a*x[0])*sin(a*x[1] + d*x[2])))/pow(E,pow(d,2)*t*etabyrho))',
-             '-((a*(pow(E,a*x[0])*cos(a*x[1] + d*x[2]) + pow(E,a*x[1])*sin(d*x[0] + a*x[2])))/pow(E,pow(d,2)*t*etabyrho))',
-             '-((a*(pow(E,a*x[1])*cos(d*x[0] + a*x[2]) + pow(E,a*x[2])*sin(a*x[0] + d*x[1])))/pow(E,pow(d,2)*t*etabyrho))')
+            ('-((a*(pow(E,a*x[2])*cos(a*x[0] + d*x[1]) + pow(E,a*x[0])*sin(a*x[1] + d*x[2])))/pow(E,pow(d,2)*t*nu))',
+             '-((a*(pow(E,a*x[0])*cos(a*x[1] + d*x[2]) + pow(E,a*x[1])*sin(d*x[0] + a*x[2])))/pow(E,pow(d,2)*t*nu))',
+             '-((a*(pow(E,a*x[1])*cos(d*x[0] + a*x[2]) + pow(E,a*x[2])*sin(a*x[0] + d*x[1])))/pow(E,pow(d,2)*t*nu))')
         # Pressure
         self.analytical_p = \
-            ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*etabyrho))')
+            ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*nu))')
 
         # Common parameters pertinent to the functional forms above
-        self.u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,             'etabyrho': 1.0, 't': 0.0}
-        self.p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'etabyrho': 1.0, 't': 0.0}
+        self.u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,             'nu': nu, 't': 0.0}
+        self.p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'nu': nu, 't': 0.0}
+        
+        #self.exact_u = Expression(self.analytical_u, **self.u_params)
+        self.exact_u = [Expression(self.analytical_u[d], **self.u_params) for d in xrange(3)]
+        self.exact_p = Expression(self.analytical_p, **self.p_params)
+        
+        
 
     @classmethod
     def default_user_params(cls):
-        params = ParamDict(refinement_level=2)
+        params = ParamDict(N=20)
         return params
 
     def initial_conditions(self, V, Q):
         # Use analytical solutions at t = 0 as initial values
-        self.exact_u = self.uExpr(self.analytical_u, degree=3, **self.u_params)
-        self.exact_p = self.uExpr(self.analytical_p, degree=3, **self.p_params)
-
-        return self.exact_u + self.exact_p
+        return self.exact_u, self.exact_p
 
     def boundary_conditions(self, V, Q, t):
-        for expr in self.exact_u + self.exact_p:
-            expr.t = t
+        # Set exact velocity as boundary conditions
 
-        bc0 = [DirichletBC(V, expr, DomainBoundary()) for expr in self.exact_u]
+        for e in self.exact_u: e.t = t
+        
+        self.exact_p.t = t
+        
+        bcu = [(self.exact_u, DomainBoundary())]
+        bcp = []
 
-        bcu   = zip(bc0)
-        bcp   = [()]
+        return bcu, bcp
 
-        return bcu + bcp
-
+    '''
+    OLD FUNCTIONALITY
+    '''
+    '''
     def update(self, t, u, p):
         for expr in self.exact_u + self.exact_p:
             expr.t = t
@@ -101,3 +111,4 @@ class Problem(NSProblem):
 
     def __str__(self):
         return "Beltrami"
+    '''
