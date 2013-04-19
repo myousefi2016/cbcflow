@@ -27,7 +27,7 @@ class MockPostProcessor(NSPostProcessor):
 
 class MockScheme(NSScheme):
     def __init__(self, params):
-        NSScheme.__init__(self, params)
+        NSScheme.__init__(self, params, segregated=False)
 
     @classmethod
     def default_user_params(cls):
