@@ -62,9 +62,6 @@ class Problem(NSProblem):
         params = ParamDict(refinement_level=1)
         return params
 
-    def preconditioner_name(self):
-        return "jacobi"
-
     def initial_conditions(self, V, Q):
         u0 = self.uConstant((0, 0, 0))
         p0 = [Constant(0)]
