@@ -92,6 +92,7 @@ class Problem(NSProblem):
                 print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
             return Constant(p0)
         n = FacetNormal(mesh)
+        ds = self.ds
         flux = inner(self.u, n)*ds(mark)
         Q = assemble(flux, mesh=mesh)
         R = C*Q + p0

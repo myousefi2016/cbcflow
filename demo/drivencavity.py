@@ -112,8 +112,8 @@ def StreamFunction(u):
     # Define variational problem
     q   = TestFunction(V)
     psi = TrialFunction(V)
-    a   = dot(grad(q), grad(psi))*dx
-    L   = dot(q, (u[1].dx(0) - u[0].dx(1)))*dx
+    a   = dot(grad(q), grad(psi))*dx()
+    L   = dot(q, (u[1].dx(0) - u[0].dx(1)))*dx()
 
     # Define boundary condition
     g  = Constant(0)
