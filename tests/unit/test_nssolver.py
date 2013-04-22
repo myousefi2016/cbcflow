@@ -49,6 +49,6 @@ class TestNSSolver(unittest.TestCase):
 
         solver = NSSolver(problem, postproc, scheme, {})
 
-	#solver.solve()
+        #solver.solve()
 
         self.assertEqual(1, 1)
