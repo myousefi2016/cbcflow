@@ -4,8 +4,8 @@ Tests of the custom boundary condition functionality in headflow.
 
 import unittest
 
-from dolfin import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
 from headflow import Pouseille, Womersley
+from headflow.dol import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
 
 class TestBoundaryConditions(unittest.TestCase):
     def setUp(self):

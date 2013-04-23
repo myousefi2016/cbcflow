@@ -7,10 +7,11 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Martin Alnaes, 2013.
 
-from headflow.problembase import *
+from headflow import *
+from headflow.dol import *
+
 from scipy import *
 from numpy import array
-from math import pi
 from scipy.interpolate import splrep, splev
 
 class InflowData(object):
@@ -86,15 +87,13 @@ class Problem(NSProblem):
     def initial_conditions(self, V, Q):
         return self.uConstant((0, 0, 0)) + [Constant(0)]
 
-    def preconditioner_name(self):
-        return "jacobi"
-
     def resistance(self, mesh, mark, C, p0):
         if not hasattr(self, "u"):
             if master:
                 print "self.u not initialized, assuming zero flux (resistance is %.3g)"%p0
             return Constant(p0)
         n = FacetNormal(mesh)
+        ds = self.ds
         flux = inner(self.u, n)*ds(mark)
         Q = assemble(flux, mesh=mesh)
         R = C*Q + p0

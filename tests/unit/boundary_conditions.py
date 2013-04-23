@@ -1,8 +1,8 @@
 import sys
 sys.path.insert(0,"../../site-packages")
 
-from dolfin import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
 from headflow import Pouseille, Womersley
+from headflow.dol import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
 
 mesh = Mesh("cylinder_4k.xml.gz")
 

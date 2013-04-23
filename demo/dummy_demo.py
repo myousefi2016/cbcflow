@@ -2,9 +2,9 @@
 import sys
 sys.path.insert(0,"../site-packages")
 
-from dolfin import *
-set_log_level(100)
 from headflow import *
+from headflow.dol import *
+set_log_level(100)
 from numpy import linspace
 
 class DummyProblem(NSProblem):

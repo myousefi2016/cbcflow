@@ -7,10 +7,11 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow.problembase import *
+from headflow import NSProblem
+
 from scipy import *
-from numpy import array
-from math import pi
+
+from headflow.dol import *
 
 # Inflow boundary
 class Inflow(SubDomain):
@@ -61,9 +62,6 @@ class Problem(NSProblem):
     def default_user_params(cls):
         params = ParamDict(refinement_level=1)
         return params
-
-    def preconditioner_name(self):
-        return "jacobi"
 
     def initial_conditions(self, V, Q):
         u0 = self.uConstant((0, 0, 0))

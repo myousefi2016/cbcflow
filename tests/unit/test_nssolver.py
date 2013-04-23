@@ -27,7 +27,7 @@ class MockPostProcessor(NSPostProcessor):
 
 class MockScheme(NSScheme):
     def __init__(self, params):
-        NSScheme.__init__(self, params)
+        NSScheme.__init__(self, params, segregated=False)
 
     @classmethod
     def default_user_params(cls):
@@ -49,6 +49,6 @@ class TestNSSolver(unittest.TestCase):
 
         solver = NSSolver(problem, postproc, scheme, {})
 
-	#solver.solve()
+        #solver.solve()
 
         self.assertEqual(1, 1)

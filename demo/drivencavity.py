@@ -3,8 +3,8 @@ __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from dolfin import *
 from headflow import *
+from headflow.dol import *
 
 master = MPI.process_number() == 0
 
@@ -112,8 +112,8 @@ def StreamFunction(u):
     # Define variational problem
     q   = TestFunction(V)
     psi = TrialFunction(V)
-    a   = dot(grad(q), grad(psi))*dx
-    L   = dot(q, (u[1].dx(0) - u[0].dx(1)))*dx
+    a   = dot(grad(q), grad(psi))*dx()
+    L   = dot(q, (u[1].dx(0) - u[0].dx(1)))*dx()
 
     # Define boundary condition
     g  = Constant(0)
