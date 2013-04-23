@@ -13,7 +13,6 @@ from headflow import ParamDict, NSSolver
 #from headflow import IPCS as Scheme
 from headflow import SegregatedIPCS as Scheme
 spd = ParamDict(
-    dt=1e-4,
     u_degree=1,
     )
 scheme = Scheme(spd)
@@ -23,6 +22,7 @@ scheme = Scheme(spd)
 from beltrami import Beltrami as Problem
 #from cylinder import FlowAroundACylinder as Problem
 ppd = ParamDict(
+    dt=1e-4,
     N=20,
     )
 problem = Problem(ppd)
