@@ -7,10 +7,11 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Martin Alnaes, 2013.
 
-from headflow.problembase import *
+from headflow import *
+from headflow.dol import *
+
 from scipy import *
 from numpy import array
-from math import pi
 from scipy.interpolate import splrep, splev
 
 class InflowData(object):

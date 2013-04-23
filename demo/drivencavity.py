@@ -3,8 +3,8 @@ __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from dolfin import *
 from headflow import *
+from headflow.dol import *
 
 master = MPI.process_number() == 0
 

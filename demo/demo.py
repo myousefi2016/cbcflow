@@ -4,7 +4,7 @@
 import sys
 sys.path.insert(0,"../site-packages")
 
-from dolfin import *
+from headflow.dol import set_log_level
 set_log_level(100)
 
 from headflow import ParamDict, NSSolver

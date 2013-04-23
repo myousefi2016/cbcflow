@@ -7,10 +7,11 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow.problembase import *
+from headflow import NSProblem
+
 from scipy import *
-from numpy import array
-from math import pi
+
+from headflow.dol import *
 
 # Inflow boundary
 class Inflow(SubDomain):

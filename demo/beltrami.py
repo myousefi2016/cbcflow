@@ -7,10 +7,8 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from dolfin import *
 from headflow import *
-
-#from headflow.problembase import * # TODO: Import only what's needed
+from headflow.dol import *
 
 from math import pi, e
 
