@@ -13,12 +13,12 @@ class MockProblem(NSProblem):
 
 class TestTimestepComputation(unittest.TestCase):
     def test_compute_timesteps(self):
-        problem = MockProblem({'dt': 1e-2, 'T': 0.9})
+        problem = MockProblem({'dt': 1e-2, 'T': 1.1, 'T0': 0.2})
 
-        dt, t0, ts = compute_regular_timesteps(problem)
+        dt, ts = compute_regular_timesteps(problem)
 
         self.assertEqual(dt, 1e-2)
-        self.assertEqual(t0, 0.0)
+        self.assertEqual(ts[0], 0.2)
         self.assertAlmostEqual(ts[1]-ts[0], dt)
-        self.assertAlmostEqual(ts[-1], dt*len(ts))
-        self.assertEqual(len(ts), 90)
+        self.assertEqual(len(ts), 91)
+        self.assertAlmostEqual(ts[-1], ts[0]+dt*(len(ts)-1))
