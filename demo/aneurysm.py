@@ -46,32 +46,26 @@ class Problem(NSProblem):
         meshfilename = "data/aneurysm_%d.xml.gz" % self.params.refinement_level
         self.mesh = Mesh(meshfilename)
 
-        # The body force term
-        self.f = self.uConstant((0, 0, 0))
-
-        # Set viscosity
-        self.nu = 3.5 / 1.025e6
-
-        # Characteristic velocity in the domain (used to determine timestep)
-        self.U = 2.5
-
-        # Set end-time
-        self.T = 0.05
-
     @classmethod
     def default_user_params(cls):
-        params = ParamDict(refinement_level=1)
+        params = ParamDict(
+            refinement_level = 1,
+            dt = 0.005,
+            T = 0.05,
+            rho = 1.0,
+            mu = 3.5 / 1.025e6,
+            )
         return params
 
     def initial_conditions(self, V, Q):
-        u0 = self.uConstant((0, 0, 0))
-        p0 = [Constant(0)]
-        return u0 + p0
+        u0 = [Constant(0), Constant(0), Constant(0)]
+        p0 = Constant(0)]
+        return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
+    def boundary_conditions(self, V, Q, t): # FIXME: Update to new format
 
         # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
-        boundary_markers = MeshFunction("size_t", V.mesh(), 2)
+        boundary_markers = FacetFunction("size_t", V.mesh())
         boundary_markers.set_all(3)
         DomainBoundary().mark(boundary_markers, 0)
         Inflow().mark(boundary_markers, 1)
@@ -98,6 +92,8 @@ class Problem(NSProblem):
 
         return bcu + bcp
 
+    # Old code:
+"""
     def update(self, t, u, p):
         for g in self.g_inflow:
             g.t = t
@@ -130,7 +126,5 @@ class Problem(NSProblem):
             return 0.0
 
         return -0.0355
-
-    def __str__(self):
-        return "Aneurysm"
+"""
 

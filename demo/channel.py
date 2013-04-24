@@ -36,15 +36,6 @@ class Channel(NSProblem):
         N = self.params.N
         self.mesh = UnitSquareMesh(N, N)
 
-        # Create right-hand side function with pressure gradient as body force
-        self.f = [Constant(0), Constant(0)]
-
-        # Set viscosity (Re = 8)
-        #self.nu = 1.0 / 8.0
-
-        # Characteristic velocity in the domain (used to determine timestep)
-        #self.U = 1.0
-
     @classmethod
     def default_user_params(cls):
         params = ParamDict(
@@ -104,7 +95,4 @@ class Channel(NSProblem):
 
     def tolerance(self, problem):
         return 1e-11
-
-    def __str__(self):
-        return "Channel"
     """
