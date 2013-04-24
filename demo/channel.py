@@ -26,7 +26,7 @@ class NoslipBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
 
-class Problem(NSProblem):
+class Channel(NSProblem):
     "2D channel test problem with known analytical solution."
 
     def __init__(self, params):
@@ -37,46 +37,51 @@ class Problem(NSProblem):
         self.mesh = UnitSquareMesh(N, N)
 
         # Create right-hand side function with pressure gradient as body force
-        self.f = self.uConstant((0, 0))
+        self.f = [Constant(0), Constant(0)]
 
         # Set viscosity (Re = 8)
-        self.nu = 1.0 / 8.0
+        #self.nu = 1.0 / 8.0
 
         # Characteristic velocity in the domain (used to determine timestep)
-        self.U = 1.0
-
-        # Set end-time
-        self.T = 0.5
+        #self.U = 1.0
 
     @classmethod
     def default_user_params(cls):
-        params = ParamDict(N=16)
+        params = ParamDict(
+            # Spatial parameters
+            N=16,
+            # Time parameters
+            T=0.5,
+            dt=1.0/80,
+            # Physical parameters
+            rho=1.0,
+            mu=1.0/8.0,
+            )
         return params
 
     def initial_conditions(self, V, Q):
-        u0 = self.uConstant((0, 0))
-        p0 = [Expression("1 - x[0]")]
-        return u0 + p0
+        u0 = [Constant(0), Constant(0)]
+        p0 = Expression("1 - x[0]")
+        return (u0, p0)
 
     def boundary_conditions(self, V, Q, t):
 
         # Create no-slip boundary condition for velocity
-        g_noslip = self.uConstant((0, 0))
-        bv = [DirichletBC(V, g, NoslipBoundary()) for g in g_noslip]
+        g_noslip = [Constant(0), Constant(0)]
+        bcu = [(g_noslip, NoslipBoundary())]
 
         # Create boundary conditions for pressure
-        bp0 = [DirichletBC(Q, self.pressure_bc(Q), InflowBoundary())]
-        bp1 = [DirichletBC(Q, self.pressure_bc(Q), OutflowBoundary())]
+        bcp = [(self.pressure_bc(Q), InflowBoundary()),
+               (self.pressure_bc(Q), OutflowBoundary())]
 
-        bcu   = zip(bv)
-        bcp   = zip(bp0, bp1)
-
-        return bcu + bcp
+        return (bcu, bcp)
 
     def pressure_bc(self, Q):
         element = FiniteElement("CG", triangle, 1)
         return Expression("1 - x[0]", element=element)
 
+    # Old code: TODO: Use these to validate
+    """
     def functional(self, t, u, p):
         if t < self.T:
             return 0
@@ -102,5 +107,4 @@ class Problem(NSProblem):
 
     def __str__(self):
         return "Channel"
-
-
+    """
