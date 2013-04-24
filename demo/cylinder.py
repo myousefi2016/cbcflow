@@ -6,8 +6,6 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-master = MPI.process_number() == 0
-
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return near(x[0], 0.0) and on_boundary
@@ -19,55 +17,43 @@ class RightBoundary(SubDomain):
 class Walls(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], 0.0) or near(x[1], 1.0) or sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS) and on_boundary
-
   
-# Problem definition
 class FlowAroundACylinder(NSProblem):
     "Flow around a cylinder in 2D."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-
-        # Create mesh
-        N = self.params.N
         r = Rectangle(0,0, 10, 1)
         c = Circle(2.0, 0.5, 0.12)
-
-        self.mesh = Mesh(r-c, N)
-
-        # Create right-hand side function
-        self.f = (Constant(0), Constant(0))
-
-        # Set viscosity (Re = 1000)
-        self.mu = 1.0/1000.0
-        self.rho = 1.0
-        
-        self.U = 1.0
-
-        # Set end-time
-        self.T = 25.0
+        self.mesh = Mesh(r-c, self.params.N)
 
     @classmethod
     def default_user_params(cls):
-        params = ParamDict(N=64)
+        params = ParamDict(
+            N=64,
+            T=25.0,
+            dt=0.05,
+            rho=1.0,
+            mu=1.0/1000.0,
+            )
         return params
 
     def initial_conditions(self, V, Q):
         u0 = [Constant(0), Constant(0)]
         p0 = Constant(0)
         return u0, p0
-    
+
     def boundary_conditions(self, V, Q, t):
         bcu1 = ([Constant(1), Constant(0)], LeftBoundary())
         bcu2 = ([Constant(0), Constant(0)], Walls())
-        
+
         bcp1 = (Constant(0), RightBoundary())
-        
+
         bcu = [bcu1, bcu2]
         bcp = [bcp1]
-        
+
         return bcu, bcp       
-       
+
     '''
     OLD FUNCTIONALITY
     '''
@@ -82,8 +68,7 @@ class FlowAroundACylinder(NSProblem):
             vals  = psi.vector().array()
             vmin = MPI.min(vals.min())
 
-            if master:
-                print "Stream function has minimal value" , vmin
+            headflow_print("Stream function has minimal value %s" % vmin)
 
             return vmin
 
@@ -92,10 +77,9 @@ class FlowAroundACylinder(NSProblem):
         if t < self.T:
             return 0.0
         return -0.061076605
+    '''
 
-    def __str__(self):
-        return "Driven cavity"
-
+'''
 def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
