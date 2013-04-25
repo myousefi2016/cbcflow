@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 # Hack to run without installing, useful while working
 import sys

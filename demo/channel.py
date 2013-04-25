@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __author__ = "Kent-Andre Mardal <kent-and@simula.no>"
 __date__ = "2008-04-03"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
@@ -29,7 +30,7 @@ class NoslipBoundary(SubDomain):
 class Channel(NSProblem):
     "2D channel test problem with known analytical solution."
 
-    def __init__(self, params):
+    def __init__(self, params=None):
         NSProblem.__init__(self, params)
 
         # Create mesh
@@ -96,3 +97,7 @@ class Channel(NSProblem):
     def tolerance(self, problem):
         return 1e-11
     """
+
+if __name__ == "__main__":
+    p = Channel()
+    show_problem(p)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
 __date__ = "2008-11-21"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
@@ -7,7 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow import NSProblem
+from headflow import NSProblem, show_problem
 
 from scipy import *
 
@@ -34,7 +35,7 @@ class AneurysmCutoff(Expression):
             values[0] = 1.0
 
 # Problem definition
-class Problem(NSProblem):
+class Aneurysm(NSProblem):
     "3D artery with a saccular aneurysm."
 
     def __init__(self, params):
@@ -128,3 +129,6 @@ class Problem(NSProblem):
         return -0.0355
 """
 
+if __name__ == "__main__":
+    p = Aneurysm()
+    show_problem(p)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __author__ = "Harish Narayanan <harish@simula.no>"
 __date__ = "2009-01-20"
 __copyright__ = "Copyright (C) 2009-2010 " + __author__

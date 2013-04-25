@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __author__ = "Anders Logg <logg@simula.no>"
 __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
@@ -9,15 +10,15 @@ from headflow.dol import *
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return near(x[0], 0.0) and on_boundary
-    
+
 class RightBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return near(x[0], 10.0) and on_boundary
-    
+
 class Walls(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], 0.0) or near(x[1], 1.0) or sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS) and on_boundary
-  
+
 class FlowAroundACylinder(NSProblem):
     "Flow around a cylinder in 2D."
 
@@ -52,7 +53,7 @@ class FlowAroundACylinder(NSProblem):
         bcu = [bcu1, bcu2]
         bcp = [bcp1]
 
-        return bcu, bcp       
+        return bcu, bcp
 
     '''
     OLD FUNCTIONALITY
@@ -112,3 +113,7 @@ def StreamFunction(u):
     return psi
 
 '''
+
+if __name__ == "__main__":
+    p = FlowAroundACylinder()
+    show_problem(p)

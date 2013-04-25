@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __author__ = "Anders Logg <logg@simula.no>"
 __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
@@ -6,9 +7,6 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-master = MPI.process_number() == 0
-
-# Boundary value
 def boundaryvalue(x):
     if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
         return [1.0, 0.0]
@@ -28,48 +26,45 @@ class BoundaryValueComp(Expression):
     def eval(self, values, x):
         values[0] = boundaryvalue(x)[self.component]
 
-# Problem definition
-class Problem(NSProblem):
+c0 = Constant(0)
+
+class DrivenCavity(NSProblem):
     "2D lid-driven cavity test problem with known reference value."
 
-    def __init__(self, params):
+    def __init__(self, params=None):
         NSProblem.__init__(self, params)
-
-        # Create mesh
         N = self.params.N
         self.mesh = UnitSquareMesh(N, N)
 
-        # Create right-hand side function
-        self.f = self.uConstant((0, 0))
-
-        # Set viscosity (Re = 1000)
-        self.nu = 1.0 / 1000.0
-        self.U = 1.0
-
-        # Set end-time
-        self.T = 2.5
-
     @classmethod
     def default_user_params(cls):
-        params = ParamDict(N=16)
+        params = ParamDict(
+            N=16,
+
+            dt=0.01,
+            T=2.5,
+
+            rho=1.0,
+            mu=1.0/1000.0,
+            )
         return params
 
     def initial_conditions(self, V, Q):
-        u0 = self.uConstant((0, 0))
-        p0 = self.uConstant(0)
-        return u0 + p0
+        u0 = [c0, c0]
+        p0 = c0
+        return (u0, p0)
 
     def boundary_conditions(self, V, Q, t):
-        if self.params.segregated:
-            element = FiniteElement("CG", triangle, 1)
-            self.g = [BoundaryValueComp(d, element=element) for d in range(2)]
-        else:
-            element = VectorElement("CG", triangle, 1)
-            self.g = [BoundaryValueVec(element=element)]
-        bc = [DirichletBC(V, g, DomainBoundary()) for g in self.g]
+        element = FiniteElement("CG", triangle, 1)
+        g = [BoundaryValueComp(d, element=element) for d in range(2)]
+        bcu = [(g, DomainBoundary())]
 
-        return zip(bc) + [()]
+        bcp = []
 
+        return (bcu, bcp)
+
+# Old code:
+"""
     def functional(self, t, u, p):
         # Only check final time
         if t < self.T:
@@ -80,8 +75,7 @@ class Problem(NSProblem):
             vals  = psi.vector().array()
             vmin = MPI.min(vals.min())
 
-            if master:
-                print "Stream function has minimal value" , vmin
+            headflow_print("Stream function has minimal value"  % vmin)
 
             return vmin
 
@@ -90,10 +84,9 @@ class Problem(NSProblem):
         if t < self.T:
             return 0.0
         return -0.061076605
-
-    def __str__(self):
-        return "Driven cavity"
-
+"""
+# Old code:
+"""
 def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
@@ -124,4 +117,8 @@ def StreamFunction(u):
     solve(a == L, psi, bc)
 
     return psi
+"""
 
+if __name__ == "__main__":
+    p = DrivenCavity()
+    show_problem(p)
