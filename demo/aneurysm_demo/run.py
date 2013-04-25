@@ -19,7 +19,8 @@ scheme_pd = ParamDict(
             )
 
 #scheme = IPCS(scheme_pd)
-scheme = SegregatedIPCS(scheme_pd)
+#scheme = SegregatedIPCS(scheme_pd)
+scheme = SegregatedIPCS_Optimized(scheme_pd)
 
 
 
@@ -28,16 +29,19 @@ postprocessor = PostProcessor()
 
 ppfield_pd = ParamDict(
                     saveparams=ParamDict(
-                        save=True,
+                        save=False,
+                    ),
+                    timeparams=ParamDict(
+                        step_frequency=10,
                     )
                 )
-wss = WSS(params=ppfield_pd)
+#wss = WSS(params=ppfield_pd)
 velocity = Velocity(params=ppfield_pd)
-pressure = Pressure(params=ppfield_pd)
+#pressure = Pressure(params=ppfield_pd)
 
 
-#postprocessor.add_field(wss)
-postprocessor.add_fields([wss, velocity, pressure])
+postprocessor.add_field(velocity)
+#postprocessor.add_fields([wss, velocity, pressure])
 
 pd = ParamDict(
     plot_solution=True,
