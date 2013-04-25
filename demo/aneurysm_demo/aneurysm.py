@@ -26,6 +26,7 @@ class DogAneurysm(NSProblem):
         mesh = Mesh(self.params.mesh_file)
         self.initialize_geometry(mesh)
 
+        # Set end time based on period and number of periods NB! Overrides given T!
         self.params.T = self.params.period * self.params.num_periods
 
         #factor = 1000
