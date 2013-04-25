@@ -16,7 +16,7 @@ from math import pi, e
 class Beltrami(NSProblem):
     "3D test problem with known analytical solution."
 
-    def __init__(self, params):
+    def __init__(self, params=None):
         NSProblem.__init__(self, params)
 
         # Create mesh
@@ -63,23 +63,25 @@ class Beltrami(NSProblem):
 
         # Set configured physical parameters
         nu = self.params.mu / self.params.rho
-        exact_u.nu = nu
+        for u in exact_u:
+            u.nu = nu
         exact_p.nu = nu
         exact_p.rho = self.params.rho
 
         # Set time
-        exact_u.t = t
+        for u in exact_u:
+            u.t = t
         exact_p.t = t
 
         return (exact_u, exact_p)
 
     def initial_conditions(self, V, Q):
-        for e in self.exact_u: e.t = 0.0
+        for u in self.exact_u: u.t = 0.0
         self.exact_p.t = 0.0
-        return (exact_u, exact_p)
+        return (self.exact_u, self.exact_p)
 
     def boundary_conditions(self, V, Q, t):
-        for e in self.exact_u: e.t = t
+        for u in self.exact_u: u.t = t
         self.exact_p.t = t
 
         bcu = [(self.exact_u, DomainBoundary())]
@@ -110,3 +112,7 @@ class Beltrami(NSProblem):
     def reference(self, t):
         return 0.0
     '''
+
+if __name__ == "__main__":
+    p = Beltrami()
+    show_problem(p)
