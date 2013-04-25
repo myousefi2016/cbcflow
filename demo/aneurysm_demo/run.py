@@ -12,29 +12,32 @@ class PostProcessor(PostProcessorBase):
         PostProcessorBase.__init__(self)
     
 
-
-
 problem = Aneurysm()
 
 scheme_pd = ParamDict(
                 u_degree=1,
             )
 
-scheme = IPCS(scheme_pd)
-#scheme = SegregatedIPCS(scheme_pd)
+#scheme = IPCS(scheme_pd)
+scheme = SegregatedIPCS(scheme_pd)
 
 
 
 postprocessor = PostProcessor()
 
-wss = WSS(params=ParamDict(
-            saveparams=ParamDict(
-                save=True,
-            )
-        )
-     )
 
-postprocessor.add_field(wss)
+ppfield_pd = ParamDict(
+                    saveparams=ParamDict(
+                        save=True,
+                    )
+                )
+wss = WSS(params=ppfield_pd)
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+
+
+#postprocessor.add_field(wss)
+postprocessor.add_fields([wss, velocity, pressure])
 
 pd = ParamDict(
     plot_solution=True,
