@@ -23,15 +23,15 @@ from drivencavity import DrivenCavity
 from beltrami import Beltrami
 from pipe import Pipe
 problems = [
-    #FlowAroundACylinder,
+    FlowAroundACylinder,
     #DrivenCavity,
     #Beltrami,
-    Pipe,
+    #Pipe,
     ]
 
 ppd = ParamDict(
-    dt = 1e-4,
-    T  = 1e-4 * 10,
+    dt = 1e-3,
+    T  = 1e-3 * 100,
     )
 
 # Loop over problems
