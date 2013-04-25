@@ -8,10 +8,8 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow import NSProblem, show_problem
-
-from scipy import *
-
+#from scipy import *
+from headflow import *
 from headflow.dol import *
 
 # Inflow boundary
@@ -34,18 +32,29 @@ class AneurysmCutoff(Expression):
         else:
             values[0] = 1.0
 
-# Problem definition
+c0 = Constant(0)
+
 class Aneurysm(NSProblem):
     "3D artery with a saccular aneurysm."
 
-    def __init__(self, params):
+    def __init__(self, params=None):
         NSProblem.__init__(self, params)
 
         # Load mesh
         if self.params.refinement_level > 4:
             raise RuntimeError("No mesh available for refinement level %d" % self.params.refinement_level)
-        meshfilename = "data/aneurysm_%d.xml.gz" % self.params.refinement_level
-        self.mesh = Mesh(meshfilename)
+        meshfilename = "../data/aneurysm_%d.xml.gz" % self.params.refinement_level
+        mesh = Mesh(meshfilename)
+
+        # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
+        facet_domains = FacetFunction("size_t", self.mesh)
+        facet_domains.set_all(3)
+        DomainBoundary().mark(facet_domains, 0)
+        Inflow().mark(facet_domains, 1)
+        Outflow().mark(facet_domains, 2)
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh, facet_domains)
 
     @classmethod
     def default_user_params(cls):
@@ -60,50 +69,43 @@ class Aneurysm(NSProblem):
 
     def initial_conditions(self, V, Q):
         u0 = [Constant(0), Constant(0), Constant(0)]
-        p0 = Constant(0)]
+        p0 = Constant(0)
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t): # FIXME: Update to new format
-
-        # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
-        boundary_markers = FacetFunction("size_t", V.mesh())
-        boundary_markers.set_all(3)
-        DomainBoundary().mark(boundary_markers, 0)
-        Inflow().mark(boundary_markers, 1)
-        Outflow().mark(boundary_markers, 2)
+    def boundary_conditions(self, V, Q, t):
 
         # Create no-slip boundary condition for velocity
-        self.g_noslip = self.uConstant((0, 0, 0))
-        bc_noslip = [DirichletBC(V, g, boundary_markers, 0) for g in self.g_noslip]
+        g_noslip = [c0, c0, c0]
+        bc_noslip = (g_noslip, 0)
 
         # Create inflow boundary condition for velocity
         inflow_exprs = ('1.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))')
-        self.g_inflow = self.uExpr(inflow_exprs, r=0.002, t=t, degree=3)
-        bc_inflow = [DirichletBC(V, g, boundary_markers, 1) for g in self.g_inflow]
+        element = FiniteElement("CG", tetrahedron, 3)
+        g_inflow = [Expression(e, element=element, r=0.002, t=0.0) for e in inflow_exprs]
+        for g in g_inflow: g.t = t
+        bc_inflow = (g_inflow, 1)
 
         # Create outflow boundary condition for pressure
-        self.g_outflow = Constant(0)
-        bc_outflow = [DirichletBC(Q, self.g_outflow, boundary_markers, 2)]
+        g_outflow = c0
+        bc_outflow = (g_outflow, 2)
 
         # Collect boundary conditions
-        bcu = zip(bc_noslip, bc_inflow)
-        bcp = zip(bc_outflow)
+        bcu = [bc_noslip, bc_inflow]
+        bcp = [bc_outflow]
 
-        return bcu + bcp
+        return (bcu, bcp)
 
-    # Old code:
-"""
-    def update(self, t, u, p):
-        for g in self.g_inflow:
-            g.t = t
-
+# Old code:
+'''
     def functional(self, t, u, p):
          if t < self.T:
              return 0.0
-
-         return self.uEval(u, 0, (0.025, -0.006, 0.0))
+         x = (0.025, -0.006, 0.0)
+         # TODO: Is this the same as the original
+         #       uEval(u, 0, x)?
+         return parallell_eval(u[0], x)
 
     def reference(self, t):
         """The reference value was computed using on a fine mesh
@@ -127,7 +129,7 @@ class Aneurysm(NSProblem):
             return 0.0
 
         return -0.0355
-"""
+'''
 
 if __name__ == "__main__":
     p = Aneurysm()

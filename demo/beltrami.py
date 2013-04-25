@@ -25,11 +25,14 @@ class Beltrami(NSProblem):
         # want: (-1, 1) x (-1, 1) x (-1, 1)
 
         N = self.params.N
-        self.mesh = UnitCubeMesh(N, N, N)
-        scale  = 2*(self.mesh.coordinates() - 0.5)
-        self.mesh.coordinates()[:, :] = scale
+        mesh = UnitCubeMesh(N, N, N)
+        scale  = 2*(mesh.coordinates() - 0.5)
+        mesh.coordinates()[:, :] = scale
 
         self.exact_u, self.exact_p = self.analytical_solution(t=0.0)
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh)
 
     @classmethod
     def default_user_params(cls):

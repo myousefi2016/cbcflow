@@ -34,7 +34,10 @@ class DrivenCavity(NSProblem):
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
         N = self.params.N
-        self.mesh = UnitSquareMesh(N, N)
+        mesh = UnitSquareMesh(N, N)
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh)
 
     @classmethod
     def default_user_params(cls):

@@ -26,7 +26,10 @@ class FlowAroundACylinder(NSProblem):
         NSProblem.__init__(self, params)
         r = Rectangle(0,0, 10, 1)
         c = Circle(2.0, 0.5, 0.12)
-        self.mesh = Mesh(r-c, self.params.N)
+        mesh = Mesh(r-c, self.params.N)
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh)
 
     @classmethod
     def default_user_params(cls):

@@ -16,9 +16,12 @@ class Pipe(NSProblem):
         NSProblem.__init__(self, params)
 
         # Mesh and known mesh properties
-        self.mesh = Mesh("cylinder_0.2.xml.gz")
+        mesh = Mesh("../data/pipe_0.2.xml.gz")
         self.length = 10.0
         self.radius = 0.5
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh)
 
     @classmethod
     def default_user_params(cls):
@@ -42,7 +45,7 @@ class Pipe(NSProblem):
 
     def boundary_conditions(self, V, Q, t):
         # Create no-slip boundary condition for velocity
-        g_noslip = [c0, c0]
+        g_noslip = [c0, c0, c0]
         bcu = [
             (g_noslip, 0),
             ]
