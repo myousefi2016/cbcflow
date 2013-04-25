@@ -1,3 +1,4 @@
 *.pyc
 *.vtu
 *.pvd
+*.py~

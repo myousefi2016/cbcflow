@@ -8,33 +8,32 @@ from headflow.dol import *
 set_log_level(100)
 from numpy import linspace
 
+# FIXME: [martin] This is broken, should it be fixed?
+
 class DummyProblem(NSProblem):
     def __init__(self):
         NSProblem.__init__(self)
-        
+
         N = 8
         self.mesh = UnitCubeMesh(N, N, N)
         self.scale  = 2*(self.mesh.coordinates() - 0.5)
         self.mesh.coordinates()[:, :] = self.scale
-        
+
         self.T = 1.0
-        
-        
+
+
 
 class DummyScheme(NSScheme):
     def __init__(self):
         NSScheme.__init__(self)
-        
-        
-        
-    
+
     def solve(self, problem, update):
         V = VectorFunctionSpace(problem.mesh, "CG", 1)
         Q = FunctionSpace(problem.mesh, "CG", 1)
-        
+
         u = Function(V)
-        p = Function(Q)        
-        
+        p = Function(Q)
+
         # Velocity
         u_expr = Expression(('-((a*(pow(E,a*x[2])*cos(a*x[0] + d*x[1]) + pow(E,a*x[0])*sin(a*x[1] + d*x[2])))/pow(E,pow(d,2)*t*etabyrho))',
              '-((a*(pow(E,a*x[0])*cos(a*x[1] + d*x[2]) + pow(E,a*x[1])*sin(d*x[0] + a*x[2])))/pow(E,pow(d,2)*t*etabyrho))',
@@ -47,56 +46,56 @@ class DummyScheme(NSScheme):
         for timestep, t in enumerate(t_range):
             u_expr.t = t
             p_expr.t = t
-            
+
             u.assign(project(u_expr, V))
             p.assign(project(p_expr, Q))
-            
+
             plot(u)
             plot(p)
-            
+
             update(u,p,t,timestep)
-            
-class DummyPostProcessor(PostProcessorBase):
-    def __init__(self, **kwargs):
-        PostProcessorBase.__init__(self, **kwargs)
-        
+
+class DummyPostProcessor(NSPostProcessor):
+    def __init__(self, params):
+        NSPostProcessor.__init__(self, params)
+
     def print_data(self):
         for inst in self.list_all:
             print inst.get_data()
-            
+
     def print_all_params(self):
         for inst in self.list_all:
             print inst.params
-            
-            
+
+
 class MockA(PPFieldBase):
-   
+
     def __init__(self, **kwargs):
         PPFieldBase.__init__(self, **kwargs)
-    
+
     def update(self, u, p, t, timestep, problem):
         value = timestep+10
         self.set_data(t, timestep, value)
-        
-        
+
+
 
 class MockB(PPFieldBase):
     def __init__(self, **kwargs):
         assert("parent" in kwargs.keys())
         PPFieldBase.__init__(self, **kwargs)
-       
+
     def update(self, u, p, t, timestep, problem):
         # Get parent data
         parent_datadict = self.parent.get_data()
         parent_data = parent_datadict["data"]
-        
+
         value = parent_data**0.5
-        
+
         value = {"sqrt": parent_data**0.5, "squared": parent_data**2, "cubed": parent_data**3}
-        
+
         self.set_data(t, timestep, value)
-        
-    
+
+
 class MockC(PPFieldBase):
     def __init__(self, **kwargs):
         PPFieldBase.__init__(self, **kwargs)
@@ -107,20 +106,18 @@ class MockC(PPFieldBase):
         self.set_data(t, timestep, value)
 
 
-        
+
 if __name__ == '__main__':
     problem = DummyProblem()
     scheme = DummyScheme()
-    postprocessor = DummyPostProcessor(casedir='dummy')
-    
+    postprocessor = DummyPostProcessor({'casedir':'dummy'})
+
     timeparams = ParamDict(start_time=0.0, end_time=0.4, step_frequency=5)
     saveparams = ParamDict(save=True)
 
-    
     a = MockA(timeparams=timeparams, saveparams=saveparams)
     b = MockB(parent=a, timeparams=timeparams, saveparams=saveparams)
     c = MockC(timeparams=timeparams, saveparams=saveparams)
-
 
     postprocessor.add_field(a)
     postprocessor.add_field(b)
@@ -128,7 +125,3 @@ if __name__ == '__main__':
 
     solver = NSSolver(problem, scheme, postprocessor)
     solver.solve()
-    
-    
-    
-            

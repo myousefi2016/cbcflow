@@ -3,11 +3,11 @@ Tests of the postprocessing framework in headflow.
 """
 
 import unittest
-from headflow import PostProcessorBase, PPFieldBase, ParamDict
+from headflow import NSPostProcessor, PPFieldBase, ParamDict
 
-class MockPostProcessor(PostProcessorBase):
+class MockPostProcessor(NSPostProcessor):
     def __init__(self):
-        PostProcessorBase.__init__(self)
+        NSPostProcessor.__init__(self)
 
     def print_data(self):
         for inst in self.list_all:
@@ -62,9 +62,9 @@ class TestPostProcessing(unittest.TestCase):
         PP = MockPostProcessor()
 
         # MockB and MockC needs a MockA instance as parent
-        a = MockA(timeparams=ParamDict(start_timestep=5, end_timestep=15))
-        b = MockB(parent=a, timeparams=ParamDict(start_timestep=1, end_timestep=10))
-        c = MockC(parent=a, timeparams=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4))
+        a = MockA(params=ParamDict(timeparams=ParamDict(start_timestep=5, end_timestep=15)))
+        b = MockB(parent=a, params=ParamDict(timeparams=ParamDict(start_timestep=1, end_timestep=10)))
+        c = MockC(parent=a, params=ParamDict(timeparams=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4)))
 
         # Add fields to postprocessor
         PP.add_field(a)
@@ -83,3 +83,4 @@ class TestPostProcessing(unittest.TestCase):
             PP.update_all(None, None, t, timestep, None)
             #PP.print_data()
         #PP.print_all_params()
+

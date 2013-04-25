@@ -25,9 +25,9 @@ scheme = SegregatedIPCS_Optimized(scheme_pd)
 
 
 # -- Configure postprocessor
-class PostProcessor(PostProcessorBase):
-    def __init__(self):
-        PostProcessorBase.__init__(self)
+class PostProcessor(NSPostProcessor):
+    def __init__(self, params=None):
+        NSPostProcessor.__init__(self, params)
 
 postprocessor = PostProcessor()
 
