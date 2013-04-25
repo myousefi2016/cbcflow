@@ -26,7 +26,7 @@ class DogAneurysm(NSProblem):
         mesh = Mesh(self.params.mesh_file)
         self.initialize_geometry(mesh)
 
-        self.params.T = 3*self.params.period
+        self.params.T = self.params.period * self.params.num_periods
 
         #factor = 1000
         profile = [0.4, 1.6, 1.4, 1.0, 0.8, 0.6, 0.55, 0.5, 0.5, 0.45, 0.4]
@@ -48,7 +48,9 @@ class DogAneurysm(NSProblem):
             boundary_mesh_file="boundary_mesh_37k.xml.gz",
 
             period = 0.8,
+            num_periods = 3,
             T = 3*0.8,
+
             dt=1e-3,
 
             mu=0.00345,

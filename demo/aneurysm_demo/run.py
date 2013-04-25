@@ -9,7 +9,10 @@ set_log_level(100)
 
 # --- Configure problem
 from aneurysm import DogAneurysm
-problem = DogAneurysm()
+problem_pd = ParamDict(
+    num_periods=0.1,
+    )
+problem = DogAneurysm(problem_pd)
 
 
 # --- Configure scheme
@@ -29,13 +32,13 @@ class PostProcessor(PostProcessorBase):
 postprocessor = PostProcessor()
 
 ppfield_pd = ParamDict(
-                    saveparams=ParamDict(
-                        save=False,
-                    ),
-                    timeparams=ParamDict(
-                        step_frequency=10,
-                    )
-                )
+    saveparams=ParamDict(
+        save=True,
+        ),
+    timeparams=ParamDict(
+        step_frequency=10,
+        )
+    )
 #wss = WSS(params=ppfield_pd)
 velocity = Velocity(params=ppfield_pd)
 #pressure = Pressure(params=ppfield_pd)
