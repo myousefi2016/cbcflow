@@ -1,47 +1,48 @@
-import sys
-sys.path.insert(0,"../../site-packages")
+#!/usr/bin/env python
 
-from dolfin import *
-set_log_level(100)
+import sys; sys.path.insert(0,"../../site-packages")
+
 from headflow import *
+from headflow.dol import *
+set_log_level(100)
 
-from aneurysm import Aneurysm
 
-class PostProcessor(PostProcessorBase):
-    def __init__(self):
-        PostProcessorBase.__init__(self)
-    
+# --- Configure problem
+from aneurysm import DogAneurysm
+problem = DogAneurysm()
 
-problem = Aneurysm()
 
+# --- Configure scheme
 scheme_pd = ParamDict(
-                u_degree=1,
-            )
-
+    u_degree=1,
+    )
 #scheme = IPCS(scheme_pd)
 scheme = SegregatedIPCS(scheme_pd)
 
 
+# -- Configure postprocessor
+class PostProcessor(PostProcessorBase):
+    def __init__(self):
+        PostProcessorBase.__init__(self)
 
 postprocessor = PostProcessor()
 
-
 ppfield_pd = ParamDict(
-                    saveparams=ParamDict(
-                        save=True,
-                    )
-                )
+    saveparams=ParamDict(
+        save=True,
+        )
+    )
 wss = WSS(params=ppfield_pd)
 velocity = Velocity(params=ppfield_pd)
 pressure = Pressure(params=ppfield_pd)
 
-
 #postprocessor.add_field(wss)
 postprocessor.add_fields([wss, velocity, pressure])
 
+
+# --- Configure solver and run
 pd = ParamDict(
     plot_solution=True,
-)
-
+    )
 solver = NSSolver(problem, scheme, postprocessor, params=pd)
 solver.solve()
