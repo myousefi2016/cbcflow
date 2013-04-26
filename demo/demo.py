@@ -33,6 +33,24 @@ problems = [
     Pipe(ppd),
     ]
 
+# Configure postprocessing
+pppd = ParamDict(casedir="pipe_results")
+postprocessor = NSPostProcessor(pppd)
+
+ppfield_pd = ParamDict(
+    saveparams=ParamDict(
+        save=True,
+        ),
+    timeparams=ParamDict(
+        step_frequency=10,
+        )
+    )
+wss = WSS(params=ppfield_pd)
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+
+postprocessor.add_fields([wss, velocity, pressure])
+
 # Configure solver
 npd = ParamDict(
     plot_solution=False,
@@ -42,6 +60,5 @@ npd = ParamDict(
 # Loop over schemes and problems
 for scheme in schemes:
     for problem in problems:
-        solver = NSSolver(problem, scheme, params=npd)
+        solver = NSSolver(problem, scheme, postprocessor, params=npd)
         solver.solve()
-
