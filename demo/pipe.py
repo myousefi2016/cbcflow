@@ -50,7 +50,7 @@ class Pipe(NSProblem):
         p0.beta = self.params.beta
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
+    def standard_boundary_conditions(self, V, Q, t):
         # Create no-slip boundary condition for velocity
         g_noslip = [c0, c0, c0]
         bcu = [
@@ -58,10 +58,38 @@ class Pipe(NSProblem):
             ]
 
         # Create boundary conditions for pressure
-        p1 = -self.params.beta * self.length * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
+        p1 = (-self.params.beta * self.length) * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
         bcp = [
             (c0, 1),
             (Constant(p1), 2),
+            ]
+
+        return (bcu, bcp)
+
+    def xdirichlet_boundary_conditions(self, V, Q, t):
+        # Create no-slip boundary condition for velocity
+        g_noslip = [c0, c0, c0]
+        bcu = [
+            (g_noslip, 0),
+            ]
+
+        # Create boundary conditions for pressure
+        bcp = [
+            (c0, 1),
+            ]
+
+        return (bcu, bcp)
+
+    boundary_conditions = standard_boundary_conditions
+    #boundary_conditions = dirichlet_boundary_conditions
+
+    def xpenalty_boundary_conditions(self, V, Q, t):
+        bcu = []
+
+        # Create boundary conditions for pressure
+        p1 = (-self.params.beta * self.length) * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
+        bcp = [
+            (p1, 2),
             ]
 
         return (bcu, bcp)
