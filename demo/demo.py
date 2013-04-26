@@ -13,6 +13,7 @@ spd = ParamDict(
     u_degree=1,
     )
 schemes = [
+    #SegregatedIPCS(spd),
     SegregatedIPCS_Optimized(spd),
     ]
 
@@ -25,6 +26,7 @@ from pipe import Pipe
 ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
+    num_periods=0.1,
     )
 problems = [
     #FlowAroundACylinder(ppd),
