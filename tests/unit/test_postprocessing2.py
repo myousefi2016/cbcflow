@@ -1,8 +1,12 @@
+#!/usr/bin/env python
 """
 Tests of an alternative work in progress postprocessing framework in headflow.
 """
 
 import unittest
+from init_test import init_test
+init_test(__name__)
+
 from headflow import ParamDict
 from headflow.core.parameterized import Parameterized
 
@@ -140,3 +144,7 @@ class TestPostProcessing2(unittest.TestCase):
         self.assertEqual(epsilon.touched, 1) # Not recomputed!
         self.assertEqual(p.touched, 1)
         self.assertEqual(sigma.touched, 1)
+
+if __name__ == "__main__":
+    unittest.main()
+

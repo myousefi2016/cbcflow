@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Tests of the interaction between the NSSsolver
 class and the user overloaded subclasses.
@@ -6,6 +7,8 @@ the control and data flow between the classes.
 """
 
 import unittest
+from init_test import init_test
+init_test(__name__)
 
 from headflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
 
@@ -52,3 +55,6 @@ class TestNSSolver(unittest.TestCase):
         #solver.solve()
 
         self.assertEqual(1, 1)
+
+if __name__ == "__main__":
+    unittest.main()

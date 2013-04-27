@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 """
 Tests of the custom boundary condition functionality in headflow.
 """
 
 import unittest
+from init_test import init_test
+init_test(__name__)
 
 from headflow import Pouseille, Womersley
 from headflow.dol import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
@@ -31,3 +34,6 @@ class TestBoundaryConditions(unittest.TestCase):
     def test_womersley(self):
         bcs = Womersley(self.coeffs, self.mesh, 1, 4.0)
         self._test_bcs(bcs)
+
+if __name__ == "__main__":
+    unittest.main()
