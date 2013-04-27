@@ -63,11 +63,29 @@ class PPField2(Parameterized):
     def __init__(self, params=None):
         Parameterized.__init__(self, params)
 
+    @classmethod
+    def default_base_params(cls):
+        params = ParamDict(
+            start_timestep = -1e16,
+            end_timestep = 1e16,
+            stride_timestep = 1,
+            )
+        return params
+
     @property
     def name(self):
         return self.__class__.__name__
 
-    def compute(self, pp):
+    def init(self, pp): # TODO: Arguments?
+        "Called prior to the simulation timeloop."
+        pass
+
+    def finalize(self, pp): # TODO: Arguments?
+        "Called after the simulation timeloop."
+        pass
+
+    def compute(self, pp): # TODO: Arguments?
+        "Called each time the quantity should be computed."
         raise NotImplementedError("A PPField must implement the compute function!")
 
 class Velocity(PPField2):
