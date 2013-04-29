@@ -11,7 +11,8 @@ set_log_level(100)
 # List schemes
 spd = ParamDict(
     u_degree=1,
-    solver_p=("gmres", "ilu"),
+    solver_p=("lu", "default"),
+   #solver_p=("gmres", "ilu"),
     #solver_p=("cg", "amg"),
     #solver_p=("gmres", "amg"),
     )

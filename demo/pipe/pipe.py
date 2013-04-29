@@ -79,9 +79,11 @@ class Pipe(NSProblem):
 
         return (bcu, bcp)
 
-    #boundary_conditions = standard_boundary_conditions
-    boundary_conditions = dirichlet_boundary_conditions
+    xboundary_conditions = standard_boundary_conditions
+    def xpenalty_boundary_conditions(self, V, Q, t):
+        return [], []
 
+    boundary_conditions = dirichlet_boundary_conditions
     def penalty_boundary_conditions(self, V, Q, t):
         bcu = []
 
