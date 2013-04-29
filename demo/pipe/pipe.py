@@ -96,6 +96,11 @@ class Pipe(NSProblem):
 
         return (bcu, bcp)
 
+    def penalty_neumann_boundaries(self):
+        bcu = []
+        bcp = [0]
+        return (bcu, bcp)
+
 if __name__ == "__main__":
     p = Pipe()
     show_problem(p)
