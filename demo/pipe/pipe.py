@@ -16,7 +16,7 @@ class Pipe(NSProblem):
         NSProblem.__init__(self, params)
 
         # Get 3D pipe mesh from file
-        mesh = Mesh("../data/pipe_0.2.xml.gz")
+        mesh = Mesh("../../data/pipe_0.2.xml.gz")
         self.initialize_geometry(mesh)
 
         # Known properties of the mesh
@@ -50,7 +50,7 @@ class Pipe(NSProblem):
         p0.beta = self.params.beta
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
+    def standard_boundary_conditions(self, V, Q, t):
         # Create no-slip boundary condition for velocity
         g_noslip = [c0, c0, c0]
         bcu = [
@@ -62,6 +62,34 @@ class Pipe(NSProblem):
         bcp = [
             (c0, 1),
             (Constant(p1), 2),
+            ]
+
+        return (bcu, bcp)
+
+    def dirichlet_boundary_conditions(self, V, Q, t):
+        # Create no-slip boundary condition for velocity
+        g_noslip = [c0, c0, c0]
+        bcu = [
+            (g_noslip, 0),
+            ]
+
+        # Create boundary conditions for pressure
+        bcp = [
+            ]
+
+        return (bcu, bcp)
+
+    #boundary_conditions = standard_boundary_conditions
+    boundary_conditions = dirichlet_boundary_conditions
+
+    def penalty_boundary_conditions(self, V, Q, t):
+        bcu = []
+
+        # Create boundary conditions for pressure
+        p1 = (-self.params.beta * self.length) * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
+        bcp = [
+            (c0, 1),
+            (p1, 2),
             ]
 
         return (bcu, bcp)
