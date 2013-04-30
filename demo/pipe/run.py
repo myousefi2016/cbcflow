@@ -11,9 +11,9 @@ set_log_level(100)
 # List schemes
 spd = ParamDict(
     u_degree=1,
-    #solver_p=("lu", "default"),
+    solver_p=("lu", "default"),
     #solver_p=("gmres", "ilu"),
-    solver_p=("cg", "amg"),
+    #solver_p=("cg", "amg"),
     #solver_p=("gmres", "amg"),
     )
 schemes = [
@@ -29,7 +29,7 @@ from pipe import Pipe
 ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
-    num_periods=0.05,
+    num_periods=0.5,#3.0,
     )
 problem = Pipe(ppd)
 
@@ -42,14 +42,15 @@ ppfield_pd = ParamDict(
         save=True,
         ),
     timeparams=ParamDict(
-        step_frequency=10,
+        step_frequency=1,#5,
         )
     )
 wss = WSS(params=ppfield_pd)
 velocity = Velocity(params=ppfield_pd)
 pressure = Pressure(params=ppfield_pd)
 
-postprocessor.add_fields([wss, velocity, pressure])
+#postprocessor.add_fields([wss, velocity, pressure])
+postprocessor.add_fields([velocity, pressure])
 
 # Configure solver
 npd = ParamDict(
