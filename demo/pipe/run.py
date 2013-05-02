@@ -102,7 +102,7 @@ if 1 and enable_annotation:
         adj_html("adjoint.html", "adjoint")
 
     # Try to compute gradient
-    if 1:
+    if 0:
         dJdm = compute_gradient(J, m)
         dJdu = dJdm[:d]
         dJdp = dJdm[d:]
@@ -117,8 +117,8 @@ if 1 and enable_annotation:
         print [norm(dj) for dj in dJdp]
 
     # Try to optimize
-    if 0:
+    if 1:
         Jred = ReducedFunctional(J, m,
                                  eval_cb=update_model_eval,
-                                 eval_derivative_cb=update_derivative_eval)
+                                 derivative_cb=update_derivative_eval)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
