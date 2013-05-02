@@ -90,20 +90,31 @@ if 1 and enable_annotation:
 
     u0, p_out_coeffs = controls
     u, p = state
+    d = len(u)
 
     J = Functional(problem.J(V, Q, t, u, p, controls))
     m = [InitialConditionParameter(u0c) for u0c in u0]
     m += [InitialConditionParameter(p_coeff) for p_coeff in p_out_coeffs]
 
+    # Dump annotation data
+    if 1:
+        adj_html("forward.html", "forward")
+        adj_html("adjoint.html", "adjoint")
+
     # Try to compute gradient
     if 1:
-        dJdm = compute_gradient(J, m) # FIXME: This fails in dolfin-adjoint
+        dJdm = compute_gradient(J, m)
         dJdu = dJdm[:d]
         dJdp = dJdm[d:]
         print 'dJdu ='
-        print [norm(dj.vector()) for dj in dJdu]
+        print dJdu
         print 'dJdp ='
-        print [norm(dj.vector()) for dj in dJdp]
+        print dJdp
+        print
+        print 'dJdu ='
+        print [norm(dj) for dj in dJdu]
+        print 'dJdp ='
+        print [norm(dj) for dj in dJdp]
 
     # Try to optimize
     if 0:

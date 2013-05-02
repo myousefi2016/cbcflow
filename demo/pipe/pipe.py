@@ -7,7 +7,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-c0 = Constant(0)
+c0 = Constant(0, name="c0")
 
 def as_scalar_space(V):
     if V.num_sub_spaces() == 0:
@@ -50,23 +50,25 @@ class Pipe(NSProblem):
 
             # Control parameters
             alpha=1e-4,
-            pdim=1,
+            pdim=5,
             )
         return params
 
     def controls(self, V, Q):
         V = as_scalar_space(V)
-        u0 = [Function(V) for i in range(3)]
+        u0 = [Function(V, name="uc%d"%i) for i in range(3)]
 
         R = FunctionSpace(self.mesh, "Real", 0)
         pdim = self.params.pdim
         #p_out_coeffs = [Constant(0.0) for i in range(pdim)]
-        p_out_coeffs = [Function(R) for i in range(pdim)]
+        p_out_coeffs = [Function(R, name="pc%d"%i) for i in range(pdim)]
 
         return u0, p_out_coeffs
 
-    def initial_conditions(self, V, Q, controls=None):
+    def initial_conditions(self, V, Q, controls):
         u0, p_out_coeffs = controls
+        for u0c in u0:
+            u0c.interpolate(Expression("0.0"))
         # Ignoring p_out_coeffs, returning u0 as initial condition
 
         p0 = Expression("-beta * x[0] * 0.3", beta=1.0)
@@ -74,7 +76,7 @@ class Pipe(NSProblem):
 
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t, controls=None):
+    def boundary_conditions(self, V, Q, t, controls):
         """Return boundary conditions.
 
         Returns (bcu, bcp) on the format:
@@ -89,10 +91,6 @@ class Pipe(NSProblem):
             (g_noslip, 0),
             ]
 
-        if 0:
-            u0, p_out_coeffs = controls
-            # FIXME: Express p1 in terms of p_out_coeffs
-
         # Create boundary conditions for pressure
         if 0:
             # Works with and without penalty formulation:
@@ -103,10 +101,20 @@ class Pipe(NSProblem):
             p1.minflow = 0.3
             p1.beta = self.params.beta
             p1.period = self.params.period
-        else:
+
+        elif 0:
             # Works only with penalty formulation:
             # UFL expression version, time is kept updated automatically through reference to Constant t:
             p1 = (-self.params.beta * self.length) * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
+
+        else:
+            # Express p1 in terms of p_out_coeffs
+            u0, p_out_coeffs = controls
+
+            pdim = self.params.pdim
+            assert len(p_out_coeffs) == pdim
+
+            p1 = p_out_coeffs[0] + sum(p_out_coeffs[k] * sin(self.params.period*pi*k*t) for k in xrange(1, pdim))
 
         bcp = [
             (c0, 1),
@@ -155,7 +163,7 @@ class Pipe(NSProblem):
 
         # Define distance functional
         z = self.observation(V, t)
-        Jdist = (u0 - z)**2*self.dx()*dt
+        Jdist = (u - z)**2*self.dx()*dt
 
         # Setup priors
         p_out_coeffs_prior = as_vector([0.0 for i in xrange(len(p_out_coeffs))])
@@ -163,7 +171,7 @@ class Pipe(NSProblem):
         u0_prior = 0.0*u0
 
         # Define regularization functional
-        alpha = Constant(self.params.alpha)
+        alpha = Constant(self.params.alpha, name="alpha")
         Jreg = (
             + alpha * (p_out_coeffs-p_out_coeffs_prior)**2
             #+ alpha * (p_out_coeffs_shifted-p_out_coeffs)**2
