@@ -9,6 +9,12 @@ from headflow.dol import *
 
 c0 = Constant(0)
 
+def as_scalar_space(V):
+    if V.num_sub_spaces() == 0:
+        return V
+    else:
+        return V.sub(0).collapse()
+
 class Pipe(NSProblem):
     "3D pipe test problem with known analytical solution."
 
@@ -41,16 +47,34 @@ class Pipe(NSProblem):
             # Time parameters
             T=0.8*3,
             dt=1e-3,
+
+            # Control parameters
+            alpha=1e-4,
+            pdim=1,
             )
         return params
 
-    def initial_conditions(self, V, Q):
-        u0 = [c0, c0, c0]
+    def controls(self, V, Q):
+        V = as_scalar_space(V)
+        u0 = [Function(V) for i in range(3)]
+
+        R = FunctionSpace(self.mesh, "Real", 0)
+        pdim = self.params.pdim
+        #p_out_coeffs = [Constant(0.0) for i in range(pdim)]
+        p_out_coeffs = [Function(R) for i in range(pdim)]
+
+        return u0, p_out_coeffs
+
+    def initial_conditions(self, V, Q, controls=None):
+        u0, p_out_coeffs = controls
+        # Ignoring p_out_coeffs, returning u0 as initial condition
+
         p0 = Expression("-beta * x[0] * 0.3", beta=1.0)
         p0.beta = self.params.beta
+
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
+    def boundary_conditions(self, V, Q, t, controls=None):
         """Return boundary conditions.
 
         Returns (bcu, bcp) on the format:
@@ -64,6 +88,10 @@ class Pipe(NSProblem):
         bcu = [
             (g_noslip, 0),
             ]
+
+        if 0:
+            u0, p_out_coeffs = controls
+            # FIXME: Express p1 in terms of p_out_coeffs
 
         # Create boundary conditions for pressure
         if 0:
@@ -97,6 +125,53 @@ class Pipe(NSProblem):
         time constant properly this implementation may be empty.
         """
         pass
+
+    def observation(self, V, t):
+        # Quadratic profile
+        zx = ("(beta/(4*nu))*(r*r-x[1]*x[1]-x[2]*x[2])", "0.0", "0.0")
+        zx = Expression(zx, beta=0.0, nu=1.0, r=0.5)
+        zx.beta = self.params.beta
+        zx.nu = self.params.mu / self.params.rho
+        zx.r = self.radius
+
+        # Transient pulse
+        minflow = 0.3
+        zt = Expression("minflow + (1.0-minflow)*pow(sin(2*DOLFIN_PI*t/period),2)",
+                        minflow=minflow, t=t, period=self.params.T)
+
+        # Set observation to pulsating quadratic profile
+        z = zt*zx
+
+        return z
+
+    def J(self, V, Q, t, u, p, controls):
+        # Interpret controls argument
+        u0, p_out_coeffs = controls
+        u0 = as_vector(u0)
+        p_out_coeffs = as_vector(p_out_coeffs)
+
+        # Control is on outflow boundary which is 2 in this problem
+        dss = self.ds(2)
+
+        # Define distance functional
+        z = self.observation(V, t)
+        Jdist = (u0 - z)**2*self.dx()*dt
+
+        # Setup priors
+        p_out_coeffs_prior = as_vector([0.0 for i in xrange(len(p_out_coeffs))])
+        p_out_coeffs_shifted = as_vector([p_out_coeffs[i+1] for i in xrange(len(p_out_coeffs)-1)] + [p_out_coeffs[0]])
+        u0_prior = 0.0*u0
+
+        # Define regularization functional
+        alpha = Constant(self.params.alpha)
+        Jreg = (
+            + alpha * (p_out_coeffs-p_out_coeffs_prior)**2
+            #+ alpha * (p_out_coeffs_shifted-p_out_coeffs)**2
+            + alpha * (u0-u0_prior)**2
+            #+ alpha * grad(u0-u0_prior)**2
+            ) * dss*dt[START_TIME]
+
+        return Jdist + Jreg
 
 if __name__ == "__main__":
     p = Pipe()

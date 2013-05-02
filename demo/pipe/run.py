@@ -3,7 +3,7 @@
 # Hack to run without installing, useful while working
 import sys; sys.path.insert(0,"../../site-packages")
 
-enable_annotation = False
+enable_annotation = True
 
 import dolfin
 if enable_annotation:
@@ -62,13 +62,52 @@ npd = ParamDict(
     check_mem_usage=True,
     enable_annotation=enable_annotation,
     )
-
 # Solve
 solver = NSSolver(problem, scheme, postprocessor, params=npd)
-solver.solve()
+sns = solver.solve()
 
 
-# Try replay
-if enable_annotation:
+# Try to replay
+if 0 and enable_annotation:
     rep = replay_dolfin()
     print "rep =", rep
+
+
+# Optimization
+def update_model_eval(*args):
+    print "update_model_eval: ", args
+
+def update_derivative_eval(*args):
+    print "update_derivative_eval: ", args
+
+if 1 and enable_annotation:
+    # Fetch some stuff from scheme namespace
+    V = sns["V"]
+    Q = sns["Q"]
+    controls = sns["controls"]
+    state = sns["state"]
+    t = sns["t"]
+
+    u0, p_out_coeffs = controls
+    u, p = state
+
+    J = Functional(problem.J(V, Q, t, u, p, controls))
+    m = [InitialConditionParameter(u0c) for u0c in u0]
+    m += [InitialConditionParameter(p_coeff) for p_coeff in p_out_coeffs]
+
+    # Try to compute gradient
+    if 1:
+        dJdm = compute_gradient(J, m) # FIXME: This fails in dolfin-adjoint
+        dJdu = dJdm[:d]
+        dJdp = dJdm[d:]
+        print 'dJdu ='
+        print [norm(dj.vector()) for dj in dJdu]
+        print 'dJdp ='
+        print [norm(dj.vector()) for dj in dJdp]
+
+    # Try to optimize
+    if 0:
+        Jred = ReducedFunctional(J, m,
+                                 eval_cb=update_model_eval,
+                                 eval_derivative_cb=update_derivative_eval)
+        m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
