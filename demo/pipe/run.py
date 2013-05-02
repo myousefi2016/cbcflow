@@ -3,12 +3,18 @@
 # Hack to run without installing, useful while working
 import sys; sys.path.insert(0,"../../site-packages")
 
+enable_annotation = False
+
+import dolfin
+if enable_annotation:
+    import dolfin_adjoint
+
 from headflow import *
 from headflow.dol import *
 set_log_level(100)
 
 
-# List schemes
+# Configure scheme
 spd = ParamDict(
     u_degree=1,
     solver_p=("lu", "default"),
@@ -16,22 +22,19 @@ spd = ParamDict(
     #solver_p=("cg", "amg"),
     #solver_p=("gmres", "amg"),
     )
-schemes = [
-    #IPCS(spd),
-    PenaltyIPCS(spd),
-    #SegregatedIPCS(spd),
-    #SegregatedIPCS_Optimized(spd),
-    ]
+scheme = PenaltyIPCS(spd)
 
-# List problems
+
+# Configure problem
 from pipe import Pipe
 
 ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
-    num_periods=0.1,#3.0,
+    num_periods=0.01,#3.0,
     )
 problem = Pipe(ppd)
+
 
 # Configure postprocessing
 pppd = ParamDict(casedir="pipe_results")
@@ -39,26 +42,33 @@ postprocessor = NSPostProcessor(pppd)
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
-        save=True,
+        save=False,#True,
         ),
     timeparams=ParamDict(
         step_frequency=1,#5,
         )
     )
-wss = WSS(params=ppfield_pd)
-velocity = Velocity(params=ppfield_pd)
-pressure = Pressure(params=ppfield_pd)
+#wss = WSS(params=ppfield_pd)
+#velocity = Velocity(params=ppfield_pd)
+#pressure = Pressure(params=ppfield_pd)
 
 #postprocessor.add_fields([wss, velocity, pressure])
-postprocessor.add_fields([velocity, pressure])
+#postprocessor.add_fields([velocity, pressure])
+
 
 # Configure solver
 npd = ParamDict(
     plot_solution=False,
     check_mem_usage=True,
+    enable_annotation=enable_annotation,
     )
 
-# Loop over schemes and problems
-for scheme in schemes:
-    solver = NSSolver(problem, scheme, postprocessor, params=npd)
-    solver.solve()
+# Solve
+solver = NSSolver(problem, scheme, postprocessor, params=npd)
+solver.solve()
+
+
+# Try replay
+if enable_annotation:
+    rep = replay_dolfin()
+    print "rep =", rep
