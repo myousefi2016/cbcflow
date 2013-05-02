@@ -29,7 +29,7 @@ from pipe import Pipe
 ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
-    num_periods=0.5,#3.0,
+    num_periods=0.1,#3.0,
     )
 problem = Pipe(ppd)
 
