@@ -22,7 +22,8 @@ spd = ParamDict(
     #solver_p=("cg", "amg"),
     #solver_p=("gmres", "amg"),
     )
-scheme = PenaltyIPCS(spd)
+#scheme = PenaltyIPCS(spd)
+scheme = SegregatedPenaltyIPCS(spd)
 
 
 # Configure problem
@@ -68,9 +69,9 @@ sns = solver.solve()
 
 
 # Try to replay
-if 0 and enable_annotation:
-    rep = replay_dolfin()
-    print "rep =", rep
+if 1 and enable_annotation:
+    res = replay_dolfin()
+    print "replay result =", res
 
 
 # Optimization
@@ -80,7 +81,7 @@ def update_model_eval(*args):
 def update_derivative_eval(*args):
     print "update_derivative_eval: ", args
 
-if 1 and enable_annotation:
+if 0 and enable_annotation:
     # Fetch some stuff from scheme namespace
     V = sns["V"]
     Q = sns["Q"]
@@ -94,7 +95,7 @@ if 1 and enable_annotation:
 
     J = Functional(problem.J(V, Q, t, u, p, controls))
     m = [InitialConditionParameter(u0c) for u0c in u0]
-    m += [InitialConditionParameter(p_coeff) for p_coeff in p_out_coeffs]
+    m += [ScalarParameter(p_coeff) for p_coeff in p_out_coeffs]
 
     # Dump annotation data
     if 1:
@@ -102,8 +103,13 @@ if 1 and enable_annotation:
         adj_html("adjoint.html", "adjoint")
 
     # Try to compute gradient
-    if 0:
+    if 1:
+        Jred = ReducedFunctional(J, m)
+        Jm = Jred([u0c for u0c in u0] + [p_coeff for p_coeff in p_out_coeffs])
         dJdm = compute_gradient(J, m)
+        res = dolfin_adjoint.taylor_test(J, m, Jm, dJdm)
+        print "taylor test result =", res
+
         dJdu = dJdm[:d]
         dJdp = dJdm[d:]
         print 'dJdu ='
@@ -117,7 +123,7 @@ if 1 and enable_annotation:
         print [norm(dj) for dj in dJdp]
 
     # Try to optimize
-    if 1:
+    if 0:
         Jred = ReducedFunctional(J, m,
                                  eval_cb=update_model_eval,
                                  derivative_cb=update_derivative_eval)

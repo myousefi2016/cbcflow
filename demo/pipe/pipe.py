@@ -7,13 +7,9 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-c0 = Constant(0, name="c0")
+c0 = Constant(0, name="zero")
 
-def as_scalar_space(V):
-    if V.num_sub_spaces() == 0:
-        return V
-    else:
-        return V.sub(0).collapse()
+from headflow.core.utils import as_scalar_space
 
 class Pipe(NSProblem):
     "3D pipe test problem with known analytical solution."
@@ -56,12 +52,12 @@ class Pipe(NSProblem):
 
     def controls(self, V, Q):
         V = as_scalar_space(V)
-        u0 = [Function(V, name="uc%d"%i) for i in range(3)]
+        u0 = [Function(V, name="uc%d"%i) for i in range(V.cell().d)]
 
-        R = FunctionSpace(self.mesh, "Real", 0)
         pdim = self.params.pdim
-        #p_out_coeffs = [Constant(0.0) for i in range(pdim)]
-        p_out_coeffs = [Function(R, name="pc%d"%i) for i in range(pdim)]
+        #R = FunctionSpace(self.mesh, "Real", 0)
+        #p_out_coeffs = [Function(R, name="pc%d"%i) for i in range(pdim)]
+        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(pdim)]
 
         return u0, p_out_coeffs
 
