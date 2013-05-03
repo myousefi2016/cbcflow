@@ -17,7 +17,9 @@ set_log_level(100)
 # Configure scheme
 spd = ParamDict(
     u_degree=1,
-    solver_p=("lu", "default"),
+    #solver_p=("gmres", "default"),
+    #solver_p=("lu", "default"),
+    solver_p=("cg", "default"),
     #solver_p=("gmres", "ilu"),
     #solver_p=("cg", "amg"),
     #solver_p=("gmres", "amg"),
@@ -32,7 +34,7 @@ from pipe import Pipe
 ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
-    num_periods=0.01,#3.0,
+    num_periods=0.002,#3.0,
     )
 problem = Pipe(ppd)
 
@@ -69,7 +71,7 @@ sns = solver.solve()
 
 
 # Try to replay
-if 1 and enable_annotation:
+if 0 and enable_annotation:
     res = replay_dolfin()
     print "replay result =", res
 
@@ -81,7 +83,7 @@ def update_model_eval(*args):
 def update_derivative_eval(*args):
     print "update_derivative_eval: ", args
 
-if 0 and enable_annotation:
+if 1 and enable_annotation:
     # Fetch some stuff from scheme namespace
     V = sns["V"]
     Q = sns["Q"]
@@ -103,11 +105,20 @@ if 0 and enable_annotation:
         adj_html("adjoint.html", "adjoint")
 
     # Try to compute gradient
-    if 1:
+    if 0:
+        m = p_out_coeffs[0]
+        Jred = ReducedFunctional(J, ScalarParameter(m))
+        Jm = Jred(m)
+        seed = 1.0
+        dJdm = compute_gradient(J, m, forget=False)
+        res = dolfin_adjoint.taylor_test(Jred, m, Jm, dJdm)#, seed=seed)
+        print "taylor test result =", res
+    if 0:
         Jred = ReducedFunctional(J, m)
         Jm = Jred([u0c for u0c in u0] + [p_coeff for p_coeff in p_out_coeffs])
-        dJdm = compute_gradient(J, m)
-        res = dolfin_adjoint.taylor_test(J, m, Jm, dJdm)
+        seed = [Function(V) for u0c in u0] + [Constant(1.0) for p_coeff in p_out_coeffs]
+        dJdm = compute_gradient(J, m, forget=False)
+        res = dolfin_adjoint.taylor_test(Jred, m, Jm, dJdm, seed=seed)
         print "taylor test result =", res
 
         dJdu = dJdm[:d]
@@ -123,7 +134,7 @@ if 0 and enable_annotation:
         print [norm(dj) for dj in dJdp]
 
     # Try to optimize
-    if 0:
+    if 1:
         Jred = ReducedFunctional(J, m,
                                  eval_cb=update_model_eval,
                                  derivative_cb=update_derivative_eval)

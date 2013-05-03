@@ -52,7 +52,7 @@ class Pipe(NSProblem):
 
     def controls(self, V, Q):
         V = as_scalar_space(V)
-        u0 = [Function(V, name="uc%d"%i) for i in range(V.cell().d)]
+        u0 = [Function(V, name="ui_%d"%i) for i in range(V.cell().d)]
 
         pdim = self.params.pdim
         #R = FunctionSpace(self.mesh, "Real", 0)
