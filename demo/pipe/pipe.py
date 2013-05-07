@@ -26,7 +26,10 @@ class Pipe(NSProblem):
         self.radius = 0.5
 
         # Set end time based on period and number of periods NB! Overrides given T!
-        self.params.T = self.params.period * self.params.num_periods
+        if self.params.num_timesteps:
+            self.params.T = self.params.dt * (self.params.num_timesteps+0.5)
+        else:
+            self.params.T = self.params.period * self.params.num_periods
 
     @classmethod
     def default_user_params(cls):
@@ -36,13 +39,16 @@ class Pipe(NSProblem):
             mu=0.035,
 
             # Pressure gradient amplitude
-            beta=5.0,
-            period=0.8,
-            num_periods=3,
+            beta=0.15,
 
             # Time parameters
-            T=0.8*3,
+            T=None, # Computed
             dt=1e-3,
+            period=0.8,
+
+            # Time to run simulation, periods is used if timesteps are not given
+            num_periods=3,
+            num_timesteps=0,
 
             # Control parameters
             alpha=1e-4,
@@ -51,26 +57,41 @@ class Pipe(NSProblem):
         return params
 
     def controls(self, V, Q):
+        # Velocity initial condition control
         V = as_scalar_space(V)
         u0 = [Function(V, name="ui_%d"%i) for i in range(V.cell().d)]
-
-        pdim = self.params.pdim
-        #R = FunctionSpace(self.mesh, "Real", 0)
-        #p_out_coeffs = [Function(R, name="pc%d"%i) for i in range(pdim)]
-        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(pdim)]
-
-        return u0, p_out_coeffs
-
-    def initial_conditions(self, V, Q, controls):
-        u0, p_out_coeffs = controls
         for u0c in u0:
             u0c.interpolate(Expression("0.0"))
-        # Ignoring p_out_coeffs, returning u0 as initial condition
 
-        p0 = Expression("-beta * x[0] * 0.3", beta=1.0)
-        p0.beta = self.params.beta
+        # Pressure initial condition control
+        p0 = Function(Q, name="p0")
+        #p0e = Expression("-beta * x[0] * 0.3", beta=1.0)
+        #p0e.beta = self.params.beta
+        p0e = Expression("0.0")
+        p0.interpolate(p0e)
 
+        # Coefficients for pressure bcs
+        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(self.params.pdim)]
+
+        return u0, p0, p_out_coeffs
+
+    def initial_conditions(self, V, Q, controls):
+        # Extract initial conditions from controls
+        u0, p0, p_out_coeffs = controls
         return (u0, p0)
+
+    def pressure_basis(self, t):
+        # TODO: Configurable basis
+        if 1: # Fourier basis
+            n = (self.params.pdim-1)//2
+            assert self.params.pdim == 2*n+1
+            return (
+                [1.0]
+                + [sin(self.params.period*pi*k*t) for k in xrange(1,n+1)]
+                + [cos(self.params.period*pi*k*t) for k in xrange(1,n+1)]
+                )
+        elif 0: # Polynomials?
+            pass
 
     def boundary_conditions(self, V, Q, t, controls):
         """Return boundary conditions.
@@ -82,9 +103,8 @@ class Pipe(NSProblem):
         """
 
         # Create no-slip boundary condition for velocity
-        g_noslip = [c0, c0, c0]
         bcu = [
-            (g_noslip, 0),
+            ([c0, c0, c0], 0),
             ]
 
         # Create boundary conditions for pressure
@@ -104,13 +124,9 @@ class Pipe(NSProblem):
             p1 = (-self.params.beta * self.length) * (0.3 + 0.7*sin(t*self.params.period*pi)**2)
 
         else:
-            # Express p1 in terms of p_out_coeffs
-            u0, p_out_coeffs = controls
-
-            pdim = self.params.pdim
-            assert len(p_out_coeffs) == pdim
-
-            p1 = p_out_coeffs[0] + sum(p_out_coeffs[k] * sin(self.params.period*pi*k*t) for k in xrange(1, pdim))
+            # Expressed in terms of p_out_coeffs controls
+            u0, p0, p_out_coeffs = controls
+            p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
 
         bcp = [
             (c0, 1),
@@ -141,7 +157,7 @@ class Pipe(NSProblem):
         # Transient pulse
         minflow = 0.3
         zt = Expression("minflow + (1.0-minflow)*pow(sin(2*DOLFIN_PI*t/period),2)",
-                        minflow=minflow, t=t, period=self.params.T)
+                        minflow=minflow, t=t, period=self.params.period)
 
         # Set observation to pulsating quadratic profile
         z = zt*zx
@@ -150,7 +166,7 @@ class Pipe(NSProblem):
 
     def J(self, V, Q, t, u, p, controls):
         # Interpret controls argument
-        u0, p_out_coeffs = controls
+        u0, p0, p_out_coeffs = controls
         u0 = as_vector(u0)
         p_out_coeffs = as_vector(p_out_coeffs)
 
@@ -161,18 +177,34 @@ class Pipe(NSProblem):
         z = self.observation(V, t)
         Jdist = (u - z)**2*self.dx()*dt
 
+        # Define cyclic distance functional
+        #Jcyc= (u - u0)**2*self.dx()*dt[FINAL_TIME]
+
         # Setup priors
-        p_out_coeffs_prior = as_vector([0.0 for i in xrange(len(p_out_coeffs))])
-        p_out_coeffs_shifted = as_vector([p_out_coeffs[i+1] for i in xrange(len(p_out_coeffs)-1)] + [p_out_coeffs[0]])
         u0_prior = 0.0*u0
+        p0_prior = 0.0*p0
+        p_out_coeffs_prior = as_vector([0.0 for i in xrange(len(p_out_coeffs))])
+
+        # A couple of ways to penalize dp1/dt
+        p_out_coeffs_shifted = as_vector([p_out_coeffs[i+1] for i in xrange(len(p_out_coeffs)-1)] + [p_out_coeffs[0]])
+        t = variable(t)
+        p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
+        p1_t = diff(p1, t)
 
         # Define regularization functional
         alpha = Constant(self.params.alpha, name="alpha")
         Jreg = (
+            + alpha * (u0-u0_prior)**2
+            #+ alpha * div(u0)**2
+            #+ alpha * grad(u0-u0_prior)**2
+
+            + alpha * (p0-p0_prior)**2
+            #+ alpha * grad(p0-p0_prior)**2
+
             + alpha * (p_out_coeffs-p_out_coeffs_prior)**2
             #+ alpha * (p_out_coeffs_shifted-p_out_coeffs)**2
-            + alpha * (u0-u0_prior)**2
-            #+ alpha * grad(u0-u0_prior)**2
+            #+ alpha * (p1)**2
+            #+ alpha * (p1_t)**2
             ) * dss*dt[START_TIME]
 
         return Jdist + Jreg

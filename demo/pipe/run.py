@@ -11,17 +11,32 @@ if enable_annotation:
 
 from headflow import *
 from headflow.dol import *
-set_log_level(100)
+set_log_level(WARNING)
+#set_log_level(PROGRESS)
 
 from headflow.core.utils import get_memory_usage
 print "Memory usage at top of program:", get_memory_usage()
 
+parameters["form_compiler"]["optimize"]     = True
+parameters["form_compiler"]["cpp_optimize"] = True
 
 # Configure scheme
 spd = ParamDict(
     u_degree=1,
-    #solver_p=("gmres", "default"),
+
+    #solver_u_tent=("lu", "default"),
+    #solver_u_corr=("lu", "default"),
+    #solver_p=("lu", "default"),
+
+    solver_u_tent=("gmres", "ilu"),
+    solver_u_corr=("gmres", "ilu"),
     solver_p=("lu", "default"),
+
+    #solver_u_tent=("gmres", "amg"),
+    #solver_u_corr=("gmres", "amg"),
+    #solver_p=("lu", "default"),
+
+    #solver_p=("gmres", "default"),
     #solver_p=("cg", "default"),
     #solver_p=("gmres", "ilu"),
     #solver_p=("cg", "amg"),
@@ -38,6 +53,7 @@ ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
     num_periods=0.002, #3.0,
+    num_timesteps=3,#100,
     )
 problem = Pipe(ppd)
 
@@ -61,7 +77,9 @@ ppfield_pd = ParamDict(
 #postprocessor.add_fields([wss, velocity, pressure])
 #postprocessor.add_fields([velocity, pressure])
 
-#parameters["adjoint"]["test_derivative"] = True
+if 0:
+    parameters["optimization"]["test_gradient"] = True
+    parameters["optimization"]["test_gradient_seed"] = 0.01
 
 # Configure solver
 npd = ParamDict(
@@ -81,11 +99,22 @@ if 0 and enable_annotation:
 
 
 # Optimization
-def update_model_eval(j, m):
-    pass #print "update_model_eval: ", args
+def on_replay(var, func, m):
+    print "/// Replay %s: %s, %s (%g)" % (var.timestep, str(var), func.name(), norm(func))
+    # TODO: Store func for timestep/iter
 
-def update_derivative_eval(*args):
-    pass #print "update_derivative_eval: ", args
+def on_J_eval(j, m):
+    print "/// J evaluated: %g" % j
+    # TODO: Store m, j for iter
+
+def on_J_derivative(j, dj, m):
+    def norm2(x):
+        if isinstance(x, (float,int)):
+            return abs(x)
+        else:
+            return norm(x)
+    print "/// DJ evaluated: %s" % map(lambda x: "%g" % norm2(x), dj)
+    # TODO: Store m, j, dj for iter
 
 if 1 and enable_annotation:
     # Fetch some stuff from scheme namespace
@@ -95,12 +124,13 @@ if 1 and enable_annotation:
     state = sns["state"]
     t = sns["t"]
 
-    u0, p_out_coeffs = controls
+    u0, p0, p_out_coeffs = controls
     u, p = state
     d = len(u)
 
     J = Functional(problem.J(V, Q, t, u, p, controls))
     m = [InitialConditionParameter(u0c) for u0c in u0]
+    m += [InitialConditionParameter(p0)]
     m += [ScalarParameter(p_coeff) for p_coeff in p_out_coeffs]
 
     # Dump annotation data
@@ -119,30 +149,38 @@ if 1 and enable_annotation:
         #print "taylor test result =", res
     if 0:
         Jred = ReducedFunctional(J, m)
-        Jm = Jred([u0c for u0c in u0] + [p_coeff for p_coeff in p_out_coeffs])
-        seed = [Function(V) for u0c in u0] + [Constant(1.0) for p_coeff in p_out_coeffs]
+        Jm = Jred([u0c for u0c in u0] + [p0] + [p_coeff for p_coeff in p_out_coeffs])
+        seed = 0.001
         dJdm = compute_gradient(J, m, forget=False)
         res = dolfin_adjoint.taylor_test(Jred, m, Jm, dJdm, seed=seed)
         print "taylor test result =", res
 
-        dJdu = dJdm[:d]
-        dJdp = dJdm[d:]
-        print 'dJdu ='
-        print dJdu
+        dJdu0 = dJdm[:d]
+        dJdp0 = dJdm[d]
+        dJdp = dJdm[d+1:]
+        print 'dJdu0 ='
+        print dJdu0
+        print 'dJdp0 ='
+        print dJdp0
         print 'dJdp ='
         print dJdp
         print
-        print 'dJdu ='
-        print [norm(dj) for dj in dJdu]
+        print 'dJdu0 ='
+        print [norm(dj) for dj in dJdu0]
+        print 'dJdp0 ='
+        print [norm(dj) for dj in dJdp0]
         print 'dJdp ='
         print [norm(dj) for dj in dJdp]
 
     # Try to optimize
     if 1:
         Jred = ReducedFunctional(J, m,
-                                 eval_cb=update_model_eval,
-                                 derivative_cb=update_derivative_eval)
+                                 eval_cb=on_J_eval,
+                                 derivative_cb=on_J_derivative,
+                                 replay_cb=on_replay)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
+        # TODO: Store m_opt
+        # TODO: Rerun forward problem with postprocessing
 
 
 from headflow.core.utils import get_memory_usage
