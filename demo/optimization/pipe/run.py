@@ -3,6 +3,9 @@
 # Hack to run without installing, useful while working
 import sys; sys.path.insert(0,"../../../site-packages")
 
+import os
+import numpy
+
 enable_annotation = True
 
 import dolfin
@@ -53,7 +56,8 @@ ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
     num_periods=0.002, #3.0,
-    num_timesteps=3,#100,
+    num_timesteps=2,#30,#100,
+    alpha=1e-4,
     )
 problem = Pipe(ppd)
 
@@ -179,9 +183,22 @@ if 1 and enable_annotation:
                                  derivative_cb=on_J_derivative,
                                  replay_cb=on_replay)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
-        # TODO: Store m_opt
-        # TODO: Rerun forward problem with postprocessing
-
+        # TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
+        u0 = m_opt[:d]
+        p0 = m_opt[d]
+        p_coeffs = m_opt[d+1:]
+        u0 = project(as_vector(u0), MixedFunctionSpace([V]*len(u0)))
+        p = numpy.asarray([(t, sum(c*N for c,N in zip(p_out_coeffs, problem.pressure_basis(t))))
+                            for t in numpy.linspace(problem.params.T0, problem.params.T, 100)])
+        if not os.path.exists("optresults"):
+            os.mkdir("optresults")
+        File("optresults/u0.pvd") << u0
+        File("optresults/p0.pvd") << p0
+        open("optresults/pcoeffs.txt", "w").writelines(map(lambda x: "%g\n"%x, p_out_coeffs))
+        numpy.savetxt("optresults/p.txt", p)
+        p2 = numpy.loadtxt("optresults/p.txt")
+        # TODO: Rerun forward problem with postprocessing to inspect final transient state
 
 from headflow.core.utils import get_memory_usage
 print "Memory usage at end of program:", get_memory_usage()
+

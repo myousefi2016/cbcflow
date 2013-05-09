@@ -170,8 +170,11 @@ class Pipe(NSProblem):
         u0 = as_vector(u0)
         p_out_coeffs = as_vector(p_out_coeffs)
 
-        # Control is on outflow boundary which is 2 in this problem
-        dss = self.ds(2)
+        # Pressure control is on outflow boundary which is 2 in this problem
+        control_boundaries = 2
+        dsc = self.ds(control_boundaries)
+        wall_boundaries = 0
+        dsw = self.ds(wall_boundaries)
 
         # Define distance functional
         z = self.observation(V, t)
@@ -194,18 +197,29 @@ class Pipe(NSProblem):
         # Define regularization functional
         alpha = Constant(self.params.alpha, name="alpha")
         Jreg = (
+            # Penalize initial velocity everywhere
             + alpha * (u0-u0_prior)**2
             #+ alpha * div(u0)**2
-            #+ alpha * grad(u0-u0_prior)**2
+            + alpha * grad(u0-u0_prior)**2
 
+            # Penalize initial pressure everywhere
             + alpha * (p0-p0_prior)**2
             #+ alpha * grad(p0-p0_prior)**2
 
+            ) * dx*dt[START_TIME] + (
+
+            # Penalize initial velocity hard to be zero on walls
+            + u0**2
+
+            ) * dsw*dt[START_TIME] + (
+
+            # Penalize time dependent pressure control
             + alpha * (p_out_coeffs-p_out_coeffs_prior)**2
             #+ alpha * (p_out_coeffs_shifted-p_out_coeffs)**2
             #+ alpha * (p1)**2
             #+ alpha * (p1_t)**2
-            ) * dss*dt[START_TIME]
+
+            ) * dsc*dt[START_TIME]
 
         return Jdist + Jreg
 
