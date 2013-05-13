@@ -29,7 +29,7 @@ parameters["form_compiler"]["cpp_optimize"] = True
 from channel import Problem
 jp = ParamDict(
     alpha=1e-4,
-    cyclic=1,
+    cyclic=0,
     )
 ppd = ParamDict(
     dt = 1e-3,
