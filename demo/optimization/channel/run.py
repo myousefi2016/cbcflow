@@ -26,7 +26,7 @@ parameters["form_compiler"]["cpp_optimize"] = True
 
 
 # ====== Configure problem
-from pipe import Problem
+from channel import Problem
 jp = ParamDict(
     alpha=1e-4,
     )
@@ -34,7 +34,7 @@ ppd = ParamDict(
     #dt = 1e-3,
     #T  = 1e-3 * 100,
     num_periods=0.002, #3.0,
-    num_timesteps=1,
+    num_timesteps=10,
     J=jp,
     )
 problem = Problem(ppd)
@@ -189,7 +189,7 @@ if 1 and enable_annotation:
         # TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
         u0 = m_opt[:d]
         p_coeffs = m_opt[d:]
-        u0 = project(as_vector(u0), MixedFunctionSpace([V]*len(u0)))
+        u0 = project(as_vector(u0), MixedFunctionSpace([V]*d))
         p = numpy.asarray([(t, sum(c*N for c,N in zip(p_out_coeffs, problem.pressure_basis(t))))
                             for t in numpy.linspace(problem.params.T0, problem.params.T, 100)])
         if not os.path.exists("optresults"):
