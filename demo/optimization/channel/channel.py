@@ -51,19 +51,19 @@ class Problem(NSProblem):
     def default_user_params(cls):
         jp = ParamDict(
             # Regularization strength
-            alpha=1e-4,
+            alpha=1e-6,
 
             # Regularization term toggles for initial velocity
-            alpha_u_prior = 1,
+            alpha_u_prior = 0,
             alpha_u_div   = 0,
             alpha_u_grad  = 1,
             alpha_u_wall  = 1,
 
             # Regularization term toggles for pressure bcs
-            alpha_p_prior   = 1,
+            alpha_p_prior   = 0,
             alpha_p_shifted = 0,
-            alpha_p_basis   = 0,
-            alpha_p_dt      = 0,
+            alpha_p_basis   = 1,
+            alpha_p_dt      = 1,
 
             # Toggle cyclic term in cost functional
             cyclic = 0,
@@ -94,15 +94,30 @@ class Problem(NSProblem):
             )
         return params
 
+    def set_controls(self, controls):
+        self._controls = controls
+
     def controls(self, V, Q):
         # Velocity initial condition control
+        d = V.cell().d
         V = as_scalar_space(V)
-        u0 = [Function(V, name="ui_%d"%i) for i in range(V.cell().d)]
-        for u0c in u0:
-            u0c.interpolate(Expression("0.0"))
+        u0 = [Function(V, name="ui_%d"%i) for i in range(d)]
 
         # Coefficients for pressure bcs
         p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(self.params.pdim)]
+
+        if hasattr(self, "_controls"):
+            # Set given control values
+            m_u = self._controls[:d]
+            m_p = self._controls[d:]
+            for i, u0c in enumerate(u0):
+                u0c.interpolate(m_u[i])
+            for i, pc in enumerate(p_out_coeffs):
+                pc.assign(m_p[i])
+        else:
+            # Set initial control values
+            for u0c in u0:
+                u0c.interpolate(Expression("0.0"))
 
         return u0, p_out_coeffs
 
@@ -204,8 +219,13 @@ class Problem(NSProblem):
         z = self.observation(V, t)
         Jdist = (u - z)**2*self.dx()*dt
 
+        # TODO: Use this for scaling?
+        z2 = assemble(z**2*self.dx(), mesh=self.mesh, annotate=False)
+        print "ZZZZZZZZZZZZZZZZZ", z2
+
         # Add cyclic distance functional
-        Jdist += jp.cyclic * (u - u0)**2*self.dx()*dt[FINISH_TIME]
+        u02 = as_vector([Function(u0c) for u0c in u0])
+        Jdist += jp.cyclic * (u - u02)**2*self.dx()*dt[FINISH_TIME]
 
         # Setup priors
         u0_prior = 0.0*u0

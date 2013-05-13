@@ -29,35 +29,50 @@ parameters["form_compiler"]["cpp_optimize"] = True
 from channel import Problem
 jp = ParamDict(
     alpha=1e-4,
+    cyclic=1,
     )
 ppd = ParamDict(
-    #dt = 1e-3,
-    #T  = 1e-3 * 100,
-    num_periods=0.002, #3.0,
-    num_timesteps=10,
+    dt = 1e-3,
+    period=0.1,
+    #num_periods=0.002, #3.0,
+    num_timesteps=100,
     J=jp,
     )
 problem = Problem(ppd)
 
 
-# ====== Configure postprocessing
-pppd = ParamDict()
+# ====== Configure postprocessing for initial state
+pppd = ParamDict(casedir="results_initial_state")
 postprocessor = NSPostProcessor(pppd)
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
-        save=False,#True,
+        save=True,
         ),
     timeparams=ParamDict(
-        step_frequency=1,#5,
+        step_frequency=1,
         )
     )
-#wss = WSS(params=ppfield_pd)
-#velocity = Velocity(params=ppfield_pd)
-#pressure = Pressure(params=ppfield_pd)
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+postprocessor.add_fields([velocity, pressure])
 
-#postprocessor.add_fields([wss, velocity, pressure])
-#postprocessor.add_fields([velocity, pressure])
+
+# ====== Configure postprocessing for final state
+pppd = ParamDict(casedir="results_final_state")
+postprocessor2 = NSPostProcessor(pppd)
+
+ppfield_pd = ParamDict(
+    saveparams=ParamDict(
+        save=True,
+        ),
+    timeparams=ParamDict(
+        step_frequency=1,
+        )
+    )
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+postprocessor2.add_fields([velocity, pressure])
 
 
 # ====== Configure scheme
@@ -102,6 +117,7 @@ solver = NSSolver(problem, scheme, postprocessor, params=npd)
 sns = solver.solve()
 
 print "Memory usage after solve:", get_memory_usage()
+
 
 # ====== Optimization
 
@@ -186,21 +202,36 @@ if 1 and enable_annotation:
                                  replay_cb=on_replay)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
 
+    if 1:
         # TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
         u0 = m_opt[:d]
         p_coeffs = m_opt[d:]
         u0 = project(as_vector(u0), MixedFunctionSpace([V]*d))
         p = numpy.asarray([(t, sum(c*N for c,N in zip(p_out_coeffs, problem.pressure_basis(t))))
                             for t in numpy.linspace(problem.params.T0, problem.params.T, 100)])
-        if not os.path.exists("optresults"):
-            os.mkdir("optresults")
-        File("optresults/u0.pvd") << u0
-        open("optresults/pcoeffs.txt", "w").writelines(map(lambda x: "%g\n"%x, p_out_coeffs))
-        numpy.savetxt("optresults/p.txt", p)
-        p2 = numpy.loadtxt("optresults/p.txt")
+        if not os.path.exists("results_control"):
+            os.mkdir("results_control")
+        File("results_control/u0.pvd") << u0
+        open("results_control/pcoeffs.txt", "w").writelines(map(lambda x: "%g\n"%x, p_out_coeffs))
+        numpy.savetxt("results_control/p.txt", p)
+        p2 = numpy.loadtxt("results_control/p.txt")
 
+    if 1:
         # TODO: Rerun forward problem with postprocessing to inspect final transient state
 
+        problem.set_controls(m_opt)
+
+        # ====== Configure solver
+        npd = ParamDict(
+            plot_solution=False,
+            check_mem_usage=True,
+            enable_annotation=False,
+            )
+        # Solve
+        solver = NSSolver(problem, scheme, postprocessor2, params=npd)
+        sns = solver.solve()
+
+        print "Memory usage after solve:", get_memory_usage()
 
 print "Memory usage at end of program:", get_memory_usage()
 
