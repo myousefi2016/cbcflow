@@ -121,22 +121,30 @@ print "Memory usage after solve:", get_memory_usage()
 
 # ====== Optimization
 
+_J_eval_count = 0
+_J_derivative_count = 0
+
 def on_replay(var, func, m):
-    print "/// Replay %s: %s, %s (%g)" % (var.timestep, str(var), func.name(), norm(func))
+    print "/// Replay#%d at %s of %s, ||%s|| = %g" % (_J_eval_count, var.timestep, str(var), func.name(), norm(func))
     # TODO: Store func for timestep/iter
 
 def on_J_eval(j, m):
-    print "/// J evaluated: %g" % j
+    global _J_eval_count
+    print "/// J evaluated #%d: %g" % (_J_eval_count, j)
     # TODO: Store m, j for iter
+    _J_eval_count += 1
 
 def on_J_derivative(j, dj, m):
+    global _J_derivative_count
     def norm2(x):
         if isinstance(x, (float,int)):
             return abs(x)
         else:
             return norm(x)
-    print "/// DJ evaluated: %s" % map(lambda x: "%g" % norm2(x), dj)
+    norms = map(lambda x: "%g" % norm2(x), dj)
+    print "/// DJ evaluated #%d: %s" % (_J_derivative_count, norms)
     # TODO: Store m, j, dj for iter
+    _J_derivative_count += 1
 
 if enable_annotation:
     # Dump annotation data
@@ -234,4 +242,3 @@ if 1 and enable_annotation:
         print "Memory usage after solve:", get_memory_usage()
 
 print "Memory usage at end of program:", get_memory_usage()
-

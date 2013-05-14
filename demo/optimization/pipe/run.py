@@ -28,13 +28,14 @@ parameters["form_compiler"]["cpp_optimize"] = True
 # ====== Configure problem
 from pipe import Problem
 jp = ParamDict(
-    alpha=1e-4,
+    alpha=1e-2,
+    cyclic=0,
     )
 ppd = ParamDict(
     #dt = 1e-3,
-    #T  = 1e-3 * 100,
-    num_periods=0.002, #3.0,
-    num_timesteps=1,
+    #period=0.1,
+    #num_periods=0.002, #3.0,
+    num_timesteps=10,
     J=jp,
     )
 problem = Problem(ppd)
@@ -46,18 +47,32 @@ postprocessor = NSPostProcessor(pppd)
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
-        save=False,#True,
+        save=True,
         ),
     timeparams=ParamDict(
-        step_frequency=1,#5,
+        step_frequency=1,
         )
     )
-#wss = WSS(params=ppfield_pd)
-#velocity = Velocity(params=ppfield_pd)
-#pressure = Pressure(params=ppfield_pd)
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+postprocessor.add_fields([velocity, pressure])
 
-#postprocessor.add_fields([wss, velocity, pressure])
-#postprocessor.add_fields([velocity, pressure])
+
+# ====== Configure postprocessing for final state
+pppd = ParamDict(casedir="results_final_state")
+postprocessor2 = NSPostProcessor(pppd)
+
+ppfield_pd = ParamDict(
+    saveparams=ParamDict(
+        save=True,
+        ),
+    timeparams=ParamDict(
+        step_frequency=1,
+        )
+    )
+velocity = Velocity(params=ppfield_pd)
+pressure = Pressure(params=ppfield_pd)
+postprocessor2.add_fields([velocity, pressure])
 
 
 # ====== Configure scheme
@@ -103,24 +118,33 @@ sns = solver.solve()
 
 print "Memory usage after solve:", get_memory_usage()
 
+
 # ====== Optimization
 
+_J_eval_count = 0
+_J_derivative_count = 0
+
 def on_replay(var, func, m):
-    print "/// Replay %s: %s, %s (%g)" % (var.timestep, str(var), func.name(), norm(func))
+    print "/// Replay#%d at %s of %s, ||%s|| = %g" % (_J_eval_count, var.timestep, str(var), func.name(), norm(func))
     # TODO: Store func for timestep/iter
 
 def on_J_eval(j, m):
-    print "/// J evaluated: %g" % j
+    global _J_eval_count
+    print "/// J evaluated #%d: %g" % (_J_eval_count, j)
     # TODO: Store m, j for iter
+    _J_eval_count += 1
 
 def on_J_derivative(j, dj, m):
+    global _J_derivative_count
     def norm2(x):
         if isinstance(x, (float,int)):
             return abs(x)
         else:
             return norm(x)
-    print "/// DJ evaluated: %s" % map(lambda x: "%g" % norm2(x), dj)
+    norms = map(lambda x: "%g" % norm2(x), dj)
+    print "/// DJ evaluated #%d: %s" % (_J_derivative_count, norms)
     # TODO: Store m, j, dj for iter
+    _J_derivative_count += 1
 
 if enable_annotation:
     # Dump annotation data
@@ -134,15 +158,17 @@ if 0 and enable_annotation:
 
 if 1 and enable_annotation:
     # Fetch some stuff from scheme namespace
-    V = sns["V"]
-    Q = sns["Q"]
-    controls = sns["controls"]
-    state = sns["state"]
     t = sns["t"]
 
-    u0, p_out_coeffs = controls
+    V = sns["V"]
+    Q = sns["Q"]
+    d = V.cell().d
+
+    state = sns["state"]
     u, p = state
-    d = len(u)
+
+    controls = sns["controls"]
+    u0, p_out_coeffs = controls
 
     J = Functional(problem.J(V, Q, t, u, p, controls))
     m = [InitialConditionParameter(u0c) for u0c in u0]
@@ -186,21 +212,35 @@ if 1 and enable_annotation:
                                  replay_cb=on_replay)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
 
+    if 1:
         # TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
         u0 = m_opt[:d]
         p_coeffs = m_opt[d:]
-        u0 = project(as_vector(u0), MixedFunctionSpace([V]*len(u0)))
+        u0 = project(as_vector(u0), MixedFunctionSpace([V]*d))
         p = numpy.asarray([(t, sum(c*N for c,N in zip(p_out_coeffs, problem.pressure_basis(t))))
                             for t in numpy.linspace(problem.params.T0, problem.params.T, 100)])
-        if not os.path.exists("optresults"):
-            os.mkdir("optresults")
-        File("optresults/u0.pvd") << u0
-        open("optresults/pcoeffs.txt", "w").writelines(map(lambda x: "%g\n"%x, p_out_coeffs))
-        numpy.savetxt("optresults/p.txt", p)
-        p2 = numpy.loadtxt("optresults/p.txt")
+        if not os.path.exists("results_control"):
+            os.mkdir("results_control")
+        File("results_control/u0.pvd") << u0
+        open("results_control/pcoeffs.txt", "w").writelines(map(lambda x: "%g\n"%x, p_out_coeffs))
+        numpy.savetxt("results_control/p.txt", p)
+        p2 = numpy.loadtxt("results_control/p.txt")
 
+    if 1:
         # TODO: Rerun forward problem with postprocessing to inspect final transient state
 
+        problem.set_controls(m_opt)
+
+        # ====== Configure solver
+        npd = ParamDict(
+            plot_solution=False,
+            check_mem_usage=True,
+            enable_annotation=False,
+            )
+        # Solve
+        solver = NSSolver(problem, scheme, postprocessor2, params=npd)
+        sns = solver.solve()
+
+        print "Memory usage after solve:", get_memory_usage()
 
 print "Memory usage at end of program:", get_memory_usage()
-

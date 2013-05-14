@@ -40,8 +40,8 @@ class Problem(NSProblem):
             # Regularization term toggles for initial velocity
             alpha_u_prior = 1,
             alpha_u_div   = 0,
-            alpha_u_grad  = 1,
-            alpha_u_wall  = 1,
+            alpha_u_grad  = 0,
+            alpha_u_wall  = 0,
 
             # Regularization term toggles for pressure bcs
             alpha_p_prior   = 1,
@@ -74,15 +74,31 @@ class Problem(NSProblem):
             )
         return params
 
+    def set_controls(self, controls):
+        self._controls = controls
+
     def controls(self, V, Q):
+        d = V.cell().d
+
         # Velocity initial condition control
         V = as_scalar_space(V)
-        u0 = [Function(V, name="ui_%d"%i) for i in range(V.cell().d)]
-        for u0c in u0:
-            u0c.interpolate(Expression("0.0"))
+        u0 = [Function(V, name="ui_%d"%i) for i in xrange(d)]
 
         # Coefficients for pressure bcs
-        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(self.params.pdim)]
+        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in xrange(self.params.pdim)]
+
+        if hasattr(self, "_controls"):
+            # Set given control values
+            m_u = self._controls[:d]
+            m_p = self._controls[d:]
+            for i, u0c in enumerate(u0):
+                u0c.interpolate(m_u[i])
+            for i, pc in enumerate(p_out_coeffs):
+                pc.assign(m_p[i])
+        else:
+            # Set initial control values
+            for u0c in u0:
+                u0c.interpolate(Expression("0.0"))
 
         return u0, p_out_coeffs
 
@@ -90,7 +106,7 @@ class Problem(NSProblem):
         # Extract initial conditions from controls
         u0, p_out_coeffs = controls
 
-        # Pressure initial condition control # TODO: Does not seem to matter, remove!
+        # Pressure initial condition control
         p0 = Function(Q, name="p0")
         p0e = Expression("0.0")
         p0.interpolate(p0e)
@@ -119,10 +135,11 @@ class Problem(NSProblem):
           bcu = [([u0, u1, u2], domainid), ...]
           bcp = [(p, domainid), ...]
         """
+        d = V.cell().d
 
         # Create no-slip boundary condition for velocity
         bcu = [
-            ([c0, c0, c0], 0),
+            ([c0]*d, 0),
             ]
 
         # Create boundary conditions for pressure expressed in terms of p_out_coeffs controls
@@ -148,8 +165,10 @@ class Problem(NSProblem):
         pass
 
     def observation(self, V, t):
+        d = V.cell().d
+
         # Quadratic profile
-        zx = ("upeak*(r*r-x[1]*x[1]-x[2]*x[2])", "0.0", "0.0")
+        zx = ("upeak*(r*r-x[1]*x[1]-x[2]*x[2])", "0.0", "0.0")[:d]
         zx = Expression(zx, upeak=1.0, r=0.5)
         zx.r = self.radius
         zx.upeak = 1.0
@@ -185,8 +204,15 @@ class Problem(NSProblem):
         z = self.observation(V, t)
         Jdist = (u - z)**2*self.dx()*dt
 
+        # TODO: Use this for scaling?
+        z2 = assemble(z**2*self.dx(), mesh=self.mesh, annotate=False)
+        print "ZZZZZZZZZZZZZZZZZ", z2
+        u2 = assemble(u**2*self.dx(), mesh=self.mesh, annotate=False)
+        print "ZZZZZZZZZZZZZZZZZ", u2
+
         # Add cyclic distance functional
-        Jdist += jp.cyclic * (u - u0)**2*self.dx()*dt[FINAL_TIME]
+        #u02 = as_vector([Function(u0c) for u0c in u0])
+        #Jdist += jp.cyclic * (u - u02)**2*self.dx()*dt[FINISH_TIME]
 
         # Setup priors
         u0_prior = 0.0*u0
@@ -202,24 +228,32 @@ class Problem(NSProblem):
         Jreg = (
             # Penalize initial velocity everywhere
             + alpha * jp.alpha_u_prior * (u0-u0_prior)**2
-            + alpha * jp.alpha_u_div   * div(u0)**2
-            + alpha * jp.alpha_u_grad  * grad(u0-u0_prior)**2
+        #    + alpha * jp.alpha_u_div   * div(u0)**2
+        #    + alpha * jp.alpha_u_grad  * grad(u0-u0_prior)**2
             ) * dx*dt[START_TIME]
-        Jreg += (
-            # Penalize initial velocity hard to be zero on walls
-            + jp.alpha_u_wall * u0**2
-            ) * dsw*dt[START_TIME]
+        #Jreg += (
+        #    # Penalize initial velocity hard to be zero on walls
+        #    + jp.alpha_u_wall * u0**2
+        #    ) * dsw*dt[START_TIME]
 
         # Regularization for boundary conditions
         Jreg += (
             # Penalize time dependent pressure control
             + alpha * jp.alpha_p_prior   * (p_out_coeffs-p_out_coeffs_prior)**2
-            + alpha * jp.alpha_p_shifted * (p_out_coeffs_shifted-p_out_coeffs)**2
-            + alpha * jp.alpha_p_basis   * (p1)**2
-            + alpha * jp.alpha_p_dt      * (p1_t)**2
+        #    + alpha * jp.alpha_p_shifted * (p_out_coeffs_shifted-p_out_coeffs)**2
+        #    + alpha * jp.alpha_p_basis   * (p1)**2
+        #    + alpha * jp.alpha_p_dt      * (p1_t)**2
             ) * dsc*dt[START_TIME]
 
-        return Jdist + Jreg
+        # Add distance and regularization to get total cost functional
+        Jtot = Jdist #+ Jreg
+
+        if 1:
+            print
+            print Jtot
+            print
+
+        return Jtot
 
 if __name__ == "__main__":
     p = Problem()

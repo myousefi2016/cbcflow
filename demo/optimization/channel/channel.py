@@ -29,8 +29,8 @@ class Problem(NSProblem):
         NSProblem.__init__(self, params)
 
         # Build 2D channel mesh
-        n = int(self.params.n)
-        length = float(self.params.length)
+        n = int(self.params.geometry.n)
+        length = float(self.params.geometry.length)
         mesh = RectangleMesh(0.0, 0.0, length, 1.0, int(length*n), n, "crossed")
         facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(3)
@@ -49,21 +49,25 @@ class Problem(NSProblem):
 
     @classmethod
     def default_user_params(cls):
+        gp = ParamDict(
+            n=10,
+            length=10.0,
+            )
         jp = ParamDict(
             # Regularization strength
-            alpha=1e-6,
+            alpha=1e-4,
 
             # Regularization term toggles for initial velocity
-            alpha_u_prior = 0,
+            alpha_u_prior = 1,
             alpha_u_div   = 0,
-            alpha_u_grad  = 1,
-            alpha_u_wall  = 1,
+            alpha_u_grad  = 0,
+            alpha_u_wall  = 0,
 
             # Regularization term toggles for pressure bcs
-            alpha_p_prior   = 0,
+            alpha_p_prior   = 1,
             alpha_p_shifted = 0,
-            alpha_p_basis   = 1,
-            alpha_p_dt      = 1,
+            alpha_p_basis   = 0,
+            alpha_p_dt      = 0,
 
             # Toggle cyclic term in cost functional
             cyclic = 0,
@@ -82,15 +86,14 @@ class Problem(NSProblem):
             num_periods=2,
             num_timesteps=0,
 
-            # Geometry parameters
-            n=10,
-            length=10.0,
-
             # Control parameters
             pdim=1,
 
             # Regularization parameters
             J=jp,
+
+            # Geometry parameters
+            geometry=gp,
             )
         return params
 
@@ -98,13 +101,14 @@ class Problem(NSProblem):
         self._controls = controls
 
     def controls(self, V, Q):
-        # Velocity initial condition control
         d = V.cell().d
+
+        # Velocity initial condition control
         V = as_scalar_space(V)
-        u0 = [Function(V, name="ui_%d"%i) for i in range(d)]
+        u0 = [Function(V, name="ui_%d"%i) for i in xrange(d)]
 
         # Coefficients for pressure bcs
-        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(self.params.pdim)]
+        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in xrange(self.params.pdim)]
 
         if hasattr(self, "_controls"):
             # Set given control values
@@ -154,10 +158,11 @@ class Problem(NSProblem):
           bcu = [([u0, u1, u2], domainid), ...]
           bcp = [(p, domainid), ...]
         """
+        d = V.cell().d
 
         # Create no-slip boundary condition for velocity
         bcu = [
-            ([c0]*V.cell().d, 0),
+            ([c0]*d, 0),
             ]
 
         # Create boundary conditions for pressure, expressed in terms of p_out_coeffs controls
@@ -184,8 +189,10 @@ class Problem(NSProblem):
         pass
 
     def observation(self, V, t):
+        d = V.cell().d
+
         # Flat profile, unit flow rate
-        zx = ("1.0", "0.0", "0.0")[:V.cell().d]
+        zx = ("1.0", "0.0", "0.0")[:d]
         zx = Expression(zx)
 
         # Transient pulse, NB! this references the actual Constant t passed here!
