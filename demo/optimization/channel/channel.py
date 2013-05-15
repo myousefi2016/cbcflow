@@ -11,19 +11,35 @@ c0 = Constant(0, name="zero")
 
 from headflow.core.utils import as_scalar_space
 
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] < DOLFIN_EPS and on_boundary
+
+class Right(SubDomain):
+    def __init__(self, length):
+        SubDomain.__init__(self)
+        self.length = length
+    def inside(self, x, on_boundary):
+        return x[0] > self.length-DOLFIN_EPS and on_boundary
+
 class Problem(NSProblem):
-    "3D pipe optimization test problem with known analytical solution."
+    "2D channel optimization test problem."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
 
-        # Get 3D pipe mesh from file
-        mesh = Mesh("../../../data/pipe_0.2.xml.gz")
-        self.initialize_geometry(mesh)
+        # Build 2D channel mesh
+        n = int(self.params.n)
+        length = float(self.params.length)
+        mesh = RectangleMesh(0.0, 0.0, length, 1.0, int(length*n), n, "crossed")
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(3)
+        DomainBoundary().mark(facet_domains, 0)
+        Left().mark(facet_domains, 1)
+        Right(length).mark(facet_domains, 2)
 
-        # Known properties of the mesh
-        self.length = 10.0
-        self.radius = 0.5
+        # Canonical initialization of geometry
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
         # Set end time based on period and number of periods NB! Overrides given T!
         if self.params.num_timesteps:
@@ -35,19 +51,19 @@ class Problem(NSProblem):
     def default_user_params(cls):
         jp = ParamDict(
             # Regularization strength
-            alpha=1e-4,
+            alpha=1e-6,
 
             # Regularization term toggles for initial velocity
-            alpha_u_prior = 1,
+            alpha_u_prior = 0,
             alpha_u_div   = 0,
             alpha_u_grad  = 1,
             alpha_u_wall  = 1,
 
             # Regularization term toggles for pressure bcs
-            alpha_p_prior   = 1,
+            alpha_p_prior   = 0,
             alpha_p_shifted = 0,
-            alpha_p_basis   = 0,
-            alpha_p_dt      = 0,
+            alpha_p_basis   = 1,
+            alpha_p_dt      = 1,
 
             # Toggle cyclic term in cost functional
             cyclic = 0,
@@ -66,6 +82,10 @@ class Problem(NSProblem):
             num_periods=2,
             num_timesteps=0,
 
+            # Geometry parameters
+            n=10,
+            length=10.0,
+
             # Control parameters
             pdim=1,
 
@@ -74,15 +94,30 @@ class Problem(NSProblem):
             )
         return params
 
+    def set_controls(self, controls):
+        self._controls = controls
+
     def controls(self, V, Q):
         # Velocity initial condition control
+        d = V.cell().d
         V = as_scalar_space(V)
-        u0 = [Function(V, name="ui_%d"%i) for i in range(V.cell().d)]
-        for u0c in u0:
-            u0c.interpolate(Expression("0.0"))
+        u0 = [Function(V, name="ui_%d"%i) for i in range(d)]
 
         # Coefficients for pressure bcs
         p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in range(self.params.pdim)]
+
+        if hasattr(self, "_controls"):
+            # Set given control values
+            m_u = self._controls[:d]
+            m_p = self._controls[d:]
+            for i, u0c in enumerate(u0):
+                u0c.interpolate(m_u[i])
+            for i, pc in enumerate(p_out_coeffs):
+                pc.assign(m_p[i])
+        else:
+            # Set initial control values
+            for u0c in u0:
+                u0c.interpolate(Expression("0.0"))
 
         return u0, p_out_coeffs
 
@@ -90,7 +125,7 @@ class Problem(NSProblem):
         # Extract initial conditions from controls
         u0, p_out_coeffs = controls
 
-        # Pressure initial condition control # TODO: Does not seem to matter, remove!
+        # Pressure initial condition control
         p0 = Function(Q, name="p0")
         p0e = Expression("0.0")
         p0.interpolate(p0e)
@@ -122,13 +157,14 @@ class Problem(NSProblem):
 
         # Create no-slip boundary condition for velocity
         bcu = [
-            ([c0, c0, c0], 0),
+            ([c0]*V.cell().d, 0),
             ]
 
-        # Create boundary conditions for pressure expressed in terms of p_out_coeffs controls
+        # Create boundary conditions for pressure, expressed in terms of p_out_coeffs controls
         u0, p_out_coeffs = controls
         p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
 
+        # Collect pressure bcs, fixed to 0 at one side
         bcp = [
             (c0, 1),
             (p1, 2),
@@ -148,11 +184,9 @@ class Problem(NSProblem):
         pass
 
     def observation(self, V, t):
-        # Quadratic profile
-        zx = ("upeak*(r*r-x[1]*x[1]-x[2]*x[2])", "0.0", "0.0")
-        zx = Expression(zx, upeak=1.0, r=0.5)
-        zx.r = self.radius
-        zx.upeak = 1.0
+        # Flat profile, unit flow rate
+        zx = ("1.0", "0.0", "0.0")[:V.cell().d]
+        zx = Expression(zx)
 
         # Transient pulse, NB! this references the actual Constant t passed here!
         zt = Expression("minflow + (1.0-minflow)*pow(sin(2*DOLFIN_PI*t/period),2)",
@@ -160,7 +194,7 @@ class Problem(NSProblem):
         zt.period = self.params.period
         zt.minflow = 0.3
 
-        # Set observation to pulsating quadratic profile
+        # Set observation to pulsating flat profile
         z = zt*zx
 
         return z
@@ -185,8 +219,13 @@ class Problem(NSProblem):
         z = self.observation(V, t)
         Jdist = (u - z)**2*self.dx()*dt
 
+        # TODO: Use this for scaling?
+        z2 = assemble(z**2*self.dx(), mesh=self.mesh, annotate=False)
+        print "ZZZZZZZZZZZZZZZZZ", z2
+
         # Add cyclic distance functional
-        Jdist += jp.cyclic * (u - u0)**2*self.dx()*dt[FINAL_TIME]
+        u02 = as_vector([Function(u0c) for u0c in u0])
+        Jdist += jp.cyclic * (u - u02)**2*self.dx()*dt[FINISH_TIME]
 
         # Setup priors
         u0_prior = 0.0*u0
