@@ -28,8 +28,12 @@ parameters["form_compiler"]["cpp_optimize"] = True
 # ====== Configure problem
 from pipe import Problem
 jp = ParamDict(
-    alpha=1e-4,
-    alpha_u_div=1000,
+    alpha=1e-3,
+    alpha_u_prior=0,
+    alpha_u_grad=0,
+    alpha_u_div=1e6,
+    alpha_u_curl=0,
+    alpha_u_wall=1e3,
     cyclic=0,
     )
 ppd = ParamDict(
@@ -44,7 +48,7 @@ problem = Problem(ppd)
 
 
 # ====== Configure postprocessing
-pppd = ParamDict()
+pppd = ParamDict(casedir="results_initial_run")
 postprocessor = NSPostProcessor(pppd)
 
 ppfield_pd = ParamDict(
@@ -80,6 +84,7 @@ postprocessor2.add_fields([velocity, pressure])
 # ====== Configure scheme
 spd = ParamDict(
     u_degree=1,
+    penalty_gamma=200.0,
 
     #solver_u_tent=("lu", "default"),
     #solver_u_corr=("lu", "default"),

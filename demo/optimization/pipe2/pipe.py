@@ -25,6 +25,8 @@ class Problem(NSProblem):
         self.length = 10.0
         self.radius = 0.5
 
+        self.beta = 4*(self.params.mu/self.params.rho) / self.radius**2
+
         # Set end time based on period and number of periods NB! Overrides given T!
         if self.params.num_timesteps:
             self.params.T = self.params.dt * (self.params.num_timesteps+0.5)
@@ -40,6 +42,7 @@ class Problem(NSProblem):
             # Regularization term toggles for initial velocity
             alpha_u_prior = 1,
             alpha_u_div   = 0,
+            alpha_u_curl  = 0,
             alpha_u_grad  = 0,
             alpha_u_wall  = 0,
 
@@ -97,8 +100,13 @@ class Problem(NSProblem):
                 pc.assign(m_p[i])
         else:
             # Set initial control values
-            for u0c in u0:
-                u0c.interpolate(Expression("0.0"))
+            # STATIONARY SOLUTION FOR DEBUGGING
+            ze = "upeak * (r*r-x[1]*x[1]-x[2]*x[2]) / (r*r)"
+            ze = Expression(ze, upeak=1.0, r=0.5, name="ze")
+            u0[0].interpolate(ze)
+            for i in range(1,d):
+                u0[i].interpolate(Expression("0.0"))
+            p_out_coeffs[0].assign(self.length*self.beta)
 
         return u0, p_out_coeffs
 
@@ -108,7 +116,7 @@ class Problem(NSProblem):
 
         # Pressure initial condition control
         p0 = Function(Q, name="pinit")
-        p0e = Expression("0.0")
+        p0e = Expression("beta*x[0]", beta=self.beta)
         p0.interpolate(p0e)
 
         return (u0, p0)
@@ -168,6 +176,7 @@ class Problem(NSProblem):
         d = V.cell().d
         z = as_vector([Function(V, name="z_%d" % i) for i in xrange(d)])
         aux = [z]
+        self.update_auxilliary_functions(V, Q, t, aux)
         return aux
 
     def update_auxilliary_functions(self, V, Q, t, aux):
@@ -182,6 +191,10 @@ class Problem(NSProblem):
         ze.minflow = 0.3
         ze.upeak = 1.0
         ze.t = float(t)
+
+        # STATIONARY SOLUTION FOR DEBUGGING
+        ze = "upeak * (r*r-x[1]*x[1]-x[2]*x[2]) / (r*r)"
+        ze = Expression(ze, upeak=1.0, r=0.5, name="ze")
 
         # Interpolate ze into x-component of z
         z, = aux
@@ -237,11 +250,12 @@ class Problem(NSProblem):
             # Penalize initial velocity everywhere
             + alpha * jp.alpha_u_prior * (u0-u0_prior)**2
             + alpha * jp.alpha_u_div   * div(u0)**2
+            + alpha * jp.alpha_u_curl  * curl(u0)**2
             + alpha * jp.alpha_u_grad  * grad(u0-u0_prior)**2
             ) * dx*dt[START_TIME]
         Jreg += (
             # Penalize initial velocity hard to be zero on walls
-            + jp.alpha_u_wall * u0**2
+            + alpha * jp.alpha_u_wall * u0**2
             ) * dsw*dt[START_TIME]
 
         # Regularization for boundary conditions
