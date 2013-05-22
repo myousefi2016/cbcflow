@@ -26,10 +26,11 @@ class Problem(NSProblem):
         self.radius = 0.5
 
         self.beta = 4*(self.params.mu/self.params.rho) / self.radius**2
+        self.omega = Constant(self.params.period*pi, name="omega")
 
         # Set end time based on period and number of periods NB! Overrides given T!
         if self.params.num_timesteps:
-            self.params.T = self.params.dt * (self.params.num_timesteps+0.5)
+            self.params.T = self.params.dt * self.params.num_timesteps
         else:
             self.params.T = self.params.period * self.params.num_periods
 
@@ -81,12 +82,14 @@ class Problem(NSProblem):
         if 1: # Fourier basis
             n = (self.params.pdim-1)//2
             assert self.params.pdim == 2*n+1
-            omega = Constant(self.params.period*pi, name="omega")
-            return (
+            omega = self.omega
+            basis = (
                 [1.0]
                 + [sin(omega*k*t) for k in xrange(1,n+1)]
                 + [cos(omega*k*t) for k in xrange(1,n+1)]
                 )
+            print "BASIS:", basis
+            return basis
         elif 0: # Polynomials?
             pass
 
@@ -110,7 +113,7 @@ class Problem(NSProblem):
     def observations(self, spaces, t):
         "Return a list of observation functions that may need updating each timestep."
         U = spaces.U
-        d = U.cell().d
+        d = spaces.d
 
         z = as_vector([Function(U, name="z_%d" % i) for i in xrange(d)])
         ze = self._observation_expression(t)
@@ -137,13 +140,15 @@ class Problem(NSProblem):
 
     def controls(self, spaces):
         U = spaces.U
-        d = U.cell().d
+        d = spaces.d
 
         # Velocity initial condition control
         u0 = [Function(U, name="ui_%d"%i) for i in xrange(d)]
 
         # Coefficients for pressure bcs
         p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in xrange(self.params.pdim)]
+        #print '\n'.join([str(pc) for pc in p_out_coeffs])
+        #crash
 
         if hasattr(self, "_controls"):
             # Set given control values
@@ -161,28 +166,26 @@ class Problem(NSProblem):
             u0[0].interpolate(ze)
             for i in range(1,d):
                 u0[i].interpolate(Expression("0.0"))
-            p_out_coeffs[0].assign(self.length*self.beta)
+                p_out_coeffs[0].assign(-self.length*self.beta)
 
         # Return controls tuple
         controls = (u0, p_out_coeffs)
         return controls
 
     def initial_conditions(self, spaces, controls):
-        Q = spaces.Q
-
         # Extract initial conditions from controls
         u0, p_out_coeffs = controls
 
         # Pressure initial condition control
-        p0 = Function(Q, name="pinit")
-        p0e = Expression("beta*x[0]", beta=self.beta)
+        p0 = Function(spaces.Q, name="pinit")
+        p0e = Expression("-beta*(x[0]+length)", beta=self.beta, length=self.length)
         p0.interpolate(p0e)
 
         # Return ics tuple
         ics = (u0, p0)
         return ics
 
-    def boundary_conditions(self, spaces, t, controls): # TODO: need u,p here, consolidate with Oyvinds resistance conditions
+    def boundary_conditions(self, spaces, u, p, t, controls):
         """Return boundary conditions.
 
         Returns (bcu, bcp) on the format:
@@ -190,7 +193,7 @@ class Problem(NSProblem):
           bcu = [([u0, u1, u2], domainid), ...]
           bcp = [(p, domainid), ...]
         """
-        d = spaces.V.cell().d
+        d = spaces.d
 
         # Create no-slip boundary condition for velocity
         bcu = [
@@ -202,15 +205,15 @@ class Problem(NSProblem):
         p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
 
         bcp = [
-            (c0, 1),
-            (p1, 2),
+            (c0, 2),
+            (p1, 1),
             ]
 
         # Return bcs tuple
         bcs = (bcu, bcp)
         return bcs
 
-    def update_boundary_conditions(self, spaces, t, bcs):
+    def update_boundary_conditions(self, spaces, u, p, t, bcs):
         """Update functions returned by boundary_conditions.
 
         Called every timestep in scheme before applying the bcs

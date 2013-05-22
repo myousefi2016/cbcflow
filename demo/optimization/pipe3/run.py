@@ -14,8 +14,8 @@ if enable_annotation:
 
 from headflow import *
 from headflow.dol import *
-set_log_level(WARNING)
-#set_log_level(PROGRESS)
+#set_log_level(WARNING)
+set_log_level(PROGRESS)
 
 
 from headflow.core.utils import get_memory_usage
@@ -29,20 +29,27 @@ parameters["form_compiler"]["cpp_optimize"] = True
 from pipe import Problem
 jp = ParamDict(
     alpha=1e-3,
+
     alpha_u_prior=1,
     alpha_u_grad=0,
-    alpha_u_div=1e3,
+    alpha_u_div=0,
     alpha_u_curl=0,
-    alpha_u_wall=1,
+    alpha_u_wall=0,
+
+    alpha_p_prior   = 1,
+    alpha_p_shifted = 0,
+    alpha_p_basis   = 0,
+    alpha_p_dt      = 0,
+
     cyclic=0,
     )
 ppd = ParamDict(
-    #dt = 1e-3,
+    dt = 1e-1,
     #period=0.1,
     #num_periods=0.002, #3.0,
-    num_timesteps=10,
+    num_timesteps=1,
     J=jp,
-    pdim=3,
+    pdim=1,
     )
 problem = Problem(ppd)
 
@@ -136,10 +143,11 @@ if enable_annotation:
     adj_html("forward.html", "forward")
     adj_html("adjoint.html", "adjoint")
 
-if 0 and enable_annotation:
+if 1 and enable_annotation:
     # Try to replay
     res = replay_dolfin()
     print "replay result =", res
+    crash
 
 if 1 and enable_annotation:
     # Fetch some stuff from scheme namespace
