@@ -40,10 +40,6 @@ for scheme in schemes:
 	    pp.add_field(analyzer3)
 
 	    p = beltrami.Beltrami(params)
-    #	scheme = SegregatedIPCS(None)
-	    scheme = IPCS(None)
-    #	scheme = IPCS_Stable(None)
-    #	scheme = IPCS_Stabilized(None)
 	    nssolver = NSSolver(p, scheme, pp)  
 	    nssolver.solve()
 
