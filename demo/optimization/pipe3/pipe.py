@@ -158,15 +158,18 @@ class Problem(NSProblem):
                 u0c.interpolate(m_u[i])
             for i, pc in enumerate(p_out_coeffs):
                 pc.assign(m_p[i])
-        else:
+        elif 1: # DISABLED, SETTING ZERO INITIAL CONTROL VALUES
+
             # Set initial control values
             # STATIONARY SOLUTION FOR DEBUGGING
-            ze = "upeak * (r*r-x[1]*x[1]-x[2]*x[2]) / (r*r)"
-            ze = Expression(ze, upeak=1.0, r=0.5, name="ze")
-            u0[0].interpolate(ze)
-            for i in range(1,d):
-                u0[i].interpolate(Expression("0.0"))
-                p_out_coeffs[0].assign(-self.length*self.beta)
+            if 0:
+                ze = "upeak * (r*r-x[1]*x[1]-x[2]*x[2]) / (r*r)"
+                ze = Expression(ze, upeak=1.0, r=0.5, name="ze")
+                u0[0].interpolate(ze)
+                for i in range(1,d):
+                    u0[i].interpolate(Expression("0.0"))
+            if 1:
+                p_out_coeffs[0].assign(-0.1*self.length*self.beta)
 
         # Return controls tuple
         controls = (u0, p_out_coeffs)
@@ -176,10 +179,8 @@ class Problem(NSProblem):
         # Extract initial conditions from controls
         u0, p_out_coeffs = controls
 
-        # Pressure initial condition control
+        # Pressure initial condition control (actually doesn't affect anything)
         p0 = Function(spaces.Q, name="pinit")
-        p0e = Expression("-beta*(x[0]+length)", beta=self.beta, length=self.length)
-        p0.interpolate(p0e)
 
         # Return ics tuple
         ics = (u0, p0)

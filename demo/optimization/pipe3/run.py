@@ -28,7 +28,7 @@ parameters["form_compiler"]["cpp_optimize"] = True
 # ====== Configure problem
 from pipe import Problem
 jp = ParamDict(
-    alpha=1e-3,
+    alpha=1e-10,
 
     alpha_u_prior=1,
     alpha_u_grad=0,
@@ -47,7 +47,7 @@ ppd = ParamDict(
     dt = 1e-1,
     #period=0.1,
     #num_periods=0.002, #3.0,
-    num_timesteps=1,
+    num_timesteps=1,#30,
     J=jp,
     pdim=1,
     )
@@ -89,7 +89,9 @@ postprocessor2.add_fields([velocity, pressure])
 
 
 # ====== Configure scheme
-spd = ParamDict()
+spd = ParamDict(
+    u_family="CR",
+    )
 scheme = CoupledPicard(spd)
 
 
@@ -143,7 +145,7 @@ if enable_annotation:
     adj_html("forward.html", "forward")
     adj_html("adjoint.html", "adjoint")
 
-if 1 and enable_annotation:
+if 0 and enable_annotation:
     # Try to replay
     res = replay_dolfin()
     print "replay result =", res
@@ -215,6 +217,7 @@ if 1 and enable_annotation:
                                  derivative_cb=on_J_derivative,
                                  replay_cb=on_replay)
         m_opt = minimize(Jred, options={"disp":True}) # bounds=bounds, tol=1e-6,
+        print "Memory usage after minimize:", get_memory_usage()
 
     if 1:
         # TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
@@ -231,8 +234,7 @@ if 1 and enable_annotation:
         p2 = numpy.loadtxt("results_control/p.txt")
 
     if 1:
-        # TODO: Rerun forward problem with postprocessing to inspect final transient state
-
+        # Rerun forward problem with postprocessing to inspect final transient state
         problem.set_controls(m_opt)
 
         # ====== Configure solver
