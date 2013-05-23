@@ -73,6 +73,9 @@ class Problem(NSProblem):
             # Control parameters
             pdim=3,
 
+            # Cost functional scaling, auto or a float
+            scale="auto",
+
             # Regularization parameters
             J=jp,
             )
@@ -115,9 +118,12 @@ class Problem(NSProblem):
         U = spaces.U
         d = spaces.d
 
+        # Function to hold the value of z at the current timestep
         z = as_vector([Function(U, name="z_%d" % i) for i in xrange(d)])
         ze = self._observation_expression(t)
         z[0].interpolate(ze)
+
+        # TODO: Return a list of (tk,zk) tuples, zk = z at tk instead
 
         # Return observations tuple
         observations = (z,)
@@ -237,6 +243,7 @@ class Problem(NSProblem):
         # Get parameters
         jp = self.params.J
         alpha = Constant(jp.alpha, name="alpha")
+        dx = self.dx
 
         # Wall is 0 in this problem
         wall_boundaries = 0
@@ -246,17 +253,28 @@ class Problem(NSProblem):
         control_boundaries = 2
         dsc = self.ds(control_boundaries)
 
-        # Define distance from observation
-        z = self.velocity_observation(spaces, t, observations)
-        Jdist = (u - z)**2*self.dx()*dt
+        def assemble2(form):
+            return assemble(form, mesh=self.mesh, annotate=False)
 
-        # TODO: Use this for scaling of J?
-        #z2 = assemble(z**2*self.dx(), mesh=self.mesh, annotate=False)
-        #u2 = assemble(u**2*self.dx(), mesh=self.mesh, annotate=False)
+        # Define distance from observation and compute normalization factor
+        v = TestFunction(spaces.V)
+        z = self.velocity_observation(spaces, t, observations)
+        if isinstance(z, list):
+            Jdist = sum((u - zk)**2*dx()*dt[tk] for tk,zk in z)
+            if self.params.scale == "auto":
+                scale = 1.0 / norm(assemble2(sum(2*dot(zk,v)*dx() for tk,zk in z)))
+        else:
+            Jdist = (u - z)**2*dx()*dt
+            if self.params.scale == "auto":
+                scale = 1.0 / norm(assemble2(2*dot(z,v)*dx()))
+        if isinstance(self.params.scale, (float,int)):
+            scale = float(self.params.scale)
+        print "SCALING FACTOR:", scale
+        scale = Constant(scale)
 
         # Add cyclic distance functional
         #u02 = as_vector([Function(u0c) for u0c in u0])
-        #Jdist += jp.cyclic * (u - u02)**2*self.dx()*dt[FINISH_TIME]
+        #Jdist += jp.cyclic * (u - u02)**2*dx()*dt[FINISH_TIME]
 
         # Setup priors
         u0_prior = 0.0*u0
@@ -269,20 +287,20 @@ class Problem(NSProblem):
         p1_t = diff(p1, t)
 
         # Regularization for initial velocity
-        Jreg = (
+        Jreg = scale * (
             # Penalize initial velocity everywhere
             + alpha * jp.alpha_u_prior * (u0-u0_prior)**2
             + alpha * jp.alpha_u_div   * div(u0)**2
             + alpha * jp.alpha_u_curl  * curl(u0)**2
             + alpha * jp.alpha_u_grad  * grad(u0-u0_prior)**2
             ) * dx*dt[START_TIME]
-        Jreg += (
+        Jreg += scale * (
             # Penalize initial velocity hard to be zero on walls
             + alpha * jp.alpha_u_wall * u0**2
             ) * dsw*dt[START_TIME]
 
         # Regularization for boundary conditions
-        Jreg += (
+        Jreg += scale * (
             # Penalize time dependent pressure control
             + alpha * jp.alpha_p_prior   * (p_out_coeffs-p_out_coeffs_prior)**2
             + alpha * jp.alpha_p_shifted * (p_out_coeffs_shifted-p_out_coeffs)**2

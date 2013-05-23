@@ -23,6 +23,7 @@ print "Memory usage at top of program:", get_memory_usage()
 
 parameters["form_compiler"]["optimize"]     = True
 parameters["form_compiler"]["cpp_optimize"] = True
+parameters["form_compiler"]["cpp_optimize_flags"] = "-O3 -march=native -fno-math-errno -ffinite-math-only -fno-rounding-math -fno-signaling-nans"
 
 
 # ====== Configure problem
@@ -50,6 +51,8 @@ ppd = ParamDict(
     num_timesteps=1,#30,
     J=jp,
     pdim=1,
+    #scale="auto",
+    scale=4000.0,
     )
 problem = Problem(ppd)
 
@@ -90,14 +93,14 @@ postprocessor2.add_fields([velocity, pressure])
 
 # ====== Configure scheme
 spd = ParamDict(
-    u_family="CR",
+    #form_compiler_parameters={'quadrature_degree': 3},
     )
 scheme = CoupledPicard(spd)
 
 
-if 0:
+if 1:
     parameters["optimization"]["test_gradient"] = True
-    parameters["optimization"]["test_gradient_seed"] = 0.01
+    parameters["optimization"]["test_gradient_seed"] = 0.001 # TODO: Test smaller seed to see convergence results
 
 
 # ====== Configure solver
