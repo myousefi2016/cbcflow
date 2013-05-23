@@ -24,33 +24,31 @@ ppfield_pd = ParamDict(
 analyzer3 = WSS(params=ppfield_pd)
 
 
-print params
-
 for N in [4, 8, 16]: 
-  for dt in [0.1, 0.05, 0.025]: 
-    params["N"] = N 
-    params["dt"] = dt 
+    for dt in [0.1, 0.05, 0.025]: 
+	params["N"] = N 
+	params["dt"] = dt 
 
-    pp = NSPostProcessor({"casedir":"results/beltrami_ipcs_segregated/N=%d/dt=%e" % (N,dt)})
-    pp.add_field(analyzer1)
-    pp.add_field(analyzer2)
-    pp.add_field(analyzer3)
+	pp = NSPostProcessor({"casedir":"results/beltrami_ipcs_segregated/N=%d/dt=%e" % (N,dt)})
+	pp.add_field(analyzer1)
+	pp.add_field(analyzer2)
+	pp.add_field(analyzer3)
 
-    p = beltrami.Beltrami(params)
-    scheme = SegregatedIPCS(None)
-    nssolver = NSSolver(p, scheme, pp)  
-    nssolver.solve()
+	p = beltrami.Beltrami(params)
+	scheme = SegregatedIPCS(None)
+	nssolver = NSSolver(p, scheme, pp)  
+	nssolver.solve()
 
-    pp = NSPostProcessor({"casedir":"results/beltrami_ipcs/N=%d/dt=%e" % (N,dt)})
-    pp.add_field(analyzer1)
-    pp.add_field(analyzer2)
-    pp.add_field(analyzer3)
+	pp = NSPostProcessor({"casedir":"results/beltrami_ipcs/N=%d/dt=%e" % (N,dt)})
+	pp.add_field(analyzer1)
+	pp.add_field(analyzer2)
+	pp.add_field(analyzer3)
 
-    p = beltrami.Beltrami(params)
-    scheme = IPCS(None)
-    nssolver = NSSolver(p, scheme, pp)  
-    nssolver.solve()
+	p = beltrami.Beltrami(params)
+	scheme = IPCS(None)
+	nssolver = NSSolver(p, scheme, pp)  
+	nssolver.solve()
 
-     
-  
+	 
+      
 
