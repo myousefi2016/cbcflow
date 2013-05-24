@@ -4,10 +4,14 @@ import sys; sys.path.insert(0,"../site-packages")
 from headflow import *
 import beltrami
 
+#Ns = [2, 4]
 Ns = [2, 4, 8]
-dts = [0.1, 0.05, 0.025]
+#dts = [0.1, 0.05]
+dts = [0.5]
+dts = [0.1, 0.05]
+
 schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)] 
-schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)] 
+schemes = [IPCS_Stabilized(None), IPCS(None) ] 
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
@@ -19,7 +23,9 @@ ppfield_pd = ParamDict(
     )
 analyzer3 = WSS(params=ppfield_pd)
 
-for mu in [1.0, 1.0e-3]: 
+mus = [1.0, 1.0e-3]
+mus = [1.0e-3]
+for mu in mus: 
     params = beltrami.Beltrami.default_user_params()
     params["mu"] = mu 
 
@@ -32,17 +38,18 @@ for mu in [1.0, 1.0e-3]:
 		params["N"] = N 
 		params["dt"] = dt 
 
+		p = beltrami.Beltrami(params)
+
 		analyzer1 = AnalyticalSolutionAnalyzer()
 		analyzer1.params["saveparams"]["save"] = True
 		analyzer2 = EnergyAnalyzer()
 		analyzer2.params["saveparams"]["save"] = True
 
-		pp = NSPostProcessor({"casedir":"results/beltrami_ipcs_segregated/N=%d/dt=%e" % (N,dt)})
+		pp = NSPostProcessor({"casedir":"results/%s/%s/N=%d/dt=%e" % (str(p), str(scheme), N,dt)})
 		pp.add_field(analyzer1)
 		pp.add_field(analyzer2)
 		pp.add_field(analyzer3)
 
-		p = beltrami.Beltrami(params)
 		nssolver = NSSolver(p, scheme, pp)  
 		nssolver.solve()
 
