@@ -12,7 +12,7 @@ import dolfin
 import dolfin_adjoint
 from headflow import *
 from headflow.dol import *
-from headflow.core.utils import get_memory_usage
+from headflow.core.utils import get_memory_usage, headflow_print
 
 
 # ====== Import problem and scheme
@@ -52,36 +52,11 @@ def default_params():
 
     return p
 
-
-# TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
-def store_controls(controls, spaces, timesteps, problem):
-    # Interpret controls
-    d = spaces.d
-    u0 = controls[:d]
-    p_coeffs = controls[d:]
-
-    # Store velocity
-    for k in spaces.dims:
-        File(os.path.join(controls_output_dir, "u0_%d.xml.gz" % k)) << u0[k]
-    u0vec = project(as_vector(u0), spaces.V)
-    f = File(os.path.join(controls_output_dir, "u0.pvd"))
-    f << u0vec
-
-    # Store pressure coeffs
-    f = open(os.path.join(controls_output_dir, "p_coeffs.txt", "w"))
-    f.writelines(map(lambda x: "%g\n"%x, p_coeffs))
-
-    # Store pressure evaluated at timesteps
-    p = numpy.asarray([(t, sum(c*N for c,N in zip(p_coeffs, problem.pressure_basis(t))))
-                        for t in timesteps])
-    numpy.savetxt(os.path.join(controls_output_dir, "p.txt", p))
-
-    #p2 = numpy.loadtxt("results_control/p.txt")
-
-
-# ====== Optimization callbacks
-_J_eval_count = 0
-_J_derivative_count = 0
+def ensure_dir(casedir):
+    if os.path.exists(casedir):
+        print "WARNING! Directory %s already exists." % casedir
+    else:
+        os.mkdir(casedir)
 
 def norm2(x):
     if isinstance(x, (float,int)):
@@ -89,22 +64,32 @@ def norm2(x):
     else:
         return norm(x)
 
-def on_replay(var, func, m):
-    fn = norm2(func)
-    headflow_print("/// Replay#%d at %s of %s, ||%s|| = %g" % (_J_eval_count, var.timestep, str(var), func.name(), fn))
-    # TODO: Use postprocessing framework to store subset of functions for subset of timestep/iter
+# TODO: Store m_opt through postprocessing framework instead of this adhoc implementation
+def store_controls(controls, spaces, timesteps, problem, casedir):
+    ensure_dir(casedir)
 
-def on_J_eval(j, m):
-    global _J_eval_count
-    headflow_print("/// J evaluated #%d: %g" % (_J_eval_count, j))
-    store_controls(controls, j, spaces, timesteps, problem, "iteration%d" % _J_eval_count)
-    _J_eval_count += 1
+    # Interpret controls
+    d = spaces.d
+    u0 = controls[:d]
+    p_coeffs = controls[d:]
 
-def on_J_derivative(j, dj, m):
-    global _J_derivative_count
-    norms = map(lambda x: "%g" % norm2(x), dj)
-    headflow_print("/// DJ evaluated #%d: %s" % (_J_derivative_count, norms))
-    _J_derivative_count += 1
+    # Store velocity
+    for k in spaces.dims:
+        File(os.path.join(casedir, "u0_%d.xml.gz" % k)) << u0[k]
+    u0vec = project(as_vector(u0), spaces.V)
+    f = File(os.path.join(casedir, "u0.pvd"))
+    f << u0vec
+
+    # Store pressure coeffs
+    f = open(os.path.join(casedir, "p_coeffs.txt", "w"))
+    f.writelines(map(lambda x: "%g\n"%x, p_coeffs))
+
+    # Store pressure evaluated at timesteps
+    p = numpy.asarray([(t, sum(c*N for c,N in zip(p_coeffs, problem.pressure_basis(t))))
+                        for t in timesteps])
+    numpy.savetxt(os.path.join(casedir, "p.txt", p))
+
+    #p2 = numpy.loadtxt("results_control/p.txt")
 
 
 # ====== The overall driver function
@@ -129,16 +114,9 @@ def run(params):
 
     # ====== Setup top level casedir
     casedir = params.assimilator.casedir
-    if os.path.exists(casedir):
-        print "WARNING! Case directory %s already exists." % casedir
-    else:
-        os.mkdir(casedir)
-
     controls_output_dir = os.path.join(casedir, "controls")
-    if os.path.exists(controls_output_dir):
-        print "WARNING! Controls output directory %s already exists." % controls_output_dir
-    else:
-        os.mkdir(controls_output_dir)
+    ensure_dir(casedir)
+    ensure_dir(controls_output_dir)
 
 
     # ====== Configure postprocessing for initial forward run
@@ -195,6 +173,29 @@ def run(params):
     u, p = states
 
 
+    # ====== Optimization callbacks
+    _J_eval_count = 0
+    _J_derivative_count = 0
+
+    def on_replay(var, func, m):
+        fn = norm2(func)
+        headflow_print("/// Replay#%d at %s of %s, ||%s|| = %g" % (_J_eval_count, var.timestep, str(var), func.name(), fn))
+        # TODO: Use postprocessing framework to store subset of functions for subset of timestep/iter
+
+    def on_J_eval(j, m):
+        headflow_print("/// J evaluated #%d: %g" % (_J_eval_count, j))
+        casedir = os.path.join(controls_output_dir, "iteration%d" % _J_eval_count)
+        store_controls(controls, j, spaces, timesteps, problem, casedir)
+        _J_eval_count += 1
+
+    def on_J_derivative(j, dj, m):
+        # FIXME: Store dj!
+        norms = map(lambda x: norm2(x), dj)
+        norms = map(lambda x: "%g" % x, norms)
+        headflow_print("/// DJ evaluated #%d: %s" % (_J_derivative_count, norms))
+        _J_derivative_count += 1
+
+
     # ====== Setup reduced functional
     J = Functional(problem.J(spaces, t, u, p, controls, observations))
     m = [InitialConditionParameter(u0c) for u0c in u0]
@@ -220,7 +221,8 @@ def run(params):
 
 
     # ====== Store final control variables
-    store_controls(m_opt, spaces, timesteps, problem)
+    final_casedir = os.path.join(controls_output_dir, "final")
+    store_controls(m_opt, spaces, timesteps, problem, final_casedir)
 
 
     # ====== Configure postprocessing for final state
