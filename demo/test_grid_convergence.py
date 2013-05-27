@@ -10,12 +10,12 @@ dolfin.parameters["allow_extrapolation"] = True
 
 
 #Ns = [2, 4]
-Ns = [2, 4, 8 , 16]
+Ns = [2, 4, 8 , 16, 32, 64, 128, 256]
 #dts = [0.1, 0.05]
-dts = [0.1, 0.05, 0.025]
+dts = [0.1, 0.05, 0.025, 0.0125, 0.00625]
 
 schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)] 
-schemes = [IPCS_Stabilized(None), IPCS(None)] 
+schemes = [IPCS_Stabilized(None), IPCS_Stable(None)] 
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
@@ -27,7 +27,7 @@ ppfield_pd = ParamDict(
     )
 
 mus = [1.0, 1.0e-3]
-mus = [1.0e-3]
+mus = [1.0, 1.0e-1, 1.0e-2, 1.0e-3]
 for mu in mus: 
     params = cylinder.FlowAroundACylinder.default_user_params()
     params["mu"] = mu 
@@ -44,13 +44,13 @@ for mu in mus:
 
 		    analyzer = Velocity(params=ppfield_pd)
 
-		    pp = NSPostProcessor({"casedir":"results/%s/%s/N=%d/dt=%e" % (str(p), str(scheme), N,dt)})
+		    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (str(p), str(scheme), str(mu), N,dt)})
 		    pp.add_field(analyzer)
 
 		    nssolver = NSSolver(p, scheme, pp)  
 		    nssolver.solve()
 
-		    velocity [(N, dt)] = analyzer.get_data()
+		    velocity [(N, dt, mu)] = analyzer.get_data()
 		except Exception as e: 
                     print "The scheme did not work "
                     print e
@@ -67,7 +67,8 @@ for mu in mus:
 		    u_coarse = velocity[(Ns[i], dt)]["data"]
 		    uc = dolfin.interpolate(u_coarse, u_fine.function_space())
 		    difference = dolfin.assemble(dolfin.inner(u_fine - uc, u_fine - uc)*dolfin.dx())
-		    print "difference between level ", N, " and ", N-1, " with dt ", dt, " is ", difference
+		    u_norm = dolfin.assemble(dolfin.inner(u_fine, u_fine)*dolfin.dx())
+		    print "difference between level ", Ns[i+1], " and ", Ns[i], " with dt ", dt, " is ", difference, " versus u_norm ", u_norm
 		except Exception as e: 
                     print "Not able to compare", N, dt
                     print e
@@ -80,7 +81,8 @@ for mu in mus:
 		    u_coarse = velocity[(N, dts[i])]["data"]
 		    uc = dolfin.interpolate(u_coarse, u_fine.function_space())
 		    difference = dolfin.assemble(dolfin.inner(u_fine - uc, u_fine - uc)*dolfin.dx())
-		    print "difference between level ", N, " and ", N-1, " with dt ", dt, " is ", difference
+		    u_norm = dolfin.assemble(dolfin.inner(u_fine, u_fine)*dolfin.dx())
+		    print "difference between dt ", dts[i+1] , " and ", dts[i], " at level ", N, " is ", difference, " versus u_norm ", u_norm 
         
 		except Exception as e: 
                     print "Not able to compare ", N, dt
