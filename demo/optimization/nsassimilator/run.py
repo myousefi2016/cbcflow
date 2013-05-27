@@ -180,15 +180,16 @@ def run(params):
         # TODO: Use postprocessing framework to store subset of functions for subset of timestep/iter
 
     def on_J_eval(j, m):
+        # FIXME: Store j?
         c = on_J_eval.num_calls
         headflow_print("/// J evaluated #%d: %g" % (c, j))
         casedir = os.path.join(controls_output_dir, "iteration%d" % c)
-        store_controls(controls, j, spaces, timesteps, problem, casedir)
+        store_controls(controls, spaces, timesteps, problem, casedir)
         on_J_eval.num_calls += 1
     on_J_eval.num_calls = 0
 
     def on_J_derivative(j, dj, m):
-        # FIXME: Store dj!
+        # FIXME: Store dj?
         norms = map(lambda x: norm2(x), dj)
         norms = map(lambda x: "%g" % x, norms)
         headflow_print("/// DJ evaluated #%d: %s" % (on_J_derivative.num_calls, norms))
