@@ -174,26 +174,26 @@ def run(params):
 
 
     # ====== Optimization callbacks
-    _J_eval_count = 0
-    _J_derivative_count = 0
-
     def on_replay(var, func, m):
         fn = norm2(func)
-        headflow_print("/// Replay#%d at %s of %s, ||%s|| = %g" % (_J_eval_count, var.timestep, str(var), func.name(), fn))
+        headflow_print("/// Replay#%d at %s of %s, ||%s|| = %g" % (on_J_eval.num_calls, var.timestep, str(var), func.name(), fn))
         # TODO: Use postprocessing framework to store subset of functions for subset of timestep/iter
 
     def on_J_eval(j, m):
-        headflow_print("/// J evaluated #%d: %g" % (_J_eval_count, j))
-        casedir = os.path.join(controls_output_dir, "iteration%d" % _J_eval_count)
+        c = on_J_eval.num_calls
+        headflow_print("/// J evaluated #%d: %g" % (c, j))
+        casedir = os.path.join(controls_output_dir, "iteration%d" % c)
         store_controls(controls, j, spaces, timesteps, problem, casedir)
-        _J_eval_count += 1
+        on_J_eval.num_calls += 1
+    on_J_eval.num_calls = 0
 
     def on_J_derivative(j, dj, m):
         # FIXME: Store dj!
         norms = map(lambda x: norm2(x), dj)
         norms = map(lambda x: "%g" % x, norms)
-        headflow_print("/// DJ evaluated #%d: %s" % (_J_derivative_count, norms))
-        _J_derivative_count += 1
+        headflow_print("/// DJ evaluated #%d: %s" % (on_J_derivative.num_calls, norms))
+        on_J_derivative.num_calls += 1
+    on_J_derivative.num_calls = 0
 
 
     # ====== Setup reduced functional
