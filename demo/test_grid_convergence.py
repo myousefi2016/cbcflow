@@ -10,12 +10,12 @@ dolfin.parameters["allow_extrapolation"] = True
 
 
 #Ns = [2, 4]
-Ns = [2, 4, 8 , 16, 32, 64, 128, 256]
+Ns = [64, 128, 256]
 #dts = [0.1, 0.05]
-dts = [0.1, 0.05, 0.025, 0.0125, 0.00625]
+dts = [0.025, 0.0125]
 
 schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)] 
-schemes = [IPCS_Stabilized(None), IPCS_Stable(None)] 
+schemes = [IPCS_Stabilized({"theta":1.0}), IPCS_Stabilized({"theta":0.5}), IPCS_Stable(None)] 
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
@@ -26,13 +26,15 @@ ppfield_pd = ParamDict(
 	)
     )
 
-mus = [1.0, 1.0e-3]
-mus = [1.0, 1.0e-1, 1.0e-2, 1.0e-3]
+mus = [0.5e-2]
 for mu in mus: 
     params = cylinder.FlowAroundACylinder.default_user_params()
     params["mu"] = mu 
 
     for scheme in schemes: 
+        scheme_str = str(scheme)
+        if isinstance(scheme, IPCS_Stabilized): 
+            scheme_str += str(scheme.theta)
 	velocity = {}
 	for N in Ns: 
 	    for dt in dts: 
@@ -44,7 +46,7 @@ for mu in mus:
 
 		    analyzer = Velocity(params=ppfield_pd)
 
-		    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (str(p), str(scheme), str(mu), N,dt)})
+		    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (str(p), scheme_str, str(mu), N,dt)})
 		    pp.add_field(analyzer)
 
 		    nssolver = NSSolver(p, scheme, pp)  
