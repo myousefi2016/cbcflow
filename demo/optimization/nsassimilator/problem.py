@@ -9,7 +9,7 @@ from headflow.dol import *
 
 c0 = Constant(0, name="zero")
 
-from headflow.core.utils import as_scalar_space
+from headflow.core.utils import as_scalar_space, headflow_print
 
 class Problem(NSProblem):
     "3D pipe optimization test problem with known analytical solution."

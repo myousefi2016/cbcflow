@@ -31,9 +31,46 @@ def finalize_time(t):
     # Time constant needs no updating anymore
     t._prev_value = None
 
-def main():
+
+def get_pipe():
     mesh = Mesh("pipe_0.2.xml.gz")
     facet_domains = mesh.domains().facet_domains()
+    return mesh, facet_domains
+
+class Left(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] < DOLFIN_EPS and on_boundary
+
+class Right(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] > 1.0-DOLFIN_EPS and on_boundary
+
+def get_square(n):
+    mesh = UnitSquareMesh(n,n)
+    facet_domains = FacetFunction("size_t", mesh)
+    facet_domains.set_all(4)
+    DomainBoundary().mark(facet_domains, 0)
+    Left().mark(facet_domains, 2)
+    Right().mark(facet_domains, 1)
+    return mesh, facet_domains
+
+def get_cube(n):
+    mesh = UnitCubeMesh(n,n,n)
+    facet_domains = FacetFunction("size_t", mesh)
+    facet_domains.set_all(4)
+    DomainBoundary().mark(facet_domains, 0)
+    Left().mark(facet_domains, 2)
+    Right().mark(facet_domains, 1)
+    return mesh, facet_domains
+
+def main(mesh, N, tol):
+    if mesh == "p":
+        mesh, facet_domains = get_pipe()
+    if mesh == "s":
+        mesh, facet_domains = get_square(N)
+    if mesh == "c":
+        mesh, facet_domains = get_cube(N)
+
     ds = ufl.ds[facet_domains]
     n  = FacetNormal(mesh)
 
@@ -116,12 +153,12 @@ def main():
     solver.parameters["lu_solver"]["verbose"] = True
     solver.parameters["newton_solver"]["report"] = True
 
-    solver.parameters["lu_solver"]["reuse_factorization"] = True
+    solver.parameters["lu_solver"]["reuse_factorization"] = False
     solver.parameters["lu_solver"]["same_nonzero_pattern"] = True
     solver.parameters["reset_jacobian"] = False
 
-    solver.parameters["newton_solver"]["absolute_tolerance"] = 1e-5
-    solver.parameters["newton_solver"]["relative_tolerance"] = 1e-5
+    solver.parameters["newton_solver"]["absolute_tolerance"] = tol
+    solver.parameters["newton_solver"]["relative_tolerance"] = tol
 
     for timestep in range(1,2):
         assign_time(t, timestep*float(k))
@@ -132,14 +169,27 @@ def main():
     controls = uinit, p_out
     return u0, controls
 
+# Example that fails replay with 1e-16 but passes gradient test:
+mesh = "s" # or "c" or "p"
+N = 30 # UnitFooMesh resolution
+tol = 1e-14 # picard tolerance
+
+# Get params
+import sys
+args = sys.argv[1:]
+if args:
+    mesh, N, tol = args
+    N = int(N)
+    tol = float(tol)
+
 # Run
-u, controls = main()
+u, controls = main(mesh, N, tol)
 adj_html("forward.html", "forward")
 adj_html("adjoint.html", "adjoint")
 
 # Replay
-#res = replay_dolfin(forget=False)
-#print "replay result =", res
+res = replay_dolfin(forget=False)
+print "replay result =", res
 
 # Test gradient
 parameters["optimization"]["test_gradient"] = True
@@ -153,3 +203,5 @@ m += [ScalarParameter(p_coeff) for p_coeff in [p_out]]
 
 Jred = ReducedFunctional(J, m)
 m_opt = minimize(Jred, options={"disp":True})
+
+print "replay result =", res
