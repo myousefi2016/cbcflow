@@ -31,6 +31,9 @@ def default_params():
 
     # Configure top level behaviour
     pa = ParamDict(
+        casedir="default_casedir",
+        verbose=False,
+
         # Optimization process params
         minimize_tolerance=1e-6,
 
@@ -38,8 +41,6 @@ def default_params():
         replay_only=False,
         evaluate_only=False,
         enable_test_gradient=False,
-
-        verbose=False,
         )
 
     # Collect params
@@ -68,29 +69,102 @@ def norm2(x):
 def store_controls(controls, spaces, timesteps, problem, casedir):
     ensure_dir(casedir)
 
-    # Interpret controls
+    def fn(name):
+        return os.path.join(casedir, name)
+
+    def save_array(name, data):
+        numpy.savetxt(fn(name), data)
+
+    def assemble2(form):
+        return assemble(form, mesh=problem.mesh, annotate=False)
+
+    def project2(expr, space):
+        return project(expr, space, annotate=False)
+
+    n = FacetNormal(problem.mesh)
+    ds = problem.ds
+
+    # Get some dimensions
     d = spaces.d
-    u0 = controls[:d]
-    p_coeffs = controls[d:]
+    num_p_controls = len(problem.control_boundaries)
+    pdim = problem.params.pdim
 
-    # Store velocity
+    # Interpret controls (flat array)
+    assert len(controls) == d + pdim*num_p_controls
+    u0 = as_vector(controls[:d])
+    p_coeffs = [as_vector(controls[d+k*pdim: d+(k+1)*pdim])
+                for k in xrange(num_p_controls)]
+
+    # Store velocity components # TODO: Use xdmf?
     for k in spaces.dims:
-        File(os.path.join(casedir, "u0_%d.xml.gz" % k)) << u0[k]
-    u0vec = project(as_vector(u0), spaces.V)
-    f = File(os.path.join(casedir, "u0.pvd"))
-    f << u0vec
+        File(fn("u0_%d.xml.gz" % k)) << u0[k]
 
-    # Store pressure coeffs
-    f = open(os.path.join(casedir, "p_coeffs.txt", "w"))
-    f.writelines(map(lambda x: "%g\n"%x, p_coeffs))
+    # Store velocity vector for visualization
+    File(fn("u0.pvd")) << project2(u0, spaces.V_CG1)
 
-    # Store pressure evaluated at timesteps
-    p = numpy.asarray([(t, sum(c*N for c,N in zip(p_coeffs, problem.pressure_basis(t))))
-                        for t in timesteps])
-    numpy.savetxt(os.path.join(casedir, "p.txt", p))
+    # Store some postprocessed quantities for convenient inspection
+    File(fn("div_u0.pvd")) << project2(div(u0), spaces.U_CG1)
 
-    #p2 = numpy.loadtxt("results_control/p.txt")
+    # Store norms
+    with open(fn("norms.txt"), "w") as f:
+        u0norm = sqrt(assemble2(u0**2*dx()))
+        f.write("||u0||     = %g\n" % u0norm)
+        u0divnorm = sqrt(assemble2(div(u0)**2*dx()))
+        f.write("||div u0|| = %g\n" % u0divnorm)
+        u0n = assemble2(dot(u0,n)*ds())
+        f.write("int_Gamma (u0 . n) = %g\n" % u0n)
 
+    # Store flow rates
+    with open(fn("flowrates.txt"), "w") as f:
+        for name, boundaries in [("walls", problem.wall_boundaries),
+                                 ("given", problem.given_pressure_boundaries),
+                                 ("controls", problem.control_boundaries)]:
+            f.write("%s\n" % name)
+            for r in boundaries:
+                Qr = assemble2(dot(u0, n)*ds(r))
+                f.write("%d  %.6e\n" % (r, Qr))
+
+    # Store raw pressure coeffs
+    pc = numpy.zeros((num_p_controls, pdim))
+    for k in xrange(num_p_controls):
+        for i in xrange(pdim):
+            pc[k,i] = p_coeffs[k][i]
+    save_array("p_coeffs.txt", pc)
+
+    # Store pressure and basis functions evaluated at timesteps
+    pv = numpy.zeros((len(timesteps), 1+num_p_controls))
+    Nv = numpy.zeros((len(timesteps), 1+pdim))
+    for j, t in enumerate(timesteps):
+        Ns = problem.pressure_basis(t)
+        pv[j,0] = t
+        Nv[j,0] = t
+        for i in xrange(pdim):
+            Nv[j,i+1] = Ns[i]
+        for k in xrange(num_p_controls):
+            pk = sum(c*N for c,N in zip(p_coeffs[k],Ns))
+            pv[j,k+1] = pk
+    save_array("p_controls.txt", pv)
+    save_array("p_basis.txt", Nv)
+
+    # Debugging plots TODO: Move to analysis script for inspecting
+    if 0:
+        pv = numpy.loadtxt(fn("p_controls.txt"))
+        Nv = numpy.loadtxt(fn("p_basis.txt"))
+        assert pv.shape == (len(timesteps), 1+num_p_controls)
+        assert Nv.shape == (len(timesteps), 1+pdim)
+        import pylab
+        pylab.figure(1)
+        pylab.hold(True)
+        for k in xrange(num_p_controls):
+            pylab.plot(pv[0,:], pv[1+k,:])
+        pylab.legend(["p %d" % k for k in xrange(num_p_controls)])
+        pylab.hold(False)
+        pylab.figure(2)
+        pylab.hold(True)
+        for k in xrange(pdim):
+            pylab.plot(Nv[0,:], Nv[1+k,:])
+        pylab.legend(["N %d" % k for k in xrange(pdim)])
+        pylab.hold(False)
 
 # ====== The overall driver function
 def run(params):
@@ -167,7 +241,9 @@ def run(params):
     observations = sns["observations"]
 
     controls = sns["controls"]
-    u0, p_out_coeffs = controls
+    u0, p_coeffs = controls
+    num_p_controls = len(problem.control_boundaries)
+    pdim = problem.params.pdim
 
     states = sns["states"]
     u, p = states
@@ -183,8 +259,8 @@ def run(params):
         # FIXME: Store j?
         c = on_J_eval.num_calls
         headflow_print("/// J evaluated #%d: %g" % (c, j))
-        casedir = os.path.join(controls_output_dir, "iteration%d" % c)
-        store_controls(controls, spaces, timesteps, problem, casedir)
+        casedir = os.path.join(controls_output_dir, "J_call_%d" % c)
+        store_controls(m, spaces, timesteps, problem, casedir)
         on_J_eval.num_calls += 1
     on_J_eval.num_calls = 0
 
@@ -200,7 +276,9 @@ def run(params):
     # ====== Setup reduced functional
     J = Functional(problem.J(spaces, t, u, p, controls, observations))
     m = [InitialConditionParameter(u0c) for u0c in u0]
-    m += [ScalarParameter(p_coeff) for p_coeff in p_out_coeffs]
+    for k in xrange(num_p_controls):
+        m += [ScalarParameter(p_coeffs[k][i]) for i in xrange(pdim)]
+
     Jred = ReducedFunctional(J, m,
                              eval_cb=on_J_eval,
                              derivative_cb=on_J_derivative,
@@ -209,7 +287,10 @@ def run(params):
 
     # ====== Test replay through evaluation of reduced functional
     if params.assimilator.evaluate_only:
-        Jm = Jred([u0c for u0c in u0] + [p_coeff for p_coeff in p_out_coeffs])
+        mval = list(u0)
+        for k in xrange(num_p_controls):
+            mval += list(p_coeffs[k])
+        Jm = Jred(mval)
         headflow_print("Jm = %g" % Jm)
         return 0
 
@@ -256,8 +337,14 @@ def run(params):
     return 0
 
 if __name__ == "__main__":
+
     p = default_params()
+
     p.problem.num_timesteps = 1
-    p.scale=1e4,
-    p.pdim=1,
+    p.problem.scale = 1e4
+    p.problem.pdim = 1
+
+    p.assimilator.casedir = "single_timestep_test"
+    p.assimilator.minimize_tolerance = 1e-4
+
     sys.exit(run(p))

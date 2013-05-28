@@ -11,6 +11,12 @@ c0 = Constant(0, name="zero")
 
 from headflow.core.utils import as_scalar_space, headflow_print
 
+def compute_end_time(params):
+    if params.num_timesteps:
+        return params.dt * params.num_timesteps
+    else:
+        return params.period * params.num_periods
+
 class Problem(NSProblem):
     "3D pipe optimization test problem with known analytical solution."
 
@@ -25,17 +31,27 @@ class Problem(NSProblem):
         self.length = 10.0
         self.radius = 0.5
 
-        self.wall_boundaries = 0
-        self.control_boundaries = 2
-
-        self.beta = 4*(self.params.mu/self.params.rho) / self.radius**2
-        self.omega = Constant(self.params.period*pi, name="omega")
+        # FIXME: Use everywhere:
+        self.wall_boundaries = (0,)
+        self.given_pressure_boundaries = (2,)
+        self.control_boundaries = (1,)
 
         # Set end time based on period and number of periods NB! Overrides given T!
-        if self.params.num_timesteps:
-            self.params.T = self.params.dt * self.params.num_timesteps
-        else:
-            self.params.T = self.params.period * self.params.num_periods
+        assert self.params.T is None, "Invalid T set, this problem computes T from dt*num_timesteps or period*num_periods."
+        self.params.T = compute_end_time(self.params)
+
+        # Fourier basis # TODO: Configurable basis
+        omega = Constant(self.params.period*pi, name="omega")
+        n = (self.params.pdim-1)//2
+        assert self.params.pdim == 2*n+1
+        self._pressure_basis = (
+            [lambda t: 1.0]
+            + [lambda t: sin(omega*k*t) for k in xrange(1,n+1)]
+            + [lambda t: cos(omega*k*t) for k in xrange(1,n+1)]
+            )
+
+        # Parameters of "analytical" solution
+        self.beta = 4*(self.params.mu/self.params.rho) / self.radius**2
 
     @classmethod
     def default_user_params(cls):
@@ -51,8 +67,7 @@ class Problem(NSProblem):
             alpha_u_wall  = 0,
 
             # Regularization term toggles for pressure bcs
-            alpha_p_prior   = 1,
-            alpha_p_shifted = 0,
+            alpha_p_coeffs  = 1,
             alpha_p_basis   = 0,
             alpha_p_dt      = 0,
 
@@ -84,20 +99,8 @@ class Problem(NSProblem):
             )
         return params
 
-    def pressure_basis(self, t): # TODO: Configurable basis
-        if 1: # Fourier basis
-            n = (self.params.pdim-1)//2
-            assert self.params.pdim == 2*n+1
-            omega = self.omega
-            basis = (
-                [1.0]
-                + [sin(omega*k*t) for k in xrange(1,n+1)]
-                + [cos(omega*k*t) for k in xrange(1,n+1)]
-                )
-            #print "BASIS:", basis
-            return basis
-        elif 0: # Polynomials?
-            pass
+    def pressure_basis(self, t):
+        return as_vector([N(t) for N in self._pressure_basis])
 
     def x_observation_expression(self, t):
         # Quadratic profile times a transient pulse
@@ -150,23 +153,28 @@ class Problem(NSProblem):
     def controls(self, spaces):
         U = spaces.U
         d = spaces.d
+        pdim = self.params.pdim
+        num_p_controls = len(self.control_boundaries)
 
         # Velocity initial condition control
-        u0 = [Function(U, name="ui_%d"%i) for i in xrange(d)]
+        u0 = as_vector([Function(U, name="ui_%d"%i) for i in xrange(d)])
 
         # Coefficients for pressure bcs
-        p_out_coeffs = [Constant(0.0, name="pc%d"%i) for i in xrange(self.params.pdim)]
-        #print '\n'.join([str(pc) for pc in p_out_coeffs])
-        #crash
+        p_coeffs = [as_vector( [Constant(0.0, name="pc%d_%d" % (k,i)) for i in xrange(pdim)] )
+                    for k in xrange(num_p_controls)]
 
         if hasattr(self, "_controls"):
             # Set given control values
             m_u = self._controls[:d]
-            m_p = self._controls[d:]
             for i, u0c in enumerate(u0):
                 u0c.interpolate(m_u[i])
-            for i, pc in enumerate(p_out_coeffs):
-                pc.assign(m_p[i])
+
+            m_p = self._controls[d:]
+            assert len(m_p) == num_p_controls*pdim
+            for k in xrange(num_p_controls):
+                for i in xrange(pdim):
+                    p_coeffs[k][i].assign(m_p[k*pdim + i])
+
         elif 1: # DISABLED, SETTING ZERO INITIAL CONTROL VALUES
 
             # Set initial control values
@@ -178,15 +186,15 @@ class Problem(NSProblem):
                 for i in range(1,d):
                     u0[i].interpolate(Expression("0.0"))
             if 1:
-                p_out_coeffs[0].assign(-0.1*self.length*self.beta)
+                p_coeffs[0][0].assign(-0.1*self.length*self.beta)
 
         # Return controls tuple
-        controls = (u0, p_out_coeffs)
+        controls = (u0, p_coeffs)
         return controls
 
     def initial_conditions(self, spaces, controls):
         # Extract initial conditions from controls
-        u0, p_out_coeffs = controls
+        u0, p_coeffs = controls
 
         # Pressure initial condition control (actually doesn't affect anything)
         p0 = Function(spaces.Q, name="pinit")
@@ -206,18 +214,17 @@ class Problem(NSProblem):
         d = spaces.d
 
         # Create no-slip boundary condition for velocity
-        bcu = [
-            ([c0]*d, 0),
-            ]
+        bcu = [([c0]*d, r) for r in self.wall_boundaries]
 
-        # Create boundary conditions for pressure expressed in terms of p_out_coeffs controls
-        u0, p_out_coeffs = controls
-        p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
+        # Create boundary conditions for pressure on non-control boundaries
+        bcp = [(c0, r) for r in self.given_pressure_boundaries]
 
-        bcp = [
-            (c0, 2),
-            (p1, 1),
-            ]
+        # Create boundary conditions for pressure expressed in terms of p_coeffs controls
+        u0, p_coeffs = controls
+        Ns = self.pressure_basis(t)
+        for k,r in enumerate(self.control_boundaries):
+            pr = dot(p_coeffs[k], Ns)
+            bcp += [(pr, r)]
 
         # Return bcs tuple
         bcs = (bcu, bcp)
@@ -238,10 +245,15 @@ class Problem(NSProblem):
 
     def J(self, spaces, t, u, p, controls, observations):
 
+        # Get some dimensions
+        num_p_controls = len(self.control_boundaries)
+        pdim = self.params.pdim
+
         # Interpret controls argument
-        u0, p_out_coeffs = controls
-        u0 = as_vector(u0)
-        p_out_coeffs = as_vector(p_out_coeffs)
+        u0, p_coeffs = controls
+
+        # Consistency check for control dimensions
+        assert all(p_coeffs[k].shape() == (pdim,) for k in xrange(num_p_controls))
 
         # Get parameters
         jp = self.params.J
@@ -280,23 +292,26 @@ class Problem(NSProblem):
             u02 = as_vector([Function(u0c) for u0c in u0])
             Jdist += jp.cyclic * (u - u02)**2*dx()*dt[FINISH_TIME]
 
-        # Setup priors
+        # Setup prior for u TODO: Do we need this?
         u0_prior = 0.0*u0
-        p_out_coeffs_prior = as_vector([0.0 for i in xrange(len(p_out_coeffs))])
 
-        # A couple of ways to penalize dp1/dt
-        p_out_coeffs_shifted = as_vector([p_out_coeffs[i+1] for i in xrange(len(p_out_coeffs)-1)] + [p_out_coeffs[0]])
+        # Evaluate pressure basis in time constant
         t = variable(t)
-        p1 = sum(p_out_coeffs[k] * N for k,N in enumerate(self.pressure_basis(t)))
-        p1_t = diff(p1, t)
+        Ns = self.pressure_basis(t)
+
+        # Compute pressure functions p(t) and dp/dt from coefficients
+        p_v = [dot(p_coeffs[k], Ns)
+               for k in xrange(num_p_controls)]
+        p_t = [diff(p_v[k], t)
+               for k in xrange(num_p_controls)]
 
         # Regularization for initial velocity
         Jreg = scale * (
             # Penalize initial velocity everywhere
-            + alpha * jp.alpha_u_prior * (u0-u0_prior)**2
+            + alpha * jp.alpha_u_prior * (u0 - u0_prior)**2
             + alpha * jp.alpha_u_div   * div(u0)**2
             + alpha * jp.alpha_u_curl  * curl(u0)**2
-            + alpha * jp.alpha_u_grad  * grad(u0-u0_prior)**2
+            + alpha * jp.alpha_u_grad  * grad(u0 - u0_prior)**2
             ) * dx*dt[START_TIME]
         Jreg += scale * (
             # Penalize initial velocity hard to be zero on walls
@@ -304,13 +319,13 @@ class Problem(NSProblem):
             ) * dsw*dt[START_TIME]
 
         # Regularization for boundary conditions
-        Jreg += scale * (
-            # Penalize time dependent pressure control
-            + alpha * jp.alpha_p_prior   * (p_out_coeffs-p_out_coeffs_prior)**2
-            + alpha * jp.alpha_p_shifted * (p_out_coeffs_shifted-p_out_coeffs)**2
-            + alpha * jp.alpha_p_basis   * (p1)**2
-            + alpha * jp.alpha_p_dt      * (p1_t)**2
-            ) * dsc*dt[START_TIME]
+        for k in range(num_p_controls):
+            Jreg += scale * (
+                # Penalize time dependent pressure control
+                + alpha * jp.alpha_p_coeffs  * (p_coeffs[k])**2
+                + alpha * jp.alpha_p_basis   * (p_v[k])**2
+                + alpha * jp.alpha_p_dt      * (p_t[k])**2
+                ) * dsc*dt[START_TIME]
 
         # Add distance and regularization to get total cost functional
         Jtot = Jdist + Jreg
