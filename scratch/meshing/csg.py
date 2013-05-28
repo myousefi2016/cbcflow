@@ -47,7 +47,7 @@ def unit_square_points():
 def make_mesh_from_points(points, res=16):
     polygon = Polygon(as_points(points))
     mesh = Mesh(polygon, res)
-    return mesh
+    return mesh, None
 
 def make_diamond1(res=16):
     mesh_res = 2*res
@@ -56,7 +56,7 @@ def make_diamond1(res=16):
 
     polygon = Polygon(points)
     mesh = Mesh(polygon, res)
-    return mesh
+    return mesh, None
 
 def make_diamond(res=16):
 
@@ -71,7 +71,7 @@ def make_diamond(res=16):
     polygon = Polygon(points)
 
     mesh = Mesh(polygon, res)
-    return mesh
+    return mesh, None
 
 def make_angled_channel(res=16):
     mesh_res = 2*res
@@ -88,7 +88,7 @@ def make_angled_channel(res=16):
     polygon = Polygon(points)
 
     mesh = Mesh(polygon, mesh_res)
-    return mesh
+    return mesh, None
 
 def make_channel(res=16):
     mesh_res = 2*res
@@ -97,7 +97,7 @@ def make_channel(res=16):
     geometry = channel
 
     mesh = Mesh(geometry, mesh_res)
-    return mesh
+    return mesh, None
 
 def make_channel_with_aneurysm(res=16):
     cres = res
@@ -108,7 +108,7 @@ def make_channel_with_aneurysm(res=16):
     geometry = channel + aneurysm
 
     mesh = Mesh(geometry, mesh_res)
-    return mesh
+    return mesh, None
 
 def make_t_section(res=16):
     cres = res
@@ -119,7 +119,7 @@ def make_t_section(res=16):
     geometry = inlet + outlets
 
     mesh = Mesh(geometry, mesh_res)
-    return mesh
+    return mesh, None
 
 def make_t_section_with_aneurysm(res=16):
     cres = res
@@ -131,24 +131,26 @@ def make_t_section_with_aneurysm(res=16):
     geometry = inlet + outlets + aneurysm
 
     mesh = Mesh(geometry, mesh_res)
-    return mesh
+    return mesh, None
 
 def make_bifurcation_with_aneurysm(res=16):
+    # TODO: Make this a reusable function with parameterization as arguments
+
+    # Mesh and circle resolutions
     cres = res
     pres = res
     mesh_res = 2*res
 
     # Parameterization of geometry
-    radius = 0.5
     midx, midy = 0.0, 0.0
+    radius = 0.5
+    inlen = 8.0
 
-    inlen = 10.0
-
-    left_outlen = 5.0
+    left_outlen = 6.0
     left_angle = pi/4
     left_relrad = 0.5**0.5 * 1.01
 
-    right_outlen = 5.0
+    right_outlen = 6.0
     right_angle = pi/4
     right_relrad = 0.5**0.5 * 1.01
 
@@ -158,9 +160,9 @@ def make_bifurcation_with_aneurysm(res=16):
 
     # (origin, angle, length, relradius) for each channel segment
     segments = [
-        ((midx, midy-inlen), pi/2, inlen, 1.0),
-        ((midx, midy), pi/2 + left_angle, left_outlen, left_relrad),
-        ((midx, midy), pi/2 - right_angle, right_outlen, right_relrad),
+        ((midx, midy), -pi/2, inlen, radius),
+        ((midx, midy), pi/2 + left_angle, left_outlen, left_relrad*radius),
+        ((midx, midy), pi/2 - right_angle, right_outlen, right_relrad*radius),
         ]
 
     # Assert that we don't get gaps in the angles between the inlet and outlet channels
@@ -169,19 +171,20 @@ def make_bifurcation_with_aneurysm(res=16):
 
     # Create channel segment polygons
     channels = []
-    for origin, angle, length, relradius in segments:
-        r = relradius * radius
+    for origin, angle, length, r in segments:
         points = rectangle_points((0.0, -r), (length, +r))
         points = rotate_points(angle, points)
         points = translate_points(origin, points)
         channels += [Polygon(points)]
 
     # Create aneurysm
-    aneurysm = Circle(aside*radius, aoff*radius, arad*radius, cres)
+    ax, ay = aside*radius, aoff*radius
+    ar = arad*radius
+    aneurysm = Circle(ax, ay, ar, cres)
 
     # Create patches to avoid holes
-    patch1 = Circle(midx, midy, radius, cres)
-    patch2 = Circle(aside*radius, aoff*radius-arad*radius, 0.5*radius, cres)
+    patch1 = Circle(midx, midy, radius, pres)
+    patch2 = Circle(ax, ay-ar, 0.5*radius, pres)
 
     # Merge geometries
     geometry = channels[0]
@@ -193,7 +196,27 @@ def make_bifurcation_with_aneurysm(res=16):
 
     # Discretize
     mesh = Mesh(geometry, mesh_res)
-    return mesh
+
+    # Mark boundaries
+    class RadiusDomain(SubDomain):
+        def __init__(self, x, r):
+            SubDomain.__init__(self)
+            self.x = x
+            self.r2 = r**2 * (1.0+10*DOLFIN_EPS)
+        def inside(self, x, on_boundary):
+            r2 = (x[0]-self.x[0])**2 + (x[1]-self.x[1])**2
+            return on_boundary and r2 <= self.r2
+    facet_domains = FacetFunction("size_t", mesh)
+    facet_domains.set_all(2+len(segments))
+    DomainBoundary().mark(facet_domains, 0)
+    RadiusDomain((ax, ay), ar).mark(facet_domains, 1)
+    for k, seg in enumerate(segments):
+        origin, angle, length, r = seg
+        x = origin[0] + length*cos(angle)
+        y = origin[1] + length*sin(angle)
+        RadiusDomain((x,y), r).mark(facet_domains, 2+k)
+
+    return mesh, facet_domains
 
 #make_mesh = make_channel
 #make_mesh = make_channel_with_aneurysm
@@ -206,27 +229,45 @@ make_mesh = make_bifurcation_with_aneurysm
 
 def create_meshes():
     resolutions = (8, 16, 32, 64)
-    resolutions = (32,)
     meshes = []
-    for k, n in enumerate(resolutions):
-        mesh = make_mesh(n)
-        meshes.append(mesh)
+    for k, res in enumerate(resolutions):
+        mesh, facet_domains = make_mesh(res)
+        meshes.append((res, mesh, facet_domains))
+    return meshes
 
+def store_meshes(meshes):
+    for res, mesh, facet_domains in meshes:
+        File("mesh_r%d.xml.gz" % res) << mesh
+        if facet_domains is not None:
+            File("facet_domains_r%d.xml.gz" % res) << facet_domains
+
+def count_meshdims(meshes):
+    for res, mesh, facet_domains in meshes:
         U = FunctionSpace(mesh, "CG", 2)
         Q = FunctionSpace(mesh, "CG", 1)
         R = FunctionSpace(mesh, "CR", 1)
         P = FunctionSpace(mesh, "DG", 0)
         print
-        print "Sizes for mesh %d, resolution %d:" % (k, n)
-        print mesh.num_cells(), mesh.num_vertices()
-        print U.dim(), Q.dim(), U.dim()*3 + Q.dim()
-        print R.dim(), P.dim(), R.dim()*3 + P.dim()
-    return meshes
+        print "Sizes for mesh with res = %d:" % (res,)
+        print "c,v:", mesh.num_cells(), mesh.num_vertices()
+        print "u,q,uq:", U.dim(), Q.dim(), U.dim()*3 + Q.dim()
+        print "r,p,rp:", R.dim(), P.dim(), R.dim()*3 + P.dim()
+        print "Assembled volume of mesh:"
+        print assemble(Constant(1.0)*dx(), mesh=mesh)
+        if facet_domains is not None:
+            print "Assembled areas of boundaries:"
+            for k in range(6):
+                print k, assemble(Constant(1.0)*ds[facet_domains](k), mesh=mesh)
 
 def plot_meshes(meshes):
-    for k, mesh in enumerate(meshes):
-        plot(mesh, title="mesh %d" % k)
+    for res, mesh, facet_domains in meshes:
+        plot(mesh, title="mesh %d" % res)
+        if facet_domains is not None:
+            plot(facet_domains, title="facet domains %d" % res)
     interactive()
 
 if __name__ == "__main__":
-    plot_meshes(create_meshes())
+    meshes = create_meshes()
+    count_meshdims(meshes)
+    store_meshes(meshes)
+    plot_meshes(meshes)
