@@ -15,23 +15,14 @@ class Problem(NSDAProblem):
     def __init__(self, params=None):
         NSDAProblem.__init__(self, params)
 
-        # TODO: Need to fix parameter system to add parameters in an additional subclass level
-        self.params.meshres = 32 # 64
-        res = self.params.meshres
-
-        # ... Problem specific definitions assumed to be present:
-
-        mesh_filename = "mesh_r%d.xml.gz" % res
+        mesh_filename = "mesh_37k.xml.gz"
         mesh = Mesh(mesh_filename)
 
-        facet_domains_filename = "facet_domains_r%d.xml.gz" % res
-        facet_domains = MeshFunction("size_t", mesh, facet_domains_filename)
+        self.initialize_geometry(mesh)
 
-        self.initialize_geometry(mesh, facet_domains=facet_domains)
-
-        self.wall_boundaries = (0,1)
-        self.given_pressure_boundaries = (2,)
-        self.control_boundaries = (3,4)
+        self.wall_boundaries = (0,)
+        self.given_pressure_boundaries = (1,)
+        self.control_boundaries = (2,3)
 
     def observations(self, spaces, t):
         "Return a list of observation functions that may need updating each timestep."
