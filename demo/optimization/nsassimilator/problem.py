@@ -7,7 +7,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-from daproblem import NSDAProblem
+from nsdaproblem import NSDAProblem
 
 class Problem(NSDAProblem):
     "3D pipe optimization test problem with known analytical solution."
@@ -54,14 +54,12 @@ class Problem(NSDAProblem):
         U = spaces.U
         d = spaces.d
 
-
         # Function to hold the value of z at the current timestep
         z = as_vector([Function(U, name="z_%d" % i) for i in xrange(d)])
         ze = self._observation_expression(t)
         z[0].interpolate(ze)
 
-        # FIXME: Return a list of (tk,zk) tuples, zk = z at tk instead
-
+        # FIXME: Return a list of (tk,zk) tuples, zk = z at tk instead, read from file
 
         # Return observations tuple
         observations = (z,)

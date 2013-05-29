@@ -16,7 +16,7 @@ from headflow.core.utils import get_memory_usage, headflow_print
 
 
 # ====== Import problem and scheme
-from problem import Problem # This limits us to a single problem spec in a single directory
+from problem2d import Problem # This limits us to a single problem spec in a single directory
 from headflow import CoupledPicard as Scheme
 
 
@@ -340,11 +340,11 @@ if __name__ == "__main__":
 
     p = default_params()
 
-    p.problem.num_timesteps = 1
-    p.problem.scale = 1e4
-    p.problem.pdim = 1
+    p.problem.num_timesteps = 10
+    p.problem.scale = "auto"
+    p.problem.pdim = 11
 
-    p.assimilator.casedir = "single_timestep_test"
-    p.assimilator.minimize_tolerance = 1e-4
+    p.assimilator.casedir = "problem2d_test"
+    p.assimilator.minimize_tolerance = 1e-3
 
     sys.exit(run(p))

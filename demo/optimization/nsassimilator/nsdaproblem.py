@@ -107,6 +107,17 @@ class NSDAProblem(NSProblem):
         "Set controls to be returned next time controls() is called."
         self._controls = controls
 
+    def initial_control_values(self):
+        d = self.mesh.ufl_cell().d
+        num_p_controls = len(self.control_boundaries)
+        e0 = Expression("0.0")
+
+        # Start from zero if we know nothing
+        u0 = [e0, e0, e0][:d]
+        p_coeffs0 = [0.0]*num_p_controls
+
+        return u0, p_coeffs0
+
     def controls(self, spaces):
         U = spaces.U
         d = spaces.d
@@ -151,17 +162,6 @@ class NSDAProblem(NSProblem):
         # Return controls tuple
         controls = (u0, p_coeffs)
         return controls
-
-    def initial_control_values(self):
-        d = self.mesh.ufl_cell().d
-        num_p_controls = len(self.control_boundaries)
-        e0 = Expression("0.0")
-
-        # Start from zero if we know nothing
-        u0 = [e0, e0, e0][:d]
-        p_coeffs0 = [0.0]*num_p_controls
-
-        return u0, p_coeffs0
 
     def initial_conditions(self, spaces, controls):
         # Extract initial conditions from controls
@@ -243,7 +243,8 @@ class NSDAProblem(NSProblem):
         v = TestFunction(spaces.V)
         z, = observations
         if isinstance(z, list):
-            Jdist = sum((u - zk)**2*dx()*dt[tk] for tk,zk in z)
+            Jdist_terms = [(u - zk)**2*dx()*dt[tk] for tk,zk in z]
+            Jdist = sum(Jdist_terms[1:], Jdist_terms[0])
             if self.params.scale == "auto":
                 scale = 1.0 / norm(_assemble(sum(2*dot(zk,v)*dx() for tk,zk in z)))
         else:
