@@ -75,10 +75,10 @@ def store_controls(controls, spaces, timesteps, problem, casedir):
     def save_array(name, data):
         numpy.savetxt(fn(name), data)
 
-    def assemble2(form):
+    def _assemble(form):
         return assemble(form, mesh=problem.mesh, annotate=False)
 
-    def project2(expr, space):
+    def _project(expr, space):
         return project(expr, space, annotate=False)
 
     n = FacetNormal(problem.mesh)
@@ -100,18 +100,18 @@ def store_controls(controls, spaces, timesteps, problem, casedir):
         File(fn("u0_%d.xml.gz" % k)) << u0[k]
 
     # Store velocity vector for visualization
-    File(fn("u0.pvd")) << project2(u0, spaces.V_CG1)
+    File(fn("u0.pvd")) << _project(u0, spaces.V_CG1)
 
     # Store some postprocessed quantities for convenient inspection
-    File(fn("div_u0.pvd")) << project2(div(u0), spaces.U_CG1)
+    File(fn("div_u0.pvd")) << _project(div(u0), spaces.U_CG1)
 
     # Store norms
     with open(fn("norms.txt"), "w") as f:
-        u0norm = sqrt(assemble2(u0**2*dx()))
+        u0norm = sqrt(_assemble(u0**2*dx()))
         f.write("||u0||     = %g\n" % u0norm)
-        u0divnorm = sqrt(assemble2(div(u0)**2*dx()))
+        u0divnorm = sqrt(_assemble(div(u0)**2*dx()))
         f.write("||div u0|| = %g\n" % u0divnorm)
-        u0n = assemble2(dot(u0,n)*ds())
+        u0n = _assemble(dot(u0,n)*ds())
         f.write("int_Gamma (u0 . n) = %g\n" % u0n)
 
     # Store flow rates
@@ -121,7 +121,7 @@ def store_controls(controls, spaces, timesteps, problem, casedir):
                                  ("controls", problem.control_boundaries)]:
             f.write("%s\n" % name)
             for r in boundaries:
-                Qr = assemble2(dot(u0, n)*ds(r))
+                Qr = _assemble(dot(u0, n)*ds(r))
                 f.write("%d  %.6e\n" % (r, Qr))
 
     # Store raw pressure coeffs
