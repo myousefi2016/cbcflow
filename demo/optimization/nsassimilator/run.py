@@ -342,9 +342,14 @@ if __name__ == "__main__":
 
     p.problem.num_timesteps = 10
     p.problem.scale = "auto"
-    p.problem.pdim = 11
+    p.problem.pdim = 7
+    p.problem.J.alpha = 1e-4
+    p.problem.J.alpha_u = 1
+    #p.problem.J.alpha_u_wall = 1
+    p.problem.J.alpha_u_div = 1e4
+    p.problem.J.alpha_p_coeffs = 1
 
-    p.assimilator.casedir = "problem2d_test"
+    p.assimilator.casedir = "problem2d_test_scaled"
     p.assimilator.minimize_tolerance = 1e-3
 
     sys.exit(run(p))

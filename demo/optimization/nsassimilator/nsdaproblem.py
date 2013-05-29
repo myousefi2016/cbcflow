@@ -239,29 +239,32 @@ class NSDAProblem(NSProblem):
         # Integration over all control boundaries
         dsc = self.ds(self.control_boundaries)
 
-        # Define distance from observation and compute normalization factor
+        # Compute scaling factor
         v = TestFunction(spaces.V)
         z, = observations
-        if isinstance(z, list):
-            Jdist_terms = [(u - zk)**2*dx()*dt[tk] for tk,zk in z]
-            Jdist = sum(Jdist_terms[1:], Jdist_terms[0])
-            if self.params.scale == "auto":
+        if self.params.scale == "auto":
+            if isinstance(z, list):
                 scale = 1.0 / norm(_assemble(sum(2*dot(zk,v)*dx() for tk,zk in z)))
-        else:
-            Jdist = (u - z)**2*dx()*dt
-            if self.params.scale == "auto":
+            else:
                 scale = 1.0 / norm(_assemble(2*dot(z,v)*dx()))
         if isinstance(self.params.scale, (float,int)):
             scale = float(self.params.scale)
         headflow_print("Using scaling factor %g" % scale)
         scale = Constant(scale)
 
+        # Define distance from observation
+        if isinstance(z, list):
+            Jdist_terms = [scale*(u - zk)**2*dx()*dt[tk] for tk,zk in z]
+            Jdist = sum(Jdist_terms[1:], Jdist_terms[0])
+        else:
+            Jdist = scale*(u - z)**2*dx()*dt
+
         # Add cyclic in time distance functional
         if jp.cyclic > 0:
             # Hack: make a copy of initial condition, causing this copy to be annotated at the
             # finish time because this function (J()) is called after the initial forward run.
             u02 = as_vector([Function(u0c) for u0c in u0])
-            Jdist += jp.cyclic * (u - u02)**2*dx()*dt[FINISH_TIME]
+            Jdist += scale * jp.cyclic * (u - u02)**2*dx()*dt[FINISH_TIME]
 
         # Setup prior for u
         u0_prior, p_coeffs_prior = self.priors(spaces)
