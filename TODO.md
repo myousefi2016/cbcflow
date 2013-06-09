@@ -1,5 +1,8 @@
 
 
+- Update boundary handling to fenics dev? Need to agree on a time to do this.
+
+
 - Add NSSolver unit test with mock scheme and postprocessor,
   testing that the solver steps correctly.
 
@@ -58,3 +61,12 @@
 
 - Setup a benchmark suite.
   Bonus points: Make it runnable on cluster.
+
+- Setup a benchmark suite.
+  Bonus points: Make it runnable on cluster.
+
+
+- Make suites run on buildbot!
+
+- Make a release?
+
