@@ -1,7 +1,0 @@
-This directory contains regression tests of the headflow solver project.
-
-These tests can run longer computations and compare with reference values,
-but keep them as short as possible to cover what we need to test.
-Eventually we can split the tests into short and long suites if needed.
-
-TODO: Add reference comparison framework, maybe based on postprocessing framework?

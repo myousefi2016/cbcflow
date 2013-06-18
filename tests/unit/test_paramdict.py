@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import unittest
-from init_test import init_test
-init_test(__name__)
 
 from headflow import ParamDict
 
@@ -204,5 +202,3 @@ class TestParamDict(unittest.TestCase):
     def test_arg_parsing(self):
         pass # TODO
 
-if __name__ == "__main__":
-    unittest.main()
