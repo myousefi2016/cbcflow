@@ -9,6 +9,9 @@ Things to do in headflow
 WIP Martin
 ==========
 
+- Add NSScheme unit test with mock problem stepping through each scheme for 2
+  timesteps and checking types, using headflow.all_schemes and their default parameters.
+
 - Consolidate NSProblem and NSProblem2 and update all schemes to follow:
 
   - Use Spaces in all schemes
@@ -20,6 +23,8 @@ WIP Martin
   - Use make*bcs in all schemes
 
   - Remove fetch_bcs from scheme class
+
+  - Return local namespace from all schemes
 
 
 WIP Oyvind
@@ -107,9 +112,6 @@ Tests
 
 - Add NSSolver unit test with mock scheme and postprocessor,
   testing that the solver steps correctly.
-
-- Add NSScheme unit test with mock problem stepping through each scheme for 2
-  timesteps and checking types, using headflow.all_schemes and their default parameters.
 
 - Improve unit test suite further (not sure what is needed yet).
   Bonus points: Make it runnable on cluster.
