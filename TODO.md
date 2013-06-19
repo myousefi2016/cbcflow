@@ -14,17 +14,15 @@ WIP Martin
 
 - Consolidate NSProblem and NSProblem2 and update all schemes to follow:
 
-  - Use Spaces in all schemes
-
   - Use assign*ics in all schemes
-
-  - Call update at timestep 0 in all schemes
 
   - Use make*bcs in all schemes
 
   - Remove fetch_bcs from scheme class
 
-  - Return local namespace from all schemes
+  - Use time constant in all schemes
+
+  - Call problem.update in all schemes
 
 
 WIP Oyvind
