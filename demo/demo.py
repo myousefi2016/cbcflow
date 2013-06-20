@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# Hack to run without installing, useful while working
-import sys; sys.path.insert(0,"../site-packages")
-
 from headflow import *
 from headflow.dol import *
 set_log_level(100)

@@ -1,6 +1,4 @@
 
-import sys; sys.path.insert(0,"../site-packages")
-
 from headflow import *
 import cylinder
 from math import sqrt
@@ -14,8 +12,8 @@ Ns = [64, 128, 256]
 #dts = [0.1, 0.05]
 dts = [0.025, 0.0125]
 
-schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)]
-schemes = [IPCS_Stabilized({"theta":1.0}), IPCS_Stabilized({"theta":0.5}), IPCS_Stable(None)]
+schemes = [IPCS(), IPCS_Stable(), IPCS_Stabilized(), SegregatedIPCS()]
+schemes = [IPCS_Stabilized({"theta":1.0}), IPCS_Stabilized({"theta":0.5}), IPCS_Stable()]
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(

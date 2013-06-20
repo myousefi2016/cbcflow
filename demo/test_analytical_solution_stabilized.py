@@ -1,6 +1,4 @@
 
-import sys; sys.path.insert(0,"../site-packages")
-
 from headflow import *
 import beltrami
 
@@ -10,8 +8,8 @@ Ns = [2, 4, 8]
 dts = [0.5]
 dts = [0.1, 0.05]
 
-schemes = [IPCS(None), IPCS_Stable(None), IPCS_Stabilized(None), SegregatedIPCS(None)]
-schemes = [IPCS_Stabilized(None), IPCS(None) ]
+schemes = [IPCS(), IPCS_Stable(), IPCS_Stabilized(), SegregatedIPCS()]
+schemes = [IPCS_Stabilized(), IPCS() ]
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(

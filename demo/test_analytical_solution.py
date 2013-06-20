@@ -1,6 +1,4 @@
 
-import sys; sys.path.insert(0,"../site-packages")
-
 from headflow import *
 import beltrami
 
@@ -38,8 +36,8 @@ for N in Ns:
         pp.add_field(analyzer3)
 
         p = beltrami.Beltrami(params)
-#        scheme = SegregatedIPCS(None)
-        scheme = IPCS_Stable(None)
+#        scheme = SegregatedIPCS()
+        scheme = IPCS_Stable()
         nssolver = NSSolver(p, scheme, pp)
         nssolver.solve()
 
