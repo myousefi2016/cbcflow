@@ -9,20 +9,10 @@ Things to do in headflow
 WIP Martin
 ==========
 
-- Add NSScheme unit test with mock problem stepping through each scheme for 2
+- Improve on NSScheme unit test with mock problem stepping through each scheme for 2
   timesteps and checking types, using headflow.all_schemes and their default parameters.
 
-- Consolidate NSProblem and NSProblem2 and update all schemes to follow:
-
-  - Use assign*ics in all schemes
-
-  - Use make*bcs in all schemes
-
-  - Remove fetch_bcs from scheme class
-
-  - Use time constant in all schemes
-
-  - Call problem.update in all schemes
+- Remove fetch_bcs from scheme class
 
 
 WIP Oyvind
@@ -43,18 +33,24 @@ Backlog
 General
 -------
 
-- Rename schemes and their files to follow at least some resemblance
-  of a convention.
-
-- Add licence headers
-
-- Get buildbot running
-
 - Find a better name than headflow
 
 - Make an email list (using google groups?)
 
 - Make a team and project repository on bitbucket
+
+- Get buildbot running
+
+- Add licence headers
+
+- Rename schemes and their files to follow at least some resemblance
+  of a convention.
+
+- Reorganize submodule structure a bit?
+
+- Document schemes with LaTeX and rst in docstrings
+
+- Document demo problems with LaTeX and rst in docstrings
 
 - Make a release
 
@@ -65,11 +61,9 @@ Parameters
 - Add locking of parameter names to ParamDict, a serious correctness liability.
   Cover with unit tests, making sure we never use the wrong parameter names!
 
-- Improve Parameterized system: doesn't work that well with
-  subclassing, and maybe don't mix subclass params into base namespace?
+- Improve Parameterized system to work better with (problem) subclassing twice
 
-- Include and improve upon parameter sweep scripts.
-  Cover this well in unit tests!
+- Include and improve upon parameter sweep scripts. Cover this well in unit tests!
 
 
 BCs
@@ -103,6 +97,15 @@ Tools
 - Add a check_problem to do something similar to show_problem but without plotting.
   Cover with unit tests demonstrating various possible user errors
 
+- Transform Kents demo/test_*.py into something reusable (analyze_problem_foo?)
+
+
+Demos
+-----
+
+- Update the last demos for new problem interface
+
+- Fix and validate all demo problems for all schemes
 
 
 Tests
@@ -114,19 +117,15 @@ Tests
 - Improve unit test suite further (not sure what is needed yet).
   Bonus points: Make it runnable on cluster.
 
-- Setup a validation test suite with analytical problems.
-  Bonus points: Make it runnable on cluster.
-
 - Setup a fast regression test suite (trivial meshes, few timesteps).
   Bonus points: Make it runnable on cluster.
 
 - Setup a slow regression test suite (realistic meshes).
   Bonus points: Make it runnable on cluster.
 
-- Setup a benchmark suite.
+- Setup a validation test suite with analytical problems.
   Bonus points: Make it runnable on cluster.
 
 - Setup a benchmark suite.
   Bonus points: Make it runnable on cluster.
 
-- Make all suites run on buildbot!
