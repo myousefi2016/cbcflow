@@ -1,8 +1,9 @@
 
 from headflow import *
-import cylinder
 from math import sqrt
 import dolfin
+
+from cylinder import FlowAroundACylinder as Problem
 
 dolfin.parameters["allow_extrapolation"] = True
 
@@ -26,7 +27,7 @@ ppfield_pd = ParamDict(
 
 mus = [1.0e-2]
 for mu in mus:
-    params = cylinder.FlowAroundACylinder.default_user_params()
+    params = Problem.default_params()
     params["mu"] = mu
 
     for scheme in schemes:
@@ -38,7 +39,7 @@ for mu in mus:
                     params["N"] = N
                     params["dt"] = dt
 
-                    p = cylinder.FlowAroundACylinder(params)
+                    p = Problem(params)
 
                     analyzer1 = Velocity(params=ppfield_pd)
                     analyzer2 = QDeltaLambda2(params=ppfield_pd)
@@ -49,8 +50,6 @@ for mu in mus:
 
                     nssolver = NSSolver(p, scheme, pp)
                     nssolver.solve()
-
-
 
         print ""
         print "scheme ", scheme, " mu ", mu
@@ -69,7 +68,6 @@ for mu in mus:
                     print "Not able to compare", N, dt
                     print e
 
-
         for i in range(len(dts[1:])):
             for N in Ns:
                 try:
@@ -79,7 +77,6 @@ for mu in mus:
                     difference = dolfin.assemble(dolfin.inner(u_fine - uc, u_fine - uc)*dolfin.dx())
                     u_norm = dolfin.assemble(dolfin.inner(u_fine, u_fine)*dolfin.dx())
                     print "difference between dt ", dts[i+1] , " and ", dts[i], " at level ", N, " is ", difference, " versus u_norm ", u_norm
-
                 except Exception as e:
                     print "Not able to compare ", N, dt
                     print e

@@ -1,6 +1,7 @@
 
 from headflow import *
-import beltrami
+
+from beltrami import Beltrami as Problem
 
 #Ns = [2, 4]
 Ns = [2, 4, 8]
@@ -24,10 +25,8 @@ analyzer3 = WSS(params=ppfield_pd)
 mus = [1.0, 1.0e-3]
 mus = [1.0e-3]
 for mu in mus:
-    params = beltrami.Beltrami.default_user_params()
+    params = Problem.default_params()
     params["mu"] = mu
-
-    analytical_solution = beltrami.Beltrami.analytical_solution
 
     for scheme in schemes:
         error_data = {}
@@ -36,7 +35,7 @@ for mu in mus:
                 params["N"] = N
                 params["dt"] = dt
 
-                p = beltrami.Beltrami(params)
+                p = Problem(params)
 
                 analyzer1 = AnalyticalSolutionAnalyzer()
                 analyzer1.params["saveparams"]["save"] = True

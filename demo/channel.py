@@ -33,6 +33,7 @@ class Channel(NSProblem):
         N = self.params.N
         mesh = UnitSquareMesh(N, N)
 
+        # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(4)
         DomainBoundary().mark(facet_domains, 0)

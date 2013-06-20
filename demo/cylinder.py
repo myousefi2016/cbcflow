@@ -9,54 +9,73 @@ from headflow.dol import *
 
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
-        return near(x[0], 0.0) and on_boundary
+        return on_boundary and near(x[0], 0.0)
 
 class RightBoundary(SubDomain):
     def inside(self, x, on_boundary):
-        return near(x[0], 10.0) and on_boundary
+        return on_boundary and near(x[0], 10.0)
 
-class Walls(SubDomain):
+class Cylinder(SubDomain):
     def inside(self, x, on_boundary):
-        return (near(x[1], 0.0) or near(x[1], 1.0) or sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS) and on_boundary
+        return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
 
 class FlowAroundACylinder(NSProblem):
     "Flow around a cylinder in 2D."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
+
+        # Create mesh
         r = Rectangle(0,0, 10, 1)
         c = Circle(2.0, 0.5, 0.12)
         mesh = Mesh(r-c, self.params.N)
 
+        # Create boundary markers
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(4)
+        DomainBoundary().mark(facet_domains, 0)
+        Cylinder().mark(facet_domains, 0)
+        LeftBoundary().mark(facet_domains, 1)
+        RightBoundary().mark(facet_domains, 2)
+
         # Store mesh and markers
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_user_params(cls):
         params = ParamDict(
+            # Spatial parameters
             N=64,
+            # Time parameters
             T=25.0,
             dt=0.05,
+            # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
             )
         return params
 
-    def initial_conditions(self, V, Q):
-        u0 = [Constant(0), Constant(0)]
-        p0 = Constant(0)
-        return u0, p0
+    def initial_conditions(self, spaces, controls):
+        c0 = Constant(0)
+        u0 = [c0, c0]
+        p0 = c0
+        return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
-        bcu1 = ([Constant(1), Constant(0)], LeftBoundary())
-        bcu2 = ([Constant(0), Constant(0)], Walls())
+    def boundary_conditions(self, spaces, u, p, t, controls):
+        c0 = Constant(0)
+        c1 = Constant(1)
 
-        bcp1 = (Constant(0), RightBoundary())
+        # Create no-slip boundary condition for velocity
+        bcu1 = ([c1, c0], 1)
+        bcu2 = ([c0, c0], 0)
 
+        # Create boundary conditions for pressure
+        bcp1 = (c0, 2)
+
+        # Collect and return
         bcu = [bcu1, bcu2]
         bcp = [bcp1]
-
-        return bcu, bcp
+        return (bcu, bcp)
 
     '''
     OLD FUNCTIONALITY
@@ -118,5 +137,5 @@ def StreamFunction(u):
 '''
 
 if __name__ == "__main__":
-    p = FlowAroundACylinder()
-    show_problem(p)
+    from demo_main import demo_main
+    demo_main(FlowAroundACylinder)

@@ -1,8 +1,9 @@
 
 from headflow import *
-import cylinder
 from math import sqrt
 import dolfin
+
+from cylinder import FlowAroundACylinder as Problem
 
 dolfin.parameters["allow_extrapolation"] = True
 
@@ -26,7 +27,7 @@ ppfield_pd = ParamDict(
 
 mus = [0.5e-2]
 for mu in mus:
-    params = cylinder.FlowAroundACylinder.default_user_params()
+    params = Problem.default_user_params()
     params["mu"] = mu
 
     for scheme in schemes:
@@ -40,7 +41,7 @@ for mu in mus:
                     params["N"] = N
                     params["dt"] = dt
 
-                    p = cylinder.FlowAroundACylinder(params)
+                    p = Problem(params)
 
                     analyzer = Velocity(params=ppfield_pd)
 

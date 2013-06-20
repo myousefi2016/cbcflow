@@ -1,10 +1,12 @@
 
 from headflow import *
-import beltrami
 
-params = beltrami.Beltrami.default_user_params()
-analytical_solution = beltrami.Beltrami.analytical_solution
+from beltrami import Beltrami as Problem
 
+params = Problem.default_user_params()
+
+#Scheme = SegregatedIPCS
+Scheme = IPCS_Stable
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
@@ -35,9 +37,8 @@ for N in Ns:
         pp.add_field(analyzer2)
         pp.add_field(analyzer3)
 
-        p = beltrami.Beltrami(params)
-#        scheme = SegregatedIPCS()
-        scheme = IPCS_Stable()
+        p = Problem(params)
+        scheme = Scheme()
         nssolver = NSSolver(p, scheme, pp)
         nssolver.solve()
 
@@ -56,3 +57,4 @@ for x in ["u0", "u1", "u2", "p"]:
         print "\nN ", N,
         for dt in dts:
             print " %2.2e " % error_data[(N, dt)]["data"][x],
+
