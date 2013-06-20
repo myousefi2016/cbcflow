@@ -9,7 +9,7 @@ the control and data flow between the classes.
 
 import unittest
 
-from headflow import ParamDict, NSProblem2, all_schemes
+from headflow import ParamDict, NSProblem, all_schemes
 from headflow import *
 from headflow.dol import *
 
@@ -37,9 +37,9 @@ Right().mark(cube_facet_domains, 2)
 c0 = Constant(0.0)
 c1 = Constant(0.0)
 
-class MockProblem(NSProblem2):
+class MockProblem(NSProblem):
     def __init__(self, params=None):
-        NSProblem2.__init__(self, params)
+        NSProblem.__init__(self, params)
 
         # Select mesh and domains based on dimension parameter
         d = self.params.d
