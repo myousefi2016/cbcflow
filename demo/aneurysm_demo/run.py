@@ -19,9 +19,9 @@ problem = DogAneurysm(problem_pd)
 scheme_pd = ParamDict(
     u_degree=1,
     )
-#scheme = IPCS(scheme_pd)
+scheme = IPCS(scheme_pd)
 #scheme = SegregatedIPCS(scheme_pd)
-scheme = SegregatedIPCS_Optimized(scheme_pd)
+#scheme = SegregatedIPCS_Optimized(scheme_pd)
 
 
 # -- Configure postprocessor
