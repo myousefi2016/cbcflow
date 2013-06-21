@@ -61,11 +61,13 @@ for mu in mus:
         for i in range(len(Ns[1:])):
             for dt in dts:
                 try:
-                    u_fine = velocity[(Ns[i+1],dt)]["data"]
+                    u_fine   = velocity[(Ns[i+1],dt)]["data"]
                     u_coarse = velocity[(Ns[i], dt)]["data"]
                     uc = dolfin.interpolate(u_coarse, u_fine.function_space())
-                    difference = dolfin.assemble(dolfin.inner(u_fine - uc, u_fine - uc)*dolfin.dx())
-                    u_norm = dolfin.assemble(dolfin.inner(u_fine, u_fine)*dolfin.dx())
+
+                    difference = dolfin.assemble((u_fine - uc)**2*dolfin.dx())
+                    u_norm = dolfin.assemble(u_fine**2*dolfin.dx())
+
                     print "difference between level ", Ns[i+1], " and ", Ns[i], " with dt ", dt, " is ", difference, " versus u_norm ", u_norm
                 except Exception as e:
                     print "Not able to compare", N, dt
@@ -74,11 +76,13 @@ for mu in mus:
         for i in range(len(dts[1:])):
             for N in Ns:
                 try:
-                    u_fine = velocity[(N,dts[i+1])]["data"]
+                    u_fine   = velocity[(N,dts[i+1])]["data"]
                     u_coarse = velocity[(N, dts[i])]["data"]
                     uc = dolfin.interpolate(u_coarse, u_fine.function_space())
-                    difference = dolfin.assemble(dolfin.inner(u_fine - uc, u_fine - uc)*dolfin.dx())
-                    u_norm = dolfin.assemble(dolfin.inner(u_fine, u_fine)*dolfin.dx())
+
+                    difference = dolfin.assemble((u_fine - uc)**2*dolfin.dx())
+                    u_norm = dolfin.assemble(u_fine**2*dolfin.dx())
+
                     print "difference between dt ", dts[i+1] , " and ", dts[i], " at level ", N, " is ", difference, " versus u_norm ", u_norm
                 except Exception as e:
                     print "Not able to compare ", N, dt
