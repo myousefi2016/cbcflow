@@ -1,4 +1,7 @@
 
+# Hack until we place these tests in a proper framework
+import sys; sys.path.insert(0, "../demo")
+
 from headflow import *
 
 from beltrami import Beltrami as Problem

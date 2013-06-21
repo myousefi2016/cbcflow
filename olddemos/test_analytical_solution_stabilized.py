@@ -1,4 +1,7 @@
 
+# Hack until we place these tests in a proper framework
+import sys; sys.path.insert(0, "../demo")
+
 from headflow import *
 
 from beltrami import Beltrami as Problem
@@ -42,7 +45,7 @@ for mu in mus:
                 analyzer2 = EnergyAnalyzer()
                 analyzer2.params["saveparams"]["save"] = True
 
-                pp = NSPostProcessor({"casedir":"results/%s/%s/N=%d/dt=%e" % (str(p), str(scheme), N,dt)})
+                pp = NSPostProcessor({"casedir":"results/%s/%s/N=%d/dt=%e" % (p.shortname(), scheme.shortname(), N,dt)})
                 pp.add_field(analyzer1)
                 pp.add_field(analyzer2)
                 pp.add_field(analyzer3)

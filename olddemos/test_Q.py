@@ -1,9 +1,12 @@
 
+# Hack until we place these tests in a proper framework
+import sys; sys.path.insert(0, "../demo")
+
 from headflow import *
 from math import sqrt
 import dolfin
 
-from cylinder import FlowAroundACylinder as Problem
+from flow_around_cylinder import FlowAroundACylinder as Problem
 
 dolfin.parameters["allow_extrapolation"] = True
 
@@ -44,7 +47,7 @@ for mu in mus:
                     analyzer1 = Velocity(params=ppfield_pd)
                     analyzer2 = QDeltaLambda2(params=ppfield_pd)
 
-                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (str(p), str(scheme), str(mu), N,dt)})
+                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme.shortname(), str(mu), N,dt)})
                     pp.add_field(analyzer1)
                     pp.add_field(analyzer2)
 

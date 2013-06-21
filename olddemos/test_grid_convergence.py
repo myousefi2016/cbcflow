@@ -1,9 +1,12 @@
 
+# Hack until we place these tests in a proper framework
+import sys; sys.path.insert(0, "../demo")
+
 from headflow import *
 from math import sqrt
 import dolfin
 
-from cylinder import FlowAroundACylinder as Problem
+from flow_around_cylinder import FlowAroundACylinder as Problem
 
 dolfin.parameters["allow_extrapolation"] = True
 
@@ -31,9 +34,9 @@ for mu in mus:
     params["mu"] = mu
 
     for scheme in schemes:
-        scheme_str = str(scheme)
+        scheme_str = scheme.shortname()
         if isinstance(scheme, IPCS_Stabilized):
-            scheme_str += str(scheme.theta)
+            scheme_str += str(scheme.params.theta)
         velocity = {}
         for N in Ns:
             for dt in dts:
@@ -45,7 +48,7 @@ for mu in mus:
 
                     analyzer = Velocity(params=ppfield_pd)
 
-                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (str(p), scheme_str, str(mu), N,dt)})
+                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme_str, str(mu), N,dt)})
                     pp.add_field(analyzer)
 
                     nssolver = NSSolver(p, scheme, pp)
