@@ -34,8 +34,9 @@ def discover_and_run_tests(modulename, verbosity):
 
     # Execute unittest framework
     runner = unittest.TextTestRunner(verbosity=verbosity)
-    runner.run(fullsuite)
+    results = runner.run(fullsuite)
+    return len(results.errors)+len(results.failures)
 
 if __name__ == "__main__":
-    discover_and_run_tests(modulename="headflow", verbosity=2)
-
+    num_fails = discover_and_run_tests(modulename="headflow", verbosity=2)
+    sys.exit(num_fails)
