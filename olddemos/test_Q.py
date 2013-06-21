@@ -31,7 +31,7 @@ ppfield_pd = ParamDict(
 mus = [1.0e-2]
 for mu in mus:
     params = Problem.default_params()
-    params["mu"] = mu
+    params.mu = mu
 
     for scheme in schemes:
         velocity = {}
@@ -39,15 +39,16 @@ for mu in mus:
             for dt in dts:
 #                try:
                 if 1:
-                    params["N"] = N
-                    params["dt"] = dt
+                    params.N = N
+                    params.dt = dt
 
                     p = Problem(params)
 
                     analyzer1 = Velocity(params=ppfield_pd)
                     analyzer2 = QDeltaLambda2(params=ppfield_pd)
 
-                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme.shortname(), str(mu), N,dt)})
+                    casedir = "results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme.shortname(), str(mu), N,dt)
+                    pp = NSPostProcessor({"casedir":casedir})
                     pp.add_field(analyzer1)
                     pp.add_field(analyzer2)
 

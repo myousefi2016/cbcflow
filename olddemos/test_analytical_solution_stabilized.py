@@ -29,14 +29,14 @@ mus = [1.0, 1.0e-3]
 mus = [1.0e-3]
 for mu in mus:
     params = Problem.default_params()
-    params["mu"] = mu
+    params.mu = mu
 
     for scheme in schemes:
         error_data = {}
         for N in Ns:
             for dt in dts:
-                params["N"] = N
-                params["dt"] = dt
+                params.N = N
+                params.dt = dt
 
                 p = Problem(params)
 

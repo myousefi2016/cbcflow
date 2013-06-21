@@ -6,10 +6,16 @@ from headflow import *
 
 from beltrami import Beltrami as Problem
 
-params = Problem.default_user_params()
+params = Problem.default_params()
 
 #Scheme = SegregatedIPCS
 Scheme = IPCS_Stable
+
+ppfield_pd1 = ParamDict(
+    saveparams=ParamDict(
+        save=True,
+        ),
+    )
 
 ppfield_pd = ParamDict(
     saveparams=ParamDict(
@@ -19,23 +25,21 @@ ppfield_pd = ParamDict(
         step_frequency=10,
         )
     )
-analyzer3 = WSS(params=ppfield_pd)
+analyzer3 = WSS(ppfield_pd)
 
 
-error_data = {}
 Ns = [2, 4, 8, 16]
 dts = [0.1, 0.05, 0.025, 0.0125]
-for N in Ns:
-    for dt in dts:
-        params["N"] = N
-        params["dt"] = dt
 
-        analyzer1 = AnalyticalSolutionAnalyzer()
-        analyzer1.params["saveparams"]["save"] = True
-        analyzer2 = EnergyAnalyzer()
-        analyzer2.params["saveparams"]["save"] = True
+error_data = {}
+for params.N in Ns:
+    for params.dt in dts:
 
-        pp = NSPostProcessor({"casedir":"results/beltrami_ipcs_segregated/N=%d/dt=%e" % (N,dt)})
+        analyzer1 = AnalyticalSolutionAnalyzer(ppfield_pd1)
+        analyzer2 = EnergyAnalyzer(ppfield_pd1)
+
+        casedir = "results/beltrami_ipcs_segregated/N=%d/dt=%e" % (N,dt)
+        pp = NSPostProcessor({"casedir":casedir})
         pp.add_field(analyzer1)
         pp.add_field(analyzer2)
         pp.add_field(analyzer3)
@@ -60,4 +64,3 @@ for x in ["u0", "u1", "u2", "p"]:
         print "\nN ", N,
         for dt in dts:
             print " %2.2e " % error_data[(N, dt)]["data"][x],
-

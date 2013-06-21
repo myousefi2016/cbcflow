@@ -11,6 +11,7 @@ from flow_around_cylinder import FlowAroundACylinder as Problem
 dolfin.parameters["allow_extrapolation"] = True
 
 
+mus = [0.5e-2]
 #Ns = [2, 4]
 Ns = [64, 128, 256]
 #dts = [0.1, 0.05]
@@ -28,37 +29,34 @@ ppfield_pd = ParamDict(
         )
     )
 
-mus = [0.5e-2]
-for mu in mus:
-    params = Problem.default_user_params()
-    params["mu"] = mu
+params = Problem.default_params()
+for params.mu in mus:
 
     for scheme in schemes:
         scheme_str = scheme.shortname()
         if isinstance(scheme, IPCS_Stabilized):
             scheme_str += str(scheme.params.theta)
+
         velocity = {}
-        for N in Ns:
-            for dt in dts:
+
+        for params.N in Ns:
+            for params.dt in dts:
+                p = Problem(params)
+
+                casedir = "results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme_str, str(mu), N,dt)
+                pp = NSPostProcessor({"casedir":casedir})
+
+                analyzer = Velocity(params=ppfield_pd)
+                pp.add_field(analyzer)
+
+                nssolver = NSSolver(p, scheme, pp)
+
                 try:
-                    params["N"] = N
-                    params["dt"] = dt
-
-                    p = Problem(params)
-
-                    analyzer = Velocity(params=ppfield_pd)
-
-                    pp = NSPostProcessor({"casedir":"results/%s/%s/mu=%s/N=%d/dt=%e" % (p.shortname(), scheme_str, str(mu), N,dt)})
-                    pp.add_field(analyzer)
-
-                    nssolver = NSSolver(p, scheme, pp)
                     nssolver.solve()
-
                     velocity [(N, dt, mu)] = analyzer.get_data()
                 except Exception as e:
                     print "The scheme did not work "
                     print e
-
 
         print ""
         print "scheme ", scheme, " mu ", mu
