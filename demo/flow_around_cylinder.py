@@ -7,67 +7,80 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-def boundaryvalue(x):
-    if x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS:
-        return [1.0, 0.0]
-    else:
-        return [0.0, 0.0]
+class LeftBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[0], 0.0)
 
-class BoundaryValueVec(Expression):
-    def value_shape(self):
-        return (2,)
-    def eval(self, values, x):
-        values[:] = boundaryvalue(x)
+class RightBoundary(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and near(x[0], 10.0)
 
-class BoundaryValueComp(Expression):
-    def __init__(self, component, **kwargs):
-        Expression.__init__(self, **kwargs)
-        self.component = component
-    def eval(self, values, x):
-        values[0] = boundaryvalue(x)[self.component]
+class Cylinder(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
 
-c0 = Constant(0)
-
-class DrivenCavity(NSProblem):
-    "2D lid-driven cavity test problem with known reference value."
+class FlowAroundACylinder(NSProblem):
+    "Flow around a cylinder in 2D."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        N = self.params.N
-        mesh = UnitSquareMesh(N, N)
+
+        # Create mesh
+        r = Rectangle(0,0, 10, 1)
+        c = Circle(2.0, 0.5, 0.12)
+        mesh = Mesh(r-c, self.params.N)
+
+        # Create boundary markers
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(4)
+        DomainBoundary().mark(facet_domains, 0)
+        Cylinder().mark(facet_domains, 0)
+        LeftBoundary().mark(facet_domains, 1)
+        RightBoundary().mark(facet_domains, 2)
 
         # Store mesh and markers
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_user_params(cls):
         params = ParamDict(
-            N=16,
-
-            dt=0.01,
-            T=2.5,
-
+            # Spatial parameters
+            N=64,
+            # Time parameters
+            T=5.0,
+            dt=0.1,
+            # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
             )
         return params
 
-    def initial_conditions(self, V, Q):
+    def initial_conditions(self, spaces, controls):
+        c0 = Constant(0)
         u0 = [c0, c0]
         p0 = c0
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
-        element = FiniteElement("CG", triangle, 1)
-        g = [BoundaryValueComp(d, element=element) for d in range(2)]
-        bcu = [(g, DomainBoundary())]
+    def boundary_conditions(self, spaces, u, p, t, controls):
+        c0 = Constant(0)
+        c1 = Constant(1)
 
-        bcp = []
+        # Create no-slip boundary condition for velocity
+        bcu1 = ([c1, c0], 1)
+        bcu2 = ([c0, c0], 0)
 
+        # Create boundary conditions for pressure
+        bcp1 = (c0, 2)
+
+        # Collect and return
+        bcu = [bcu1, bcu2]
+        bcp = [bcp1]
         return (bcu, bcp)
 
-# Old code:
-"""
+    '''
+    OLD FUNCTIONALITY
+    '''
+    '''
     def functional(self, t, u, p):
         # Only check final time
         if t < self.T:
@@ -78,7 +91,7 @@ class DrivenCavity(NSProblem):
             vals  = psi.vector().array()
             vmin = MPI.min(vals.min())
 
-            headflow_print("Stream function has minimal value"  % vmin)
+            headflow_print("Stream function has minimal value %s" % vmin)
 
             return vmin
 
@@ -87,9 +100,9 @@ class DrivenCavity(NSProblem):
         if t < self.T:
             return 0.0
         return -0.061076605
-"""
-# Old code:
-"""
+    '''
+
+'''
 def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
@@ -120,8 +133,9 @@ def StreamFunction(u):
     solve(a == L, psi, bc)
 
     return psi
-"""
+
+'''
 
 if __name__ == "__main__":
-    p = DrivenCavity()
-    show_problem(p)
+    from demo_main import demo_main
+    demo_main(FlowAroundACylinder)

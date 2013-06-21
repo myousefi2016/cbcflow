@@ -7,36 +7,26 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-class LeftBoundary(SubDomain):
+class Lid(SubDomain):
     def inside(self, x, on_boundary):
-        return on_boundary and near(x[0], 0.0)
+        return on_boundary and x[0] > DOLFIN_EPS and x[0] < 1.0 - DOLFIN_EPS and x[1] > 1.0 - DOLFIN_EPS
 
-class RightBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and near(x[0], 10.0)
+c0 = Constant(0.0)
+c1 = Constant(1.0)
 
-class Cylinder(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
-
-class FlowAroundACylinder(NSProblem):
-    "Flow around a cylinder in 2D."
+class LidDrivenCavity(NSProblem):
+    "2D lid-driven cavity test problem with known reference value."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-
-        # Create mesh
-        r = Rectangle(0,0, 10, 1)
-        c = Circle(2.0, 0.5, 0.12)
-        mesh = Mesh(r-c, self.params.N)
+        N = self.params.N
+        mesh = UnitSquareMesh(N, N)
 
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
-        facet_domains.set_all(4)
+        facet_domains.set_all(2)
         DomainBoundary().mark(facet_domains, 0)
-        Cylinder().mark(facet_domains, 0)
-        LeftBoundary().mark(facet_domains, 1)
-        RightBoundary().mark(facet_domains, 2)
+        Lid().mark(facet_domains, 1)
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
@@ -45,10 +35,10 @@ class FlowAroundACylinder(NSProblem):
     def default_user_params(cls):
         params = ParamDict(
             # Spatial parameters
-            N=64,
+            N=32,
             # Time parameters
-            T=25.0,
-            dt=0.05,
+            dt=0.001,
+            T=0.5,
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
@@ -56,31 +46,19 @@ class FlowAroundACylinder(NSProblem):
         return params
 
     def initial_conditions(self, spaces, controls):
-        c0 = Constant(0)
         u0 = [c0, c0]
         p0 = c0
         return (u0, p0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        c0 = Constant(0)
-        c1 = Constant(1)
-
-        # Create no-slip boundary condition for velocity
-        bcu1 = ([c1, c0], 1)
-        bcu2 = ([c0, c0], 0)
-
-        # Create boundary conditions for pressure
-        bcp1 = (c0, 2)
-
-        # Collect and return
-        bcu = [bcu1, bcu2]
-        bcp = [bcp1]
+        g = [c1, c0]
+        g0 = [c0, c0]
+        bcu = [(g0, 0), (g, 1)]
+        bcp = []
         return (bcu, bcp)
 
-    '''
-    OLD FUNCTIONALITY
-    '''
-    '''
+# Old code:
+"""
     def functional(self, t, u, p):
         # Only check final time
         if t < self.T:
@@ -91,7 +69,7 @@ class FlowAroundACylinder(NSProblem):
             vals  = psi.vector().array()
             vmin = MPI.min(vals.min())
 
-            headflow_print("Stream function has minimal value %s" % vmin)
+            headflow_print("Stream function has minimal value"  % vmin)
 
             return vmin
 
@@ -100,9 +78,9 @@ class FlowAroundACylinder(NSProblem):
         if t < self.T:
             return 0.0
         return -0.061076605
-    '''
-
-'''
+"""
+# Old code:
+"""
 def StreamFunction(u):
     "Stream function for a given 2D velocity field."
 
@@ -133,9 +111,8 @@ def StreamFunction(u):
     solve(a == L, psi, bc)
 
     return psi
-
-'''
+"""
 
 if __name__ == "__main__":
     from demo_main import demo_main
-    demo_main(FlowAroundACylinder)
+    demo_main(LidDrivenCavity)
