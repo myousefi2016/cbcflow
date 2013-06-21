@@ -34,7 +34,7 @@ class AneurysmCutoff(Expression):
 
 c0 = Constant(0)
 
-class Aneurysm(NSProblem):
+class PipeAneurysm(NSProblem):
     "3D artery with a saccular aneurysm."
 
     def __init__(self, params=None):
@@ -47,32 +47,35 @@ class Aneurysm(NSProblem):
         mesh = Mesh(meshfilename)
 
         # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
-        facet_domains = FacetFunction("size_t", self.mesh)
+        facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(3)
         DomainBoundary().mark(facet_domains, 0)
         Inflow().mark(facet_domains, 1)
         Outflow().mark(facet_domains, 2)
 
         # Store mesh and markers
-        self.initialize_geometry(mesh, facet_domains)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_user_params(cls):
         params = ParamDict(
+            # Spatial discretization parameters
             refinement_level = 1,
+            # Time parameters
             dt = 0.005,
             T = 0.05,
+            # Physical parameters
             rho = 1.0,
             mu = 3.5 / 1.025e6,
             )
         return params
 
-    def initial_conditions(self, V, Q):
-        u0 = [Constant(0), Constant(0), Constant(0)]
-        p0 = Constant(0)
+    def initial_conditions(self, spaces, controls):
+        u0 = [c0, c0, c0]
+        p0 = c0
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
+    def boundary_conditions(self, spaces, u, p, t, controls):
 
         # Create no-slip boundary condition for velocity
         g_noslip = [c0, c0, c0]
@@ -82,9 +85,8 @@ class Aneurysm(NSProblem):
         inflow_exprs = ('1.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))',
                         '0.0*(sin(30*t))*(1.0-(x[1]*x[1]+x[2]*x[2])/(r*r))')
-        element = FiniteElement("CG", tetrahedron, 3)
-        g_inflow = [Expression(e, element=element, r=0.002, t=0.0) for e in inflow_exprs]
-        for g in g_inflow: g.t = t
+        g_inflow = [Expression(e, degree=3, r=0.002, t=0.0) for e in inflow_exprs]
+        for g in g_inflow: g.t = float(t)
         bc_inflow = (g_inflow, 1)
 
         # Create outflow boundary condition for pressure
@@ -96,6 +98,11 @@ class Aneurysm(NSProblem):
         bcp = [bc_outflow]
 
         return (bcu, bcp)
+
+    def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
+        bcu, bcp = bcs
+        inflow = bcu[1][0]
+        for ue in inflow: ue.t = float(t)
 
 # Old code:
 '''
@@ -132,5 +139,5 @@ class Aneurysm(NSProblem):
 '''
 
 if __name__ == "__main__":
-    p = Aneurysm()
-    show_problem(p)
+    from demo_main import demo_main
+    demo_main(PipeAneurysm)
