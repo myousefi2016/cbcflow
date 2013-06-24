@@ -11,10 +11,6 @@ import os
 dolfin.parameters["allow_extrapolation"] = True
 
 
-# Hack for quick testing:
-FAST = True
-
-
 def run_convergence_sweep(Scheme, scheme_params, scheme_str,
                           Problem, problem_params, problem_str,
                           analyzers, Ns, dts):
@@ -47,13 +43,16 @@ def run_convergence_sweep(Scheme, scheme_params, scheme_str,
 
                 # Make dicts first time
                 for field in fields:
-                    if not field.name in data:
-                        data[field.name] = {}
+                    name = field.__class__.__name__ # field.name # TODO
+                    if not name in data:
+                        data[name] = {}
 
                 # Collect data from analyzers
                 for field in fields:
+                    name = field.__class__.__name__ # field.name # TODO
+                    key = (problem_params.N, problem_params.dt)
                     # TODO: What kind of interface is this get_data()? Is it ppfields or specific for testing?
-                    data[field.name][(problem_params.N, problem_params.dt)] = field.get_data()
+                    data[name][key] = field.get_data()
 
             except Exception as e:
                 print "The scheme did not work (%s, %s)" % (scheme_str, problem_str)
@@ -94,7 +93,7 @@ class TestConvergence(unittest.TestCase):
         for dt in dts:
             norms = norms_h[dt]
             rates = []
-            for i in range(len(Ns)-1):
+            for i in range(len(Ns)-2):
                 try:
                     rate = norms[i+1]["u_diff_norm"] / norms[i]["u_diff_norm"]
                 except:
@@ -135,7 +134,7 @@ class TestConvergence(unittest.TestCase):
         for N in Ns:
             norms = norms_dt[N]
             rates = []
-            for i in range(len(dts)-1):
+            for i in range(len(dts)-2):
                 try:
                     rate = norms[i+1]["u_diff_norm"] / norms[i]["u_diff_norm"]
                 except:
@@ -144,7 +143,7 @@ class TestConvergence(unittest.TestCase):
             print "Convergence rates w.r.t dt  at N=%g: %s" % (N, rates)
 
 
-    #@unittest.skip("Enable validation tests when set up properly!")
+    @unittest.skip("Enable validation tests when set up properly!")
     def test_Q(self):
         # FIXME: Implement test_Q here, using the QDeltaLambda2 analyzer, or add that to test_grid_convergence.
         #        (It's not clear to me what this is, so need to check with Kent.)
@@ -163,8 +162,8 @@ class TestConvergence(unittest.TestCase):
 
             # Selecting particular schemes with custom parameters:
             sch = [
-                (IPCS_Stabilized, {"theta":1.0}),
-                (IPCS_Stabilized, {"theta":0.5}),
+            #(IPCS_Stabilized, {"theta":1.0}),
+            #(IPCS_Stabilized, {"theta":0.5}),
                 (IPCS_Stable, {})
                 ]
 
@@ -206,7 +205,7 @@ class TestConvergence(unittest.TestCase):
         #Ns = [2, 4]
         Ns = [64, 128, 256]
         #dts = [0.1, 0.05]
-        dts = [0.025, 0.0125]
+        dts = [0.050, 0.025, 0.0125]
 
         # ... Analyze convergence for each scheme/problem combination
         for Scheme, scheme_params, scheme_str in schemes():
@@ -238,7 +237,7 @@ class TestConvergence(unittest.TestCase):
                     print " %2.2e " % data[fieldname][(N, dt)]["data"][x],
 
 
-    #@unittest.skip("Enable validation tests when set up properly!")
+    @unittest.skip("Enable validation tests when set up properly!")
     def test_analytical_solution(self):
 
         # ... Choice of schemes to test
@@ -309,7 +308,7 @@ class TestConvergence(unittest.TestCase):
                self._print_table(data)
 
 
-    #@unittest.skip("Enable validation tests when set up properly!")
+    @unittest.skip("Enable validation tests when set up properly!")
     def test_analytical_solution_stabilized(self):
 
         # ... Choice of schemes to test
