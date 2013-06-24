@@ -1,7 +1,64 @@
+Tests collection overview
+*************************
+
 This directory contains all tests of the headflow solver project.
+These tests are very much work in progress!
 
-Subdirs contain different types of tests, which can be run separately.
-The topmost test.sh beside this file runs all tests.
 
-TODO: Improve test framework as we see what we need.
+Organization
+============
+
+The subfolders are organized as follows:
+
+  - data: meshes and other input data files needed by tests (try to keep this small)
+
+  - unit: tests covering smaller units of code piece by piece
+
+  - regression: tests running more complex computations and comparing to previously validated data
+
+  - validation: tests performing analytic validation of the code
+
+  - benchmark: performance measurements, warning when performance drops from reference values
+
+The unit test suite should be kept efficient such that it can be run often while developing.
+The regression tests can be a bit more costly, but preferrably runnable before pushing.
+Validation can be costly, and benchmarks must be costly to measure performance properly.
+
+
+Running
+=======
+
+The scripts run_* contain typical ways to run all or some tests against local or installed software.
+
+Below are some more detailed examples of how to run tests using the Python 2.7+ unittest module.
+
+Running all tests (this will take some time):
+
+    python -m unittest discover
+
+Running a single module:
+
+    python -m unittest discover unit
+    python -m unittest discover regression
+    python -m unittest discover validation
+    python -m unittest discover benchmark
+
+Running a single test file:
+
+    python -m unittest unit.test_paramdict
+
+Running a single test function:
+
+    python -m unittest unit.test_paramdict.TestParamDict.test_init_from_dict
+
+As a rule of thumb, pick a set of tests related to what you work on,
+that run fast enough to run often while working. Usually this will
+be the unit module or a single test file. Before pushing, try to run
+at least the unit and regression tests.
+
+
+Developing new tests
+====================
+
+Just mirror one of the existing test files.
 

@@ -23,10 +23,6 @@ class OutflowBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] > 1 - DOLFIN_EPS
 
-class NoslipBoundary(SubDomain):
-    def inside(self, x, on_boundary):
-        return x[1] < DOLFIN_EPS or x[1] > 1.0 - DOLFIN_EPS
-
 class Channel(NSProblem):
     "2D channel test problem with known analytical solution."
 
@@ -37,8 +33,15 @@ class Channel(NSProblem):
         N = self.params.N
         mesh = UnitSquareMesh(N, N)
 
+        # Create boundary markers
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(4)
+        DomainBoundary().mark(facet_domains, 0)
+        InflowBoundary().mark(facet_domains, 1)
+        OutflowBoundary().mark(facet_domains, 2)
+
         # Store mesh and markers
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_user_params(cls):
@@ -54,26 +57,23 @@ class Channel(NSProblem):
             )
         return params
 
-    def initial_conditions(self, V, Q):
-        u0 = [Constant(0), Constant(0)]
+    def initial_conditions(self, spaces, controls):
+        c0 = Constant(0)
+        u0 = [c0, c0]
         p0 = Expression("1 - x[0]")
         return (u0, p0)
 
-    def boundary_conditions(self, V, Q, t):
-
+    def boundary_conditions(self, spaces, u, p, t, controls):
         # Create no-slip boundary condition for velocity
-        g_noslip = [Constant(0), Constant(0)]
-        bcu = [(g_noslip, NoslipBoundary())]
+        c0 = Constant(0)
+        bcu = [([c0, c0], 0)]
 
         # Create boundary conditions for pressure
-        bcp = [(self.pressure_bc(Q), InflowBoundary()),
-               (self.pressure_bc(Q), OutflowBoundary())]
+        p = Expression("1 - x[0]")
+        bcp = [(p, 1),
+               (p, 2)]
 
         return (bcu, bcp)
-
-    def pressure_bc(self, Q):
-        element = FiniteElement("CG", triangle, 1)
-        return Expression("1 - x[0]", element=element)
 
     # Old code: TODO: Use these to validate
     """
@@ -102,5 +102,5 @@ class Channel(NSProblem):
     """
 
 if __name__ == "__main__":
-    p = Channel()
-    show_problem(p)
+    from demo_main import demo_main
+    demo_main(Channel)

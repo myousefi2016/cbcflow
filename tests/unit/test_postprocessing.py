@@ -4,8 +4,6 @@ Tests of the postprocessing framework in headflow.
 """
 
 import unittest
-from init_test import init_test
-init_test(__name__)
 
 from headflow import NSPostProcessor, PPFieldBase, ParamDict
 
@@ -88,5 +86,3 @@ class TestPostProcessing(unittest.TestCase):
             #PP.print_data()
         #PP.print_all_params()
 
-if __name__ == "__main__":
-    unittest.main()

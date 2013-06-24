@@ -4,15 +4,13 @@ Tests of the custom boundary condition functionality in headflow.
 """
 
 import unittest
-from init_test import init_test
-init_test(__name__)
 
 from headflow import Pouseille, Womersley
 from headflow.dol import Function, VectorFunctionSpace, Mesh, Expression, DirichletBC
 
 class TestBoundaryConditions(unittest.TestCase):
     def setUp(self):
-        self.mesh = Mesh("cylinder_4k.xml.gz")
+        self.mesh = Mesh("data/cylinder_4k.xml.gz")
         x = [0.0, 0.2, 0.4, 0.6, 0.8]
         y = [1, 5, 3, 2, 1]
         self.coeffs = zip(x,y)
@@ -35,5 +33,3 @@ class TestBoundaryConditions(unittest.TestCase):
         bcs = Womersley(self.coeffs, self.mesh, 1, 4.0)
         self._test_bcs(bcs)
 
-if __name__ == "__main__":
-    unittest.main()

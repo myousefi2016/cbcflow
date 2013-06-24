@@ -147,14 +147,14 @@ def make_bifurcation_with_aneurysm(res=16):
     inlen = 8.0
 
     left_outlen = 6.0
-    left_angle = pi/4
-    left_relrad = 0.5**0.5 * 1.01
+    left_angle = pi/4 * 1.1
+    left_relrad = 0.5**0.5 * 1.1
 
     right_outlen = 6.0
     right_angle = pi/4
     right_relrad = 0.5**0.5 * 1.01
 
-    arad = 1.5
+    arad = 1.7
     aoff = 2.5
     aside = 0.2
 

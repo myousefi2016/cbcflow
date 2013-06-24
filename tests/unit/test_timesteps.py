@@ -4,8 +4,6 @@ Tests of timestepping utilities.
 """
 
 import unittest
-from init_test import init_test
-init_test(__name__)
 
 from headflow import NSProblem
 from headflow.core.timesteps import compute_regular_timesteps
@@ -26,5 +24,3 @@ class TestTimestepComputation(unittest.TestCase):
         self.assertEqual(len(ts), 91)
         self.assertAlmostEqual(ts[-1], ts[0]+dt*(len(ts)-1))
 
-if __name__ == "__main__":
-    unittest.main()

@@ -1,0 +1,4 @@
+#!/bin/bash
+export PYTHONPATH=../site-packages:${PYTHONPATH}
+python -m unittest discover
+exit $?

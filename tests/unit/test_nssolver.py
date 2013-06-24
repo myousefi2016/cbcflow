@@ -7,8 +7,6 @@ the control and data flow between the classes.
 """
 
 import unittest
-from init_test import init_test
-init_test(__name__)
 
 from headflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
 
@@ -56,5 +54,3 @@ class TestNSSolver(unittest.TestCase):
 
         self.assertEqual(1, 1)
 
-if __name__ == "__main__":
-    unittest.main()

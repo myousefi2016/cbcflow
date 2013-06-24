@@ -29,17 +29,18 @@ class Beltrami(NSProblem):
         scale  = 2*(mesh.coordinates() - 0.5)
         mesh.coordinates()[:, :] = scale
 
-        self.exact_u, self.exact_p = self.analytical_solution(t=0.0)
-
         # Store mesh and markers
         self.initialize_geometry(mesh)
 
     @classmethod
     def default_user_params(cls):
         params = ParamDict(
+            # Spatial parameters
             N=20,
+            # Time parameters
             T=0.5,
             dt=0.05,
+            # Physical parameters
             rho=1.0,
             mu=1.0,
             )
@@ -79,44 +80,41 @@ class Beltrami(NSProblem):
 
         return (exact_u, exact_p)
 
-    def initial_conditions(self, V, Q):
-        for u in self.exact_u: u.t = 0.0
-        self.exact_p.t = 0.0
-        return (self.exact_u, self.exact_p)
+    def initial_conditions(self, spaces, controls):
+        exact_u, exact_p = self.analytical_solution(t=0.0)
+        return (exact_u, exact_p)
 
-    def boundary_conditions(self, V, Q, t):
-        for u in self.exact_u: u.t = t
-        self.exact_p.t = t
-
-        bcu = [(self.exact_u, DomainBoundary())]
+    def boundary_conditions(self, spaces, u, p, t, controls):
+        exact_u, exact_p = self.analytical_solution(t=float(t))
+        bcu = [(exact_u, DomainBoundary())]
         bcp = []
         return bcu, bcp
+
+    def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
+        bcu, bcp = bcs
+        uve = bcu[0][0]
+        for ue in uve: ue.t = float(t)
 
     '''
     OLD FUNCTIONALITY
     '''
     '''
-    def update(self, t, u, p):
-        for expr in self.exact_u + self.exact_p:
-            expr.t = t
-
     def functional(self, t, u, p):
         if t < self.T:
             return 0.0
         else:
-            for expr in self.exact_u + self.exact_p:
-                expr.t = t
-            if not self.params.segregated:
-                u = [u]
+            exact_u, exact_p = self.analytical_solution(t=t)
+
             error = 0
-            for exact_u, calc_u in zip(self.exact_u, u):
+            for exact_u, calc_u in zip(exact_u, u):
                 error += sqr(errornorm(exact_u, calc_u) / norm(exact_u, mesh=self.mesh))
-            return sqrt(error/len(u))
+
+            return sqrt(error / len(u))
 
     def reference(self, t):
         return 0.0
     '''
 
 if __name__ == "__main__":
-    p = Beltrami()
-    show_problem(p)
+    from demo_main import demo_main
+    demo_main(Beltrami)
