@@ -6,8 +6,14 @@ from headflow import *
 from math import sqrt
 import dolfin
 import unittest
+import os
 
 dolfin.parameters["allow_extrapolation"] = True
+
+
+# Hack for quick testing:
+FAST = True
+
 
 def run_convergence_sweep(Scheme, scheme_params, scheme_str,
                           Problem, problem_params, problem_str,
@@ -27,7 +33,7 @@ def run_convergence_sweep(Scheme, scheme_params, scheme_str,
             s = Scheme(scheme_params)
             p = Problem(problem_params)
 
-            casedir = "results/%s/%s/N=%d/dt=%e" % (scheme_str, problem_str, N, dt)
+            casedir = "results/%s/%s/N=%d/dt=%e" % (scheme_str, problem_str, problem_params.N, problem_params.dt)
             pp = NSPostProcessor({"casedir":casedir})
 
             fields = [Analyzer(params=analyzer_params) for (Analyzer,analyzer_params) in analyzers]
@@ -54,7 +60,7 @@ def run_convergence_sweep(Scheme, scheme_params, scheme_str,
                 print e
     return data
 
-class TestDiscretizationVariations(unittest.TestCase):
+class TestConvergence(unittest.TestCase):
 
     def _analyze_spatial_convergence(self, data, Ns, dts):
         velocity = data["Velocity"]
@@ -77,12 +83,12 @@ class TestDiscretizationVariations(unittest.TestCase):
                     u_diff_norm = dolfin.assemble((u_fine - uc)**2*dolfin.dx())
                     u_norm = dolfin.assemble(u_fine**2*dolfin.dx())
 
-                        norms_h[dt][i] = { "u_diff_norm": u_diff_norm, "u_norm": u_norm }
+                    norms_h[dt][i] = { "u_diff_norm": u_diff_norm, "u_norm": u_norm }
 
-                        print "difference between level ", N1, " and ", N0, " with dt ", dt, " is ", u_diff_norm, " versus u_norm ", u_norm
-                    except Exception as e:
-                        print "Not able to compare", (N0, N1), dt
-                        print e
+                    print "difference between level ", N1, " and ", N0, " with dt ", dt, " is ", u_diff_norm, " versus u_norm ", u_norm
+                except Exception as e:
+                    print "Not able to compare", (N0, N1), dt
+                    print e
 
         # FIXME: Add assertions to validate convergence rate from norms_h[dt][:]
         for dt in dts:
@@ -126,7 +132,7 @@ class TestDiscretizationVariations(unittest.TestCase):
                     print e
 
         # FIXME: Add assertions to validate convergence rate from norms_dt[N][:]
-        for N in Ns
+        for N in Ns:
             norms = norms_dt[N]
             rates = []
             for i in range(len(dts)-1):
