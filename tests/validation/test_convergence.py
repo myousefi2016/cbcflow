@@ -95,7 +95,8 @@ class TestConvergence(unittest.TestCase):
             rates = []
             for i in range(len(Ns)-2):
                 try:
-                    rate = norms[i+1]["u_diff_norm"] / norms[i]["u_diff_norm"]
+                    # FIXME: Correct rate estimation formula?
+                    rate = sqrt(norms[i]["u_diff_norm"] / norms[i+1]["u_diff_norm"])
                 except:
                     rate = None
                 rates.append(rate)
@@ -136,7 +137,8 @@ class TestConvergence(unittest.TestCase):
             rates = []
             for i in range(len(dts)-2):
                 try:
-                    rate = norms[i+1]["u_diff_norm"] / norms[i]["u_diff_norm"]
+                    # FIXME: Correct rate estimation formula?
+                    rate = sqrt(norms[i]["u_diff_norm"] / norms[i+1]["u_diff_norm"])
                 except:
                     rate = None
                 rates.append(rate)
