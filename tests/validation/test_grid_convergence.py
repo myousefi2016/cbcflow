@@ -156,3 +156,4 @@ def load_tests(loader, standard_tests, none):
         ]
 
     return make_suite(TestGridConvergence, [schemes, problems])
+

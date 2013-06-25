@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os, itertools
+import sys, os, itertools, inspect
 import unittest
 
 from headflow import *
@@ -16,6 +16,16 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         # These are callables to produce fresh NSScheme/NSProblem instances
         self.sf = scheme_factory
         self.pf = problem_factory
+
+    def shortDescription(self):
+        sc = self.sf.func_code
+        pc = self.pf.func_code
+        assert sc.co_filename == pc.co_filename
+        loc = "%s:%d,%d" % (sc.co_filename, sc.co_firstlineno, pc.co_firstlineno)
+        scode = inspect.getsource(self.sf)
+        pcode = inspect.getsource(self.pf)
+
+        return "%s with params:\n    sf = %s    pf = %s    @ %s" % (self.__class__.__name__, scode.lstrip(), pcode.lstrip(), loc)
 
     def _run_discretization_sweep(self, Ns, dts):
         "Call _run for each combination of N and dt and return dict with all data."
