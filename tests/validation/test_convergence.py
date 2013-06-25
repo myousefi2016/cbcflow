@@ -1,4 +1,7 @@
 
+############################ THIS IS OLD CODE AND WILL BE DELETED; MAY WANT TO GET SOME LISTS OF SCHEMES AND PARAMETERS ETC FIRST ############################
+
+
 # Hack until we place these tests in a proper framework
 import sys; sys.path.insert(0, "../demo") # FIXME: Assuming run from the headflow/tests/ directory!
 

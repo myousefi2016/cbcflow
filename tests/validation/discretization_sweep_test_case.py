@@ -11,11 +11,13 @@ dolfin.parameters["allow_extrapolation"] = True
 
 
 class DiscretizationSweepTestCase(unittest.TestCase):
-    def init(self, scheme_factory, problem_factory):
+    def init(self, scheme_factory, problem_factory, config={}):
         "Initialize this test case with given parameters."
         # These are callables to produce fresh NSScheme/NSProblem instances
         self.sf = scheme_factory
         self.pf = problem_factory
+        self.__Ns = config.get("Ns") if config else None
+        self.__dts = config.get("dts") if config else None
 
     def shortDescription(self):
         sc = self.sf.func_code
@@ -26,6 +28,26 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         pcode = inspect.getsource(self.pf)
 
         return "%s with params:\n    sf = %s    pf = %s    @ %s" % (self.__class__.__name__, scode.lstrip(), pcode.lstrip(), loc)
+
+    def _Ns(self):
+        "Return range of spatial discretization parameters."
+        if self.__Ns:
+            return self.__Ns
+        raise NotImplementedError("Missing implementation of _Ns in test class!")
+
+    def _dts(self):
+        "Return range of temporal discretization parameters."
+        if self.__dts:
+            return self.__dts
+        raise NotImplementedError("Missing implementation of _dts in test class!")
+
+    def _make_fields(self):
+        "Return postprocessing fields to apply in solve."
+        raise NotImplementedError("Missing implementation of _make_fields in test class!")
+
+    def _analyse_data(self, data):
+        "Analyse the data provided by the discretization parameter sweep."
+        raise NotImplementedError("Missing implementation of _analyse_data in test class!")
 
     def _run_discretization_sweep(self, Ns, dts):
         "Call _run for each combination of N and dt and return dict with all data."
@@ -71,25 +93,11 @@ class DiscretizationSweepTestCase(unittest.TestCase):
 
         return results
 
-    def _Ns(self):
-        raise NotImplementedError("Missing implementation of _Ns in test class!")
-
-    def _dts(self):
-        raise NotImplementedError("Missing implementation of _dts in test class!")
-
-    def _make_fields(self):
-        raise NotImplementedError("Missing implementation of _make_fields in test class!")
-
-    def _analyse_data(self, data):
-        raise NotImplementedError("Missing implementation of _analyse_data in test class!")
-
     def runTest(self):
         "Run sweep over discretization parameters and delegate analysis to subclass"
-
-        # Run simulations and collect all data
+        # Run simulations and collect all data (implemented above)
         data = self._run_discretization_sweep(self._Ns(), self._dts())
-
-        # Analyse this data
+        # Analyse this data (implemented by subclass)
         self._analyse_data(data)
 
 

@@ -14,14 +14,6 @@ from .discretization_sweep_test_case import DiscretizationSweepTestCase, make_su
 
 class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
 
-    def _Ns(self):
-        "Return range of spatial discretization parameters."
-        return [2, 4, 8, 16]
-
-    def _dts(self):
-        "Return range of temporal discretization parameters."
-        return [0.1, 0.05, 0.025, 0.0125]
-
     def _make_fields(self):
         "Return postprocessing fields to apply in solve."
         # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
@@ -80,6 +72,8 @@ from beltrami import Beltrami
 
 def load_tests(loader, standard_tests, none):
 
+    tests = []
+
     # FIXME: Make fast and slow suite
 
     # FIXME: Add more schemes
@@ -91,7 +85,21 @@ def load_tests(loader, standard_tests, none):
     # FIXME: Add more problems
     problems = [
         lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
+        ]
+    params = [dict(
+        Ns  = [2, 4, 8, 16],
+        dts = [0.1, 0.05, 0.025, 0.0125],
+        )]
+    tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
+
+    # FIXME: Add more problems
+    problems = [
         lambda N,dt: FlowAroundCylinder(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
         ]
+    params = [dict(
+        Ns  = [2, 4, 8, 16],
+        dts = [0.1, 0.05, 0.025, 0.0125],
+        )]
+    tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
 
-    return make_suite(TestAnalyticalSolutionConvergence, [schemes, problems])
+    return unittest.TestSuite(tests)
