@@ -85,7 +85,7 @@ class DiscretizationSweepTestCase(unittest.TestCase):
 
             # Extract results
             # TODO: Standardize and document interface for ppfield.get_data()
-            #results = { f.__class__.__name__: f.get_data() for f in fields }
+            #results = { f.name: f.get_data() for f in fields }
             results = {f.name: pp._cache[0][f.name] for f in fields}
             results["namespace"] = ns
         except Exception as e:

@@ -46,13 +46,13 @@ def run_convergence_sweep(Scheme, scheme_params, scheme_str,
 
                 # Make dicts first time
                 for field in fields:
-                    name = field.__class__.__name__ # field.name # TODO
+                    name = field.name
                     if not name in data:
                         data[name] = {}
 
                 # Collect data from analyzers
                 for field in fields:
-                    name = field.__class__.__name__ # field.name # TODO
+                    name = field.name
                     key = (problem_params.N, problem_params.dt)
                     # TODO: What kind of interface is this get_data()? Is it ppfields or specific for testing?
                     data[name][key] = field.get_data()
