@@ -1,88 +1,184 @@
 #!/usr/bin/env python
 """
-Tests of the postprocessing framework in headflow.
+Tests of an alternative work in progress postprocessing framework in headflow.
 """
 
 import unittest
 
-from headflow import NSPostProcessor, PPFieldBase, ParamDict
+from headflow import ParamDict, NSPostProcessor, WSS, Stress, Strain, Velocity, Pressure, VelocityGradient
+from headflow.core.parameterized import Parameterized
+'''
+class NSPostProcessor2(Parameterized):
+    def __init__(self, params=None):
+        Parameterized.__init__(self, params)
 
-class MockPostProcessor(NSPostProcessor):
-    def __init__(self):
-        NSPostProcessor.__init__(self)
+        self._fields = {}
+        self._cache = {}
+        self._cache[0] = {}
 
-    def print_data(self):
-        for inst in self.list_all:
-            print inst.get_data()
+    def add_field(self, field):
+        assert field is self._fields.get(field.name, field)
+        self._fields[field.name] = field
 
-    def print_all_params(self):
-        for inst in self.list_all:
-            print inst.params
+    def add_fields(self, fields):
+        for field in fields:
+            self.add_field(field)
 
+    def get(self, name, timestep=0):
+        c = self._cache[timestep]
+        if name in c:
+            v = c[name]
+        else:
+            f = self._fields[name]
+            v = f.compute(self)
+            c[name] = v
+        return v
 
-class MockA(PPFieldBase):
+    def _need_for(self, action, name, t, timestep):
+        f = self._fields[name]
+        # TODO: Match f.params[action].* and t,timestep to see if we should do this now
+        doit = False
+        return doit
 
-    def __init__(self, **kwargs):
-        PPFieldBase.__init__(self, **kwargs)
+    def _do(self, action, name, t, timestep, value):
+        if action == "save":
+            pass#self._save(name, t, timestep, value)
+        elif action == "plot":
+            pass#self._plot(name, t, timestep, value)
+        else:
+            error("Unknown action %s." % action)
 
-    def update(self, u, p, t, timestep, problem):
-        value = timestep+10
-        self.set_data(t, timestep, value)
+    def update_all(self, u, p, t, timestep):
+        self._sorted_fields = self._fields.keys() # TODO: Make a topological ordering
+                
 
+        for name in self._sorted_fields:
+            for action in ("save", "plot"):
+                if self._need_for(action, name, t, timestep):
+                    value = self.get(name)
+                    self._do(action, name, t, timestep, value)
+'''
+'''
+class PPField2(Parameterized):
+    def __init__(self, params=None):
+        Parameterized.__init__(self, params)
 
-class MockB(PPFieldBase):
-    def __init__(self, **kwargs):
-        assert("parent" in kwargs.keys())
-        PPFieldBase.__init__(self, **kwargs)
+    @classmethod
+    def default_base_params(cls):
+        params = ParamDict(
+            start_timestep = -1e16,
+            end_timestep = 1e16,
+            stride_timestep = 1,
+            )
+        return params
 
-    def update(self, u, p, t, timestep, problem):
-        # Get parent data
-        parent_datadict = self.parent.get_data()
-        parent_data = parent_datadict["data"]
+    @property
+    def name(self):
+        return self.__class__.__name__
 
-        value = parent_data**0.5
-        self.set_data(t, timestep, value)
+    def init(self, pp): # TODO: Arguments?
+        "Called prior to the simulation timeloop."
+        pass
 
+    def finalize(self, pp): # TODO: Arguments?
+        "Called after the simulation timeloop."
+        pass
 
-class MockC(PPFieldBase):
-    def __init__(self, **kwargs):
-        assert("parent" in kwargs.keys())
-        PPFieldBase.__init__(self, **kwargs)
+    def compute(self, pp): # TODO: Arguments?
+        "Called each time the quantity should be computed."
+        raise NotImplementedError("A PPField must implement the compute function!")
 
-    def update(self, u, p, t, timestep, problem):
-        # Get parent data
-        parent_datadict = self.parent.get_data()
-        parent_data = parent_datadict["data"]
+class Velocity(PPField2):
+    def __init__(self, params=None):
+        PPField2.__init__(self, params)
+        self.touched = 0
 
-        value = parent_data**2
-        self.set_data(t, timestep, value)
+    def compute(self, pp):
+        self.touched += 1
+        return "u"
 
+class Pressure(PPField2):
+    def __init__(self, params=None):
+        PPField2.__init__(self, params)
+        self.touched = 0
 
-class TestPostProcessing(unittest.TestCase):
-    def test_postprocessing(self):
-        # Create postprocessor
-        PP = MockPostProcessor()
+    def compute(self, pp):
+        self.touched += 1
+        return "p"
 
-        # MockB and MockC needs a MockA instance as parent
-        a = MockA(params=ParamDict(timeparams=ParamDict(start_timestep=5, end_timestep=15)))
-        b = MockB(parent=a, params=ParamDict(timeparams=ParamDict(start_timestep=1, end_timestep=10)))
-        c = MockC(parent=a, params=ParamDict(timeparams=ParamDict(start_timestep=5, end_timestep=18, step_frequency=4)))
+class VelocityGradient(PPField2):
+    def __init__(self, params=None):
+        PPField2.__init__(self, params)
+        self.touched = 0
 
-        # Add fields to postprocessor
-        PP.add_field(a)
-        PP.add_field(b)
-        PP.add_field(c)
+    def compute(self, pp):
+        self.touched += 1
+        u = pp.get("Velocity")
+        return "grad(%s)" % u
 
-        from numpy import linspace
-        T0, T1 = 0.0, 1.0
-        timesteps = linspace(T0,T1,21)[1:]
+class Strain(PPField2):
+    def __init__(self, params=None):
+        PPField2.__init__(self, params)
+        self.touched = 0
 
-        # Dummy timeloop
-        for timestep in xrange(1,len(timesteps)):
-            t = timesteps[timestep]
+    def compute(self, pp):
+        self.touched += 1
+        Du = pp.get("VelocityGradient")
+        return "epsilon(%s)" % Du
 
-            #print "######### Finished timestep %d (t=%f) ###########" %(timestep, t)
-            PP.update_all(None, None, t, timestep, None)
-            #PP.print_data()
-        #PP.print_all_params()
+class Stress(PPField2):
+    def __init__(self, params=None):
+        PPField2.__init__(self, params)
+        self.touched = 0
 
+    def compute(self, pp):
+        self.touched += 1
+        epsilon = pp.get("Strain")
+        p = pp.get("Pressure")
+        return "sigma(%s, %s)" % (epsilon, p)
+
+class TimeDerivative(PPField2):
+    def __init__(self, name, params=None):
+        PPField2.__init__(self, params)
+        self.name = name
+
+    def compute(self, pp):
+        u1 = pp.get(self.name)
+        u0 = pp.get(self.name, -1)
+
+        t1 = pp.get("t")
+        t0 = pp.get("t", -1)
+        dt = dt-dt
+
+        return (u1-u0)/dt
+'''
+
+class TestPostProcessing2(unittest.TestCase):
+    def test_(self):
+        pp = NSPostProcessor()
+        u = Velocity()
+        p = Pressure()
+        Du = VelocityGradient()
+        epsilon = Strain()
+        sigma = Stress()
+        pp.add_fields([u, p, Du, epsilon, sigma])
+        
+        # TODO: Figure out some proper tests for this.
+        
+        
+        #self.assertEqual(u.touched, 0)
+
+        #self.assertEqual(pp.get("Strain"), "epsilon(grad(u))")
+        #self.assertEqual(u.touched, 1)
+        #self.assertEqual(Du.touched, 1)
+        #self.assertEqual(epsilon.touched, 1)
+        #self.assertEqual(p.touched, 0)
+        #self.assertEqual(sigma.touched, 0)
+
+        #self.assertEqual(pp.get("Stress"), "sigma(epsilon(grad(u)), p)")
+        #self.assertEqual(u.touched, 1) # Not recomputed!
+        #self.assertEqual(Du.touched, 1) # Not recomputed!
+        #self.assertEqual(epsilon.touched, 1) # Not recomputed!
+        #self.assertEqual(p.touched, 1)
+        #self.assertEqual(sigma.touched, 1)
+        

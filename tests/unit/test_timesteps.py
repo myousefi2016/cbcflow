@@ -18,7 +18,7 @@ class TestTimestepComputation(unittest.TestCase):
 
         dt, ts = compute_regular_timesteps(problem)
 
-        self.assertEqual(dt, 1)
+        self.assertEqual(dt, 1e-2)
         self.assertEqual(ts[0], 0.2)
         self.assertAlmostEqual(ts[1]-ts[0], dt)
         self.assertEqual(len(ts), 91)

@@ -5,9 +5,9 @@ Tests of an alternative work in progress postprocessing framework in headflow.
 
 import unittest
 
-from headflow import ParamDict
+from headflow import ParamDict, NSPostProcessor, WSS, Stress, Strain, Velocity, Pressure, VelocityGradient
 from headflow.core.parameterized import Parameterized
-
+'''
 class NSPostProcessor2(Parameterized):
     def __init__(self, params=None):
         Parameterized.__init__(self, params)
@@ -50,13 +50,15 @@ class NSPostProcessor2(Parameterized):
 
     def update_all(self, u, p, t, timestep):
         self._sorted_fields = self._fields.keys() # TODO: Make a topological ordering
+                
 
         for name in self._sorted_fields:
             for action in ("save", "plot"):
                 if self._need_for(action, name, t, timestep):
                     value = self.get(name)
                     self._do(action, name, t, timestep, value)
-
+'''
+'''
 class PPField2(Parameterized):
     def __init__(self, params=None):
         Parameterized.__init__(self, params)
@@ -135,29 +137,49 @@ class Stress(PPField2):
         p = pp.get("Pressure")
         return "sigma(%s, %s)" % (epsilon, p)
 
+class TimeDerivative(PPField2):
+    def __init__(self, name, params=None):
+        PPField2.__init__(self, params)
+        self.name = name
+
+    def compute(self, pp):
+        u1 = pp.get(self.name)
+        u0 = pp.get(self.name, -1)
+
+        t1 = pp.get("t")
+        t0 = pp.get("t", -1)
+        dt = dt-dt
+
+        return (u1-u0)/dt
+'''
+
 class TestPostProcessing2(unittest.TestCase):
     def test_(self):
-        pp = NSPostProcessor2()
+        pp = NSPostProcessor()
         u = Velocity()
         p = Pressure()
         Du = VelocityGradient()
         epsilon = Strain()
         sigma = Stress()
         pp.add_fields([u, p, Du, epsilon, sigma])
+        
+        print pp._cache
+        
+        
+        
+        #self.assertEqual(u.touched, 0)
 
-        self.assertEqual(u.touched, 0)
+        #self.assertEqual(pp.get("Strain"), "epsilon(grad(u))")
+        #self.assertEqual(u.touched, 1)
+        #self.assertEqual(Du.touched, 1)
+        #self.assertEqual(epsilon.touched, 1)
+        #self.assertEqual(p.touched, 0)
+        #self.assertEqual(sigma.touched, 0)
 
-        self.assertEqual(pp.get("Strain"), "epsilon(grad(u))")
-        self.assertEqual(u.touched, 1)
-        self.assertEqual(Du.touched, 1)
-        self.assertEqual(epsilon.touched, 1)
-        self.assertEqual(p.touched, 0)
-        self.assertEqual(sigma.touched, 0)
-
-        self.assertEqual(pp.get("Stress"), "sigma(epsilon(grad(u)), p)")
-        self.assertEqual(u.touched, 1) # Not recomputed!
-        self.assertEqual(Du.touched, 1) # Not recomputed!
-        self.assertEqual(epsilon.touched, 1) # Not recomputed!
-        self.assertEqual(p.touched, 1)
-        self.assertEqual(sigma.touched, 1)
-
+        #self.assertEqual(pp.get("Stress"), "sigma(epsilon(grad(u)), p)")
+        #self.assertEqual(u.touched, 1) # Not recomputed!
+        #self.assertEqual(Du.touched, 1) # Not recomputed!
+        #self.assertEqual(epsilon.touched, 1) # Not recomputed!
+        #self.assertEqual(p.touched, 1)
+        #self.assertEqual(sigma.touched, 1)
+        
