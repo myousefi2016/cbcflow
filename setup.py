@@ -49,7 +49,6 @@ setup(name = "headflow",
                   "headflow.schemes",
                   "headflow.bcs",
                   "headflow.postprocessing",
-                  "headflow.postprocessing.PPFields",
                   # TODO: Add submodules here
                   ],
       package_dir = {"headflow": "site-packages/headflow"},
