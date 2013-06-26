@@ -43,26 +43,46 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         self._print_table(data)
 
     def _print_table(self, data):
-        # TODO: Split into computing and presenting table
 
-        Ns = self._Ns()
-        dts = self._dts()
+        print data
 
-        fieldname = "AnalyticalSolutionAnalyzer"
-        subfields = ["u0", "u1", "u2", "p"]
+        # TODO: Move these utils to shared code?
 
-        for x in subfields:
-            print
+        def map_dict_values(table, mapping):
+            return { k:mapping(v) for k,v in table.iteritems() }
+
+        def multi_get(top, *keys):
+            em = {}
+            d = top
+            for k in keys[:-1]:
+                d = d.get(k,em)
+            return d.get(keys[-1])
+
+        def extract_table(data, Ns, dts, fieldname, subfieldname):
+            em = {}
+            return { (N,dt): multi_get(data, (N,dt), fieldname, "data", subfieldname)
+                     for N in Ns for dt in dts }
+
+        # TODO: Find some better table formatting utils I have lying around somewhere
+        def print_table(table, Ns, dts):
             print
             print x
-            print "dt ",
+            print "dt    ",
             for dt in dts:
                 print dt,
             for N in Ns:
-                print "\nN ", N,
-                for dt in dts:
-                    print " %2.2e " % data[(N, dt)][fieldname]["data"][x],
+                print "\nN  ", N,
+                print '  '.join(table[(N, dt)] for dt in dts),
+            print
 
+        Ns = self._Ns()
+        dts = self._dts()
+        fieldname = "AnalyticalSolutionAnalyzer"
+        subfields = ["u0", "u1", "u2", "p"]
+        for x in subfields:
+            table = extract_table(data, Ns, dts, fieldname, x)
+            table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
+            print_table(table, Ns, dts)
 
 # Importing problems from headflow/demo/
 # NB! Assuming run from the headflow/tests/ directory!
@@ -87,18 +107,10 @@ def load_tests(loader, standard_tests, none):
         lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
         ]
     params = [dict(
-        Ns  = [2, 4, 8, 16],
-        dts = [0.1, 0.05, 0.025, 0.0125],
-        )]
-    tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
-
-    # FIXME: Add more problems
-    problems = [
-        lambda N,dt: FlowAroundCylinder(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
-        ]
-    params = [dict(
-        Ns  = [2, 4, 8, 16],
-        dts = [0.1, 0.05, 0.025, 0.0125],
+    #    Ns  = [2, 4, 8, 16],
+    #    dts = [0.1, 0.05, 0.025, 0.0125],
+        Ns  = [2, 4],
+        dts = [0.1, 0.05],
         )]
     tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
 
