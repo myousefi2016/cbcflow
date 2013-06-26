@@ -1,4 +1,6 @@
 #!/bin/bash
 export PYTHONPATH=../site-packages:${PYTHONPATH}
+export PYTHONPATH=../demo:${PYTHONPATH}
+export HEADFLOW_DATA=../data
 python -m unittest discover unit
 exit $?

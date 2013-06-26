@@ -19,7 +19,7 @@ class Cylinder(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
 
-class FlowAroundACylinder(NSProblem):
+class FlowAroundCylinder(NSProblem):
     "Flow around a cylinder in 2D."
 
     def __init__(self, params=None):
@@ -138,4 +138,4 @@ def StreamFunction(u):
 
 if __name__ == "__main__":
     from demo_main import demo_main
-    demo_main(FlowAroundACylinder)
+    demo_main(FlowAroundCylinder)
