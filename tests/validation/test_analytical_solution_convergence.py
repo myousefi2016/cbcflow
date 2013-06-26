@@ -60,7 +60,7 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
 
         def extract_table(data, Ns, dts, fieldname, subfieldname):
             em = {}
-            return { (N,dt): multi_get(data, (N,dt), fieldname, "data", subfieldname)
+            return { (N,dt): multi_get(data, (N,dt), fieldname, subfieldname)
                      for N in Ns for dt in dts }
 
         # TODO: Find some better table formatting utils I have lying around somewhere
