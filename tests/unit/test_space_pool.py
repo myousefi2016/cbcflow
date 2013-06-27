@@ -29,7 +29,7 @@ class SpacePool(object):
     def get_custom_space(self, family, degree, shape):
         key = (family, degree, shape)
         space = self._spaces.get(key)
-        if space is None
+        if space is None:
             rank = len(shape)
             if rank == 0:
                 space = FunctionSpace(self.mesh, family, degree)
@@ -135,22 +135,24 @@ class FunctionPool:
     def __init__(self):
         self._free = defaultdict(list)
 
+    def _key(self, space):
+        return (space.ufl_element(), space.mesh().id())
+
     def borrow_function(self, space, name):
-        key = space
+        key = self._key(space)
         fr = self._free[key]
         if fr:
             f = fr.pop()
-            f.rename(name)
+            f.rename(name, "<function borrowed from function pool>")
         else:
             f = Function(space, name=name)
         return f
 
     def return_function(self, f):
         space = f.function_space()
-        f.rename("<owned by function pool>")
-        key = space
+        f.rename("unused", "<function owned by function pool>")
+        key = self._key(space)
         self._free[key].append(f)
-
 
 import unittest
 
@@ -158,7 +160,7 @@ from dolfin import UnitSquareMesh
 mesh = UnitSquareMesh(1,1)
 
 class TestSpacePools(unittest.TestCase):
-    def xtest_function_pool_borrow_and_return(self): # Temporarily disabled, not tested
+    def test_function_pool_borrow_and_return(self): # Temporarily disabled, not tested
         # Setup pools to test
         sp = SpacePool(mesh)
         fp = FunctionPool()
@@ -173,9 +175,9 @@ class TestSpacePools(unittest.TestCase):
             V = sp.get_space(d, 0)
             f1[d] = fp.borrow_function(V, "f1[%d]"%d)
             f2[d] = fp.borrow_function(V, "f2[%d]"%d)
-            self.assertIsNot(f1, f2)
-            self.assertEqual(f1.function_space().degree(), d)
-            self.assertEqual(f2.function_space().degree(), d)
+            self.assertIsNot(f1[d], f2[d])
+            self.assertEqual(f1[d].element().degree(), d)
+            self.assertEqual(f2[d].element().degree(), d)
 
         # Return some of them (but hold on to the references)
         for d in (0,):
@@ -185,7 +187,7 @@ class TestSpacePools(unittest.TestCase):
         # Borrow some functions matching the returned ones
         for d in (0,):
             V = sp.get_space(d, 0)
-            tmp1 = fp.borrow_function(V, "xf1[%d]"%d)
+            tmp = fp.borrow_function(V, "xf1[%d]"%d)
             self.assertIs(f1[d], tmp)
 
         # Return all functions
