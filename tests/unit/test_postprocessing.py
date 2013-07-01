@@ -4,17 +4,32 @@ Tests of postprocessing framework in headflow.
 """
 
 import unittest
+
 from collections import defaultdict
+
 from headflow import ParamDict, NSProblem, NSPostProcessor, PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS
 from headflow.core.spaces import NSSpacePoolSplit
-from dolfin import UnitSquareMesh, Function, Expression, norm, errornorm
+
+import dolfin
+from dolfin import UnitSquareMesh, Function, Expression, norm, errornorm, assemble, dx
+from math import sqrt
+
+# Avoid negative norms caused by instable tensor representation:
+dolfin.parameters["form_compiler"]["representation"] = "quadrature"
+
+_mesh = UnitSquareMesh(32, 32)
 
 class MockProblem(NSProblem):
     def __init__(self):
         NSProblem.__init__(self)
-        mesh = UnitSquareMesh(5, 5)
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(_mesh)
 
+    @classmethod
+    def default_user_params(cls):
+        return ParamDict(
+            mu = 0.1,
+            rho = 0.9,
+            )
 
 class MockPPField(PPField):
     def __init__(self, params=None):
@@ -97,9 +112,9 @@ class MockTimeDerivative(MockPPField):
 
         t1 = pp.get("t")
         t0 = pp.get("t", -1)
-        dt = dt-dt
+        dt = t1-t0
 
-        return (u1-u0)/dt
+        return "(%s - %s) / (%g)" % (u1, u0, dt)
 
 
 class TestPostProcessing2(unittest.TestCase):
@@ -241,6 +256,7 @@ class TestPostProcessing2(unittest.TestCase):
 
         # This is the object we want to test!
         pp = NSPostProcessor()
+        pp.add_fields([VelocityGradient(), Pressure(), Stress(), Velocity(), Strain()])
 
         # Attach a callback to postprocessor so we can inspect direct compute requests
         def ppcallback(field, data, t, timestep):
@@ -252,13 +268,15 @@ class TestPostProcessing2(unittest.TestCase):
         problem = MockProblem()
 
         # Toy state evolution
-        uexpr = Expression(("1.0 + 2*x[0] + 3*x[1]", "1.0 + 4*x[0] + 5*x[1]"), t=0.0)
-        pexpr = Expression("1.0 + t * 3 * x[0] * x[1]", t=0.0)
+        uexpr = Expression(("1.0 + 2*x[0] + 3*x[1]", "1.0 + 4*x[0] + 5*x[1]"))
+        pexpr = Expression("1.0 + 3 * x[0] * x[1]")
 
         # Manually derived quantities
-        Du_expr = Expression((("2.0", "4.0"), ("3.0", "5.0")))
+        Du_expr = Expression((("2.0", "3.0"), ("4.0", "5.0")))
         epsilon_expr = Expression((("2.0", "3.5"), ("3.5", "5.0")))
-        # TODO: stress
+        sigma_expr = Expression((("2*0.2 - (1.0 + 3 * x[0] * x[1])", "2*0.35"),
+                             ("2*0.35", "2*0.5 - (1.0 + 3 * x[0] * x[1])")))
+        self.assertAlmostEqual(problem.params.mu, 0.1) # Using this in sigma_expr
 
         # Setup some mock scheme state
         spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
@@ -271,8 +289,6 @@ class TestPostProcessing2(unittest.TestCase):
         dt = 0.1
 
         # Set "initial condition"
-        uexpr.t = t
-        pexpr.t = t
         u.interpolate(uexpr)
         p.interpolate(pexpr)
 
@@ -280,11 +296,32 @@ class TestPostProcessing2(unittest.TestCase):
         pp.update_all(u, p, t, timestep, problem)
 
         # Check that we recover the velocity, pressure, and time
-        self.assertAlmostEqual(errornorm(uexpr, pp.get("Velocity")), 0.0)
-        self.assertAlmostEqual(errornorm(pexpr, pp.get("Pressure")), 0.0)
-        self.assertAlmostEqual(errornorm(Du_expr, pp.get("VelocityGradient")), 0.0)
-        self.assertAlmostEqual(errornorm(epsilon_expr, pp.get("Strain")), 0.0)
-        self.assertAlmostEqual(errornorm(sigma_expr, pp.get("Stress")), 0.0)
+        def _errornorm(expr, name):
+            a = assemble(expr**2*dx(), mesh=problem.mesh)
+            e = assemble(pp.get(name)**2*dx(), mesh=problem.mesh)
+            d = assemble((expr - pp.get(name))**2*dx(), mesh=problem.mesh)
+            print a, e, d, d/e
+            return d / e
+
+        if 0:
+            print "u", _errornorm(uexpr, "Velocity")
+            print "p", _errornorm(pexpr, "Pressure")
+            print "g", _errornorm(Du_expr, "VelocityGradient")
+            print "s", _errornorm(epsilon_expr, "Strain")
+
+        self.assertAlmostEqual(_errornorm(uexpr, "Velocity"), 0.0)
+        self.assertAlmostEqual(_errornorm(pexpr, "Pressure"), 0.0)
+
+        if 0:
+            dolfin.plot(Du_expr[0,:], mesh=problem.mesh)
+            dolfin.plot(Du_expr[1,:], mesh=problem.mesh)
+            dolfin.plot(pp.get("VelocityGradient")[0,:], mesh=problem.mesh)
+            dolfin.plot(pp.get("VelocityGradient")[0,:], mesh=problem.mesh)
+            dolfin.interactive()
+
+        self.assertAlmostEqual(_errornorm(Du_expr, "VelocityGradient"), 0.0)
+        self.assertAlmostEqual(_errornorm(epsilon_expr, "Strain"), 0.0)
+        self.assertLess(_errornorm(sigma_expr, "Stress"), 3e-4) # This is less accurate, but converges
 
         # We didn't make any direct compute requests, so no actions should be triggered:
         self.assertEqual(ppcallback.calls, defaultdict(list))
