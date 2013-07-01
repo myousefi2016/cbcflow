@@ -7,7 +7,7 @@ import unittest
 from collections import defaultdict
 from headflow import ParamDict, NSProblem, NSPostProcessor, PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS
 from headflow.core.spaces import NSSpacePoolSplit
-from dolfin import UnitSquareMesh, Function, Expression, norm
+from dolfin import UnitSquareMesh, Function, Expression, norm, errornorm
 
 class MockProblem(NSProblem):
     def __init__(self):
@@ -236,14 +236,59 @@ class TestPostProcessing2(unittest.TestCase):
         # We didn't make any direct compute requests, so no actions should be triggered:
         self.assertEqual(ppcallback.calls, defaultdict(list))
 
-    def test_get_velocity_gradient(self):
-        self.assertEqual(1, 1) # FIXME
+    def test_get_compute_velocity_gradient_strain_and_stress(self):
+        # FIXME: Test these computations with both mixed, split and segregated "schemes"!
 
-    def test_get_strain(self):
-        self.assertEqual(1, 1) # FIXME: Test computation of strain with mixed, split and segregated "schemes"
+        # This is the object we want to test!
+        pp = NSPostProcessor()
 
-    def test_get_stress(self):
-        self.assertEqual(1, 1) # FIXME
+        # Attach a callback to postprocessor so we can inspect direct compute requests
+        def ppcallback(field, data, t, timestep):
+            ppcallback.calls[field.name].append((t, timestep))
+        ppcallback.calls = defaultdict(list)
+        pp._callback = ppcallback
+
+        # Setup some mock problem state
+        problem = MockProblem()
+
+        # Toy state evolution
+        uexpr = Expression(("1.0 + 2*x[0] + 3*x[1]", "1.0 + 4*x[0] + 5*x[1]"), t=0.0)
+        pexpr = Expression("1.0 + t * 3 * x[0] * x[1]", t=0.0)
+
+        # Manually derived quantities
+        Du_expr = Expression((("2.0", "4.0"), ("3.0", "5.0")))
+        epsilon_expr = Expression((("2.0", "3.5"), ("3.5", "5.0")))
+        # TODO: stress
+
+        # Setup some mock scheme state
+        spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
+        u = Function(spaces.V)
+        p = Function(spaces.Q)
+
+        # Set initial time
+        t = 0.0
+        timestep = 0
+        dt = 0.1
+
+        # Set "initial condition"
+        uexpr.t = t
+        pexpr.t = t
+        u.interpolate(uexpr)
+        p.interpolate(pexpr)
+
+        # Update postprocessor, this is where the main code under test is
+        pp.update_all(u, p, t, timestep, problem)
+
+        # Check that we recover the velocity, pressure, and time
+        self.assertAlmostEqual(errornorm(uexpr, pp.get("Velocity")), 0.0)
+        self.assertAlmostEqual(errornorm(pexpr, pp.get("Pressure")), 0.0)
+        self.assertAlmostEqual(errornorm(Du_expr, pp.get("VelocityGradient")), 0.0)
+        self.assertAlmostEqual(errornorm(epsilon_expr, pp.get("Strain")), 0.0)
+        self.assertAlmostEqual(errornorm(sigma_expr, pp.get("Stress")), 0.0)
+
+        # We didn't make any direct compute requests, so no actions should be triggered:
+        self.assertEqual(ppcallback.calls, defaultdict(list))
+
 
     def test_get_wss(self):
         self.assertEqual(1, 1) # FIXME
