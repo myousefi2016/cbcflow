@@ -131,11 +131,21 @@ class TestProblemSchemeInterfacing(unittest.TestCase):
         # TODO: Goal:
         #schemes = all_schemes
 
-        # WIP: Needs to set pressure average
+        
         #schemes = [CoupledPicard]
 
         # Currently passing:
-        schemes = [PenaltyIPCS, SegregatedPenaltyIPCS]
+        schemes = []
+        schemes.append(IPCS)
+        schemes.append(SegregatedIPCS)
+        schemes.append(SegregatedIPCS_Optimized)
+        #schemes.append(IPCS_Stable) # Not passing, timestepping thingy
+        schemes.append(IPCS_Stabilized)
+        schemes.append(PenaltyIPCS)
+        schemes.append(SegregatedPenaltyIPCS)
+        #schemes.append(CoupledNonLinear)
+        #schemes.append(CoupledPicard) # WIP: Needs to set pressure average
+        #schemes.append(Stokes)
 
         problems = [MockProblem]
 
