@@ -45,14 +45,6 @@ class SpacePool(object):
         shape = (self.gdim,)*rank
         return self.get_custom_space(family, degree, shape)
 
-    @property
-    def U_CG1(self): # TODO: Remove, use get_space instead
-        return self.get_space(1, 0)
-
-    @property
-    def V_CG1(self): # TODO: Remove, use get_space instead
-        return self.get_space(1, 1)
-
 class NSSpacePool(SpacePool):
     "A function space pool with custom named spaces for use with Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree):
@@ -61,19 +53,52 @@ class NSSpacePool(SpacePool):
         self.p_degree = p_degree
 
     @property
+    def U_CG1(self): # TODO: Remove, use get_space instead
+        return self.get_space(1, 0)
+
+    @property
+    def V_CG1(self): # TODO: Remove, use get_space instead
+        return self.get_space(1, 1)
+
+    @property
     def U(self):
-        "Scalar valued velocity space."
+        "Scalar valued space for velocity components."
         return self.get_space(self.u_degree, 0)
 
     @property
     def V(self):
-        "Vector valued velocity space."
+        "Vector valued space for velocity vector."
         return self.get_space(self.u_degree, 1)
 
     @property
     def Q(self):
-        "Pressure space."
+        "Scalar valued space for pressure."
         return self.get_space(self.p_degree, 0)
+
+    @property
+    def DU0(self):
+        "Scalar valued space for gradient component of single velocity component."
+        return self.get_space(self.u_degree-1, 0)
+
+    @property
+    def DU(self):
+        "Vector valued space for gradients of single velocity components."
+        return self.get_space(self.u_degree-1, 1)
+
+    @property
+    def DV(self):
+        "Tensor valued space for gradients of velocity vector."
+        return self.get_space(self.u_degree-1, 2)
+
+    @property
+    def DQ0(self):
+        "Scalar valued space for pressure gradient component."
+        return self.get_space(self.p_degree-1, 0)
+
+    @property
+    def DQ(self):
+        "Vector valued space for pressure gradient."
+        return self.get_space(self.p_degree-1, 1)
 
     @property
     def W(self):
@@ -84,7 +109,7 @@ class NSSpacePool(SpacePool):
             self._spaces["W"] = space
         return space
 
-class NSSpacePoolMixed(NSSpacePool): 
+class NSSpacePoolMixed(NSSpacePool):
     "A function space pool with custom named spaces for use with mixed Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree):
         NSSpacePool.__init__(self, mesh, u_degree, p_degree)
@@ -99,7 +124,7 @@ class NSSpacePoolMixed(NSSpacePool):
         "Scalar valued space for setting pressure BCs."
         return self.W.sub(1)
 
-class NSSpacePoolSplit(NSSpacePool): 
+class NSSpacePoolSplit(NSSpacePool):
     "A function space pool with custom named spaces for use with split Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree):
         NSSpacePool.__init__(self, mesh, u_degree, p_degree)
@@ -114,7 +139,7 @@ class NSSpacePoolSplit(NSSpacePool):
         "Scalar valued space for setting pressure BCs."
         return self.Q
 
-class NSSpacePoolSegregated(NSSpacePool): 
+class NSSpacePoolSegregated(NSSpacePool):
     "A function space pool with custom named spaces for use with segregated Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree):
         NSSpacePool.__init__(self, mesh, u_degree, p_degree)
@@ -160,7 +185,94 @@ from dolfin import UnitSquareMesh
 mesh = UnitSquareMesh(1,1)
 
 class TestSpacePools(unittest.TestCase):
-    def test_function_pool_borrow_and_return(self): # Temporarily disabled, not tested
+    def test_spacepool_base_functionality(self):
+        p = SpacePool(mesh)
+        d = 2
+        spaces = []
+        shapes = [(), (3,), (2,4)]
+        degrees = [0,1,2]
+        for shape in shapes:
+            for degree in degrees:
+                V = p.get_custom_space("DG", degree, shape)
+                self.assertEqual(V.ufl_element().degree(), degree)
+                self.assertEqual(V.ufl_element().value_shape(), shape)
+
+                rank = len(shape)
+                shape2 = (d,)*rank
+                U = p.get_space(degree, rank)
+                self.assertEqual(U.ufl_element().degree(), degree)
+                self.assertEqual(U.ufl_element().value_shape(), shape2)
+
+                spaces.append((V,U))
+
+        k = 0
+        for shape in shapes:
+            for degree in degrees:
+                V0, U0 = spaces[k]; k += 1
+
+                V = p.get_custom_space("DG", degree, shape)
+                U = p.get_space(degree, len(shape))
+
+                self.assertEqual(id(V0), id(V))
+                self.assertEqual(id(U0), id(U))
+
+    def test_nsspacepool_named_spaces(self):
+        p = NSSpacePool(mesh, 2, 1)
+        d = 2
+
+        self.assertEqual(p.U.ufl_element().degree(), 2)
+        self.assertEqual(p.V.ufl_element().degree(), 2)
+        self.assertEqual(p.Q.ufl_element().degree(), 1)
+        self.assertEqual(p.DU.ufl_element().degree(), 1)
+        self.assertEqual(p.DV.ufl_element().degree(), 1)
+        self.assertEqual(p.DQ.ufl_element().degree(), 0)
+        self.assertEqual(p.DU0.ufl_element().degree(), 1)
+        self.assertEqual(p.DQ0.ufl_element().degree(), 0)
+        self.assertEqual(p.W.ufl_element().degree(), 2)
+
+        self.assertEqual(p.U.ufl_element().value_shape(), ())
+        self.assertEqual(p.V.ufl_element().value_shape(), (d,))
+        self.assertEqual(p.Q.ufl_element().value_shape(), ())
+        self.assertEqual(p.DU.ufl_element().value_shape(), (d,))
+        self.assertEqual(p.DV.ufl_element().value_shape(), (d,d))
+        self.assertEqual(p.DQ.ufl_element().value_shape(), (d,))
+        self.assertEqual(p.DU0.ufl_element().value_shape(), ())
+        self.assertEqual(p.DQ0.ufl_element().value_shape(), ())
+        self.assertEqual(p.W.ufl_element().value_shape(), (d+1,))
+
+    def test_nsspacepool_mixed_bcspaces(self):
+        d = 2
+        p = NSSpacePoolMixed(mesh, 2, 1)
+        W = p.W
+        Ubc = p.Ubc
+        Qbc = p.Qbc
+        for i in range(d):
+            self.assertEqual(Ubc[i].component(), (i,)) # subspace i of subspace 0 of mixed space
+        self.assertEqual(Qbc.component(), (1,)) # subspace 1 of mixed space
+
+    def test_nsspacepool_split_bcspaces(self):
+        d = 2
+        p = NSSpacePoolSplit(mesh, 2, 1)
+        V = p.V
+        Q = p.Q
+        Ubc = p.Ubc
+        Qbc = p.Qbc
+        for i in range(d):
+            self.assertEqual(Ubc[i].component(), (i,))
+        self.assertEqual(id(Q), id(Qbc))
+
+    def test_nsspacepool_segregated_bcspaces(self):
+        d = 2
+        p = NSSpacePoolSegregated(mesh, 2, 1)
+        U = p.U
+        Q = p.Q
+        Ubc = p.Ubc
+        Qbc = p.Qbc
+        for i in range(d):
+            self.assertEqual(id(Ubc[i]), id(U))
+        self.assertEqual(id(Q), id(Qbc))
+
+    def test_function_pool_borrow_and_return(self):
         # Setup pools to test
         sp = SpacePool(mesh)
         fp = FunctionPool()
