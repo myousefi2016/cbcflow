@@ -195,12 +195,8 @@ class TestConvergence(unittest.TestCase):
 
         # ... Configuration of postprocessing
         ppfield_pd = ParamDict(
-            saveparams=ParamDict(
-                save=True, # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
-                ),
-            timeparams=ParamDict(
-                step_frequency=10,
-                )
+            save=True, # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
+            step_frequency=10,
             )
         analyzers = [(Velocity, ppfield_pd)]
         # TODO: Generalize convergence test on analyzer classes:
@@ -279,17 +275,11 @@ class TestConvergence(unittest.TestCase):
         # ... Configuration of postprocessing
         # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
         ppfield_pd1 = ParamDict(
-            saveparams=ParamDict(
-                save=True,
-                ),
+            save=True,
             )
         ppfield_pd3 = ParamDict(
-            saveparams=ParamDict(
-                save=True,
-                ),
-            timeparams=ParamDict(
-                step_frequency=10,
-                )
+            save=True,
+            stride_timestep=10,
             )
         analyzers = [
             (AnalyticalSolutionAnalyzer, ppfield_pd1),
@@ -356,17 +346,11 @@ class TestConvergence(unittest.TestCase):
         # ... Configuration of postprocessing
         # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
         ppfield_pd1 = ParamDict(
-            saveparams=ParamDict(
-                save=True,
-                ),
+            save=True,
             )
         ppfield_pd3 = ParamDict(
-            saveparams=ParamDict(
-                save=True,
-                ),
-            timeparams=ParamDict(
-                step_frequency=10,
-                )
+            save=True,
+            stride_timestep=10,
             )
         analyzers = [
             (AnalyticalSolutionAnalyzer, ppfield_pd1),

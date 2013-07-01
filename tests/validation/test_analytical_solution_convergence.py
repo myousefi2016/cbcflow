@@ -19,17 +19,11 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
         save = False
         p1 = ParamDict(
-            saveparams=ParamDict(
-                save=save,
-                ),
+            save=True,
             )
         p3 = ParamDict(
-            saveparams=ParamDict(
-                save=save,
-                ),
-            timeparams=ParamDict(
-                step_frequency=10,
-                )
+            save=True,
+            stride_timestep=10,
             )
         return [
             AnalyticalSolutionAnalyzer(params=p1),

@@ -4,7 +4,7 @@ Tests of postprocessing framework in headflow.
 """
 
 import unittest
-
+from collections import defaultdict
 from headflow import ParamDict, NSProblem, NSPostProcessor, PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS
 from headflow.core.spaces import NSSpacePoolSplit
 from dolfin import UnitSquareMesh, Function, Expression, norm
@@ -33,13 +33,10 @@ class MockPPField(PPField):
             end_time=-1.0e16,
             stride_time=0.0,
 
-            # Don't save or plot
-            save_params=ParamDict(
-                save = False,
-                ),
-            plot_params=ParamDict(
-                plot = False,
-                )
+            # Don't save or plot, but call callback
+            save = False,
+            plot = False,
+            callback = True,
             )
 
 
@@ -171,7 +168,14 @@ class TestPostProcessing2(unittest.TestCase):
 
     def test_get_time_and_solution(self):
 
+        # This is the object we want to test!
         pp = NSPostProcessor()
+
+        # Attach a callback to postprocessor so we can inspect direct compute requests
+        def ppcallback(field, data, t, timestep):
+            ppcallback.calls[field.name].append((t, timestep))
+        ppcallback.calls = defaultdict(list)
+        pp._callback = ppcallback
 
         # Setup some mock problem state
         problem = MockProblem()
@@ -228,6 +232,9 @@ class TestPostProcessing2(unittest.TestCase):
             self.assertAlmostEqual(norm(p), norm(pp.get("Pressure")))
             self.assertGreater(norm(u), 0.0) # Check that previous test was not worthless
             self.assertGreater(norm(p), 0.0)
+
+        # We didn't make any direct compute requests, so no actions should be triggered:
+        self.assertEqual(ppcallback.calls, defaultdict(list))
 
     def test_get_velocity_gradient(self):
         self.assertEqual(1, 1) # FIXME
