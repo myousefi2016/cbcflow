@@ -145,7 +145,7 @@ class TestProblemSchemeInterfacing(unittest.TestCase):
 
                     # Mock postprocessing update function
                     update_record = []
-                    def update(u, p, t, timestep):
+                    def update(u, p, t, timestep, spaces):
                         update_record.append((float(t), int(timestep)))
 
                     # Run scheme with mock problem

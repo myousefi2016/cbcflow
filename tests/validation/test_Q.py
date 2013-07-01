@@ -24,7 +24,7 @@ class TestQ(DiscretizationSweepTestCase):
 
     def _make_fields(self):
         "Return postprocessing fields to apply in solve."
-        return [Velocity(), QDeltaLambda2()]
+        return [Velocity(), Q(), Delta(), Lambda2()]
 
     def _analyse_data(self, data):
         "Analyse the data provided by the discretization parameter sweep."
