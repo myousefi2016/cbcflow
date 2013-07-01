@@ -1,148 +1,100 @@
 #!/usr/bin/env python
 """
-Tests of an alternative work in progress postprocessing framework in headflow.
+Tests of postprocessing framework in headflow.
 """
 
 import unittest
 
-from headflow import ParamDict, NSPostProcessor, WSS, Stress, Strain, Velocity, Pressure, VelocityGradient
-from headflow.core.parameterized import Parameterized
-'''
-class NSPostProcessor2(Parameterized):
+from headflow import ParamDict, NSProblem, NSPostProcessor, PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS
+from headflow.core.spaces import NSSpacePoolSplit
+from dolfin import UnitSquareMesh, Function, Expression, norm
+
+class MockProblem(NSProblem):
+    def __init__(self):
+        NSProblem.__init__(self)
+        mesh = UnitSquareMesh(5, 5)
+        self.initialize_geometry(mesh)
+
+
+class MockPPField(PPField):
     def __init__(self, params=None):
-        Parameterized.__init__(self, params)
-
-        self._fields = {}
-        self._cache = {}
-        self._cache[0] = {}
-
-    def add_field(self, field):
-        assert field is self._fields.get(field.name, field)
-        self._fields[field.name] = field
-
-    def add_fields(self, fields):
-        for field in fields:
-            self.add_field(field)
-
-    def get(self, name, timestep=0):
-        c = self._cache[timestep]
-        if name in c:
-            v = c[name]
-        else:
-            f = self._fields[name]
-            v = f.compute(self)
-            c[name] = v
-        return v
-
-    def _need_for(self, action, name, t, timestep):
-        f = self._fields[name]
-        # TODO: Match f.params[action].* and t,timestep to see if we should do this now
-        doit = False
-        return doit
-
-    def _do(self, action, name, t, timestep, value):
-        if action == "save":
-            pass#self._save(name, t, timestep, value)
-        elif action == "plot":
-            pass#self._plot(name, t, timestep, value)
-        else:
-            error("Unknown action %s." % action)
-
-    def update_all(self, u, p, t, timestep):
-        self._sorted_fields = self._fields.keys() # TODO: Make a topological ordering
-                
-
-        for name in self._sorted_fields:
-            for action in ("save", "plot"):
-                if self._need_for(action, name, t, timestep):
-                    value = self.get(name)
-                    self._do(action, name, t, timestep, value)
-'''
-'''
-class PPField2(Parameterized):
-    def __init__(self, params=None):
-        Parameterized.__init__(self, params)
-
-    @classmethod
-    def default_base_params(cls):
-        params = ParamDict(
-            start_timestep = -1e16,
-            end_timestep = 1e16,
-            stride_timestep = 1,
-            )
-        return params
-
-    @property
-    def name(self):
-        return self.__class__.__name__
-
-    def init(self, pp): # TODO: Arguments?
-        "Called prior to the simulation timeloop."
-        pass
-
-    def finalize(self, pp): # TODO: Arguments?
-        "Called after the simulation timeloop."
-        pass
-
-    def compute(self, pp): # TODO: Arguments?
-        "Called each time the quantity should be computed."
-        raise NotImplementedError("A PPField must implement the compute function!")
-
-class Velocity(PPField2):
-    def __init__(self, params=None):
-        PPField2.__init__(self, params)
+        PPField.__init__(self, params)
         self.touched = 0
 
-    def compute(self, pp):
+    @classmethod
+    def default_user_params(cls):
+        return ParamDict(
+            # Don't compute unless asked
+            start_timestep=1e16,
+            end_timestep=-1e16,
+            stride_timestep=0,
+
+            start_time=1.0e16,
+            end_time=-1.0e16,
+            stride_time=0.0,
+
+            # Don't save or plot
+            save_params=ParamDict(
+                save = False,
+                ),
+            plot_params=ParamDict(
+                plot = False,
+                )
+            )
+
+
+class MockVelocity(MockPPField):
+    def __init__(self, params=None):
+        MockPPField.__init__(self, params)
+
+    def compute(self, pp, problem):
         self.touched += 1
         return "u"
 
-class Pressure(PPField2):
+class MockPressure(MockPPField):
     def __init__(self, params=None):
-        PPField2.__init__(self, params)
-        self.touched = 0
+        MockPPField.__init__(self, params)
 
-    def compute(self, pp):
+    def compute(self, pp, problem):
         self.touched += 1
         return "p"
 
-class VelocityGradient(PPField2):
+class MockVelocityGradient(MockPPField):
     def __init__(self, params=None):
-        PPField2.__init__(self, params)
-        self.touched = 0
+        MockPPField.__init__(self, params)
 
-    def compute(self, pp):
+    def compute(self, pp, problem):
         self.touched += 1
-        u = pp.get("Velocity")
+        u = pp.get("MockVelocity")
         return "grad(%s)" % u
 
-class Strain(PPField2):
+class MockStrain(MockPPField):
     def __init__(self, params=None):
-        PPField2.__init__(self, params)
-        self.touched = 0
+        MockPPField.__init__(self, params)
 
-    def compute(self, pp):
+    def compute(self, pp, problem):
         self.touched += 1
-        Du = pp.get("VelocityGradient")
+        Du = pp.get("MockVelocityGradient")
         return "epsilon(%s)" % Du
 
-class Stress(PPField2):
+class MockStress(MockPPField):
     def __init__(self, params=None):
-        PPField2.__init__(self, params)
-        self.touched = 0
+        MockPPField.__init__(self, params)
 
-    def compute(self, pp):
+    def compute(self, pp, problem):
         self.touched += 1
-        epsilon = pp.get("Strain")
-        p = pp.get("Pressure")
+        epsilon = pp.get("MockStrain")
+        p = pp.get("MockPressure")
         return "sigma(%s, %s)" % (epsilon, p)
 
-class TimeDerivative(PPField2):
+class MockTimeDerivative(MockPPField):
     def __init__(self, name, params=None):
-        PPField2.__init__(self, params)
+        MockPPField.__init__(self, params)
         self.name = name
 
-    def compute(self, pp):
+    def compute(self, pp, problem):
+        self.touched += 1
+
         u1 = pp.get(self.name)
         u0 = pp.get(self.name, -1)
 
@@ -151,34 +103,149 @@ class TimeDerivative(PPField2):
         dt = dt-dt
 
         return (u1-u0)/dt
-'''
+
 
 class TestPostProcessing2(unittest.TestCase):
-    def test_(self):
+    def test_mock_fields_get_correct_compute_calls_single_timestep(self):
+        # Create mock field objects
+        pressure = MockPressure()
+        velocity = MockVelocity()
+        Du = MockVelocityGradient()
+        epsilon = MockStrain()
+        sigma = MockStress()
+
+        # Add fields to postprocessor
         pp = NSPostProcessor()
-        u = Velocity()
-        p = Pressure()
-        Du = VelocityGradient()
-        epsilon = Strain()
-        sigma = Stress()
-        pp.add_fields([u, p, Du, epsilon, sigma])
-        
-        # TODO: Figure out some proper tests for this.
-        
-        
-        #self.assertEqual(u.touched, 0)
+        pp.add_fields([pressure, velocity, Du, epsilon, sigma])
+        # Adding in random ordering not respecting dependencies
+        # results in an assertion failure in nspostprocessor
+        # because the type of the built-in Velocity is not the
+        # same as MockVelocity, this is ok I guess.
+        #pp.add_fields([Du, pressure, velocity, sigma, Du, epsilon])
 
-        #self.assertEqual(pp.get("Strain"), "epsilon(grad(u))")
-        #self.assertEqual(u.touched, 1)
-        #self.assertEqual(Du.touched, 1)
-        #self.assertEqual(epsilon.touched, 1)
-        #self.assertEqual(p.touched, 0)
-        #self.assertEqual(sigma.touched, 0)
+        # Nothing has been computed yet
+        self.assertEqual(velocity.touched, 0)
+        self.assertEqual(Du.touched, 0)
+        self.assertEqual(epsilon.touched, 0)
+        self.assertEqual(pressure.touched, 0)
+        self.assertEqual(sigma.touched, 0)
 
-        #self.assertEqual(pp.get("Stress"), "sigma(epsilon(grad(u)), p)")
-        #self.assertEqual(u.touched, 1) # Not recomputed!
-        #self.assertEqual(Du.touched, 1) # Not recomputed!
-        #self.assertEqual(epsilon.touched, 1) # Not recomputed!
-        #self.assertEqual(p.touched, 1)
-        #self.assertEqual(sigma.touched, 1)
-        
+        # Mock problem
+        problem = MockProblem()
+
+        # Mock internal scheme state
+        spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
+        u = Function(spaces.V)
+        u.interpolate(Expression(("x[0]", "2*x[1]")))
+        p = Function(spaces.Q)
+        p.interpolate(Expression("3*x[0]*x[1]"))
+        t = 0.0
+        timestep = 0
+
+        # Update postprocessor fields using mock problem
+        pp.update_all(u, p, t, timestep, problem)
+
+        # Get strain twice
+        for i in range(2):
+            strain = pp.get("MockStrain")
+            # Check value
+            self.assertEqual(strain, "epsilon(grad(u))")
+            # Check the right things are computed but only the first time
+            self.assertEqual(velocity.touched, 1) # Only increased first iteration!
+            self.assertEqual(Du.touched, 1) # ...
+            self.assertEqual(epsilon.touched, 1) # ...
+            self.assertEqual(pressure.touched, 0) # Not computed!
+            self.assertEqual(sigma.touched, 0) # ...
+
+        # Get stress twice
+        for i in range(2):
+            stress = pp.get("MockStress")
+            # Check value
+            self.assertEqual(stress, "sigma(epsilon(grad(u)), p)")
+            # Check the right things are computed but only the first time
+            self.assertEqual(velocity.touched, 1) # Not recomputed!
+            self.assertEqual(Du.touched, 1) # ...
+            self.assertEqual(epsilon.touched, 1) # ...
+            self.assertEqual(pressure.touched, 1) # Only increased first iteration!
+            self.assertEqual(sigma.touched, 1) # ...
+
+    def test_get_time_and_solution(self):
+
+        pp = NSPostProcessor()
+
+        # Setup some mock problem state
+        problem = MockProblem()
+
+        # Toy state evolution
+        uexpr = Expression(("2.0 + t + x[0]", "3.0 + t * 2 * x[1]"), t=0.0)
+        pexpr = Expression("1.0 + t * 3 * x[0] * x[1]", t=0.0)
+
+        # Setup some mock scheme state
+        spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
+        u = Function(spaces.V)
+        p = Function(spaces.Q)
+
+        # Set initial time
+        t = 0.0
+        timestep = 0
+        dt = 0.1
+
+        # Set "initial condition"
+        uexpr.t = t
+        pexpr.t = t
+        u.interpolate(uexpr)
+        p.interpolate(pexpr)
+
+        # Update postprocessor, this is where the main code under test is
+        pp.update_all(u, p, t, timestep, problem)
+
+        # Check that we recover the velocity, pressure, and time
+        self.assertEqual(t, pp.get("t"))
+        self.assertEqual(timestep, pp.get("timestep"))
+        self.assertAlmostEqual(norm(u), norm(pp.get("Velocity")))
+        self.assertAlmostEqual(norm(p), norm(pp.get("Pressure")))
+        self.assertGreater(norm(u), 0.0) # Check that previous test was not worthless
+        self.assertGreater(norm(p), 0.0)
+
+        # Loop over "timesteps"
+        for k in range(4):
+            t += dt
+            timestep += 1
+
+            # Update "solution"
+            uexpr.t = t
+            pexpr.t = t
+            u.interpolate(uexpr)
+            p.interpolate(pexpr)
+
+            # Update postprocessor, this is where the main code under test is
+            pp.update_all(u, p, t, timestep, problem)
+
+            # Check that we recover the basic quantities velocity, pressure, and time
+            self.assertEqual(t, pp.get("t"))
+            self.assertEqual(timestep, pp.get("timestep"))
+            self.assertAlmostEqual(norm(u), norm(pp.get("Velocity")))
+            self.assertAlmostEqual(norm(p), norm(pp.get("Pressure")))
+            self.assertGreater(norm(u), 0.0) # Check that previous test was not worthless
+            self.assertGreater(norm(p), 0.0)
+
+    def test_get_velocity_gradient(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_strain(self):
+        self.assertEqual(1, 1) # FIXME: Test computation of strain with mixed, split and segregated "schemes"
+
+    def test_get_stress(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_wss(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_first_time_derivative(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_second_time_derivative(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_third_time_derivative(self):
+        self.assertEqual(1, 1) # FIXME
