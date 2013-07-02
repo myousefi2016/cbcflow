@@ -153,9 +153,8 @@ class TestProblemSchemeInterfacing(unittest.TestCase):
         namespace = scheme.solve(problem, update)
 
         # Check that update has been called properly and that the timesteps are as they should
-        self.assertEqual(len(update_record), 3)
-        self.assertEqual([r[1] for r in update_record], [0,1,2])
         self.assertEqual([r[0] for r in update_record], [1.0,1.5,2.0])
+        self.assertEqual([r[1] for r in update_record], [0,1,2])
 
         # TODO: Add checks for all problem interface components
 
