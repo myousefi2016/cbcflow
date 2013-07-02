@@ -8,6 +8,7 @@ the control and data flow between the classes.
 """
 
 import unittest
+import inspect
 
 from headflow import ParamDict, NSProblem, all_schemes
 from headflow import *
@@ -125,81 +126,109 @@ class MockProblem(NSProblem):
 
 
 class TestProblemSchemeInterfacing(unittest.TestCase):
-    #@unittest.skip("Need a minimally computable mock problem.")
-    def test_schemes_call_update_properly(self):
+    def init(self, scheme_factory):
+        self.sf = scheme_factory
 
-        # TODO: Goal:
-        #schemes = all_schemes
+    def shortDescription(self):
+        sc = self.sf.func_code
+        loc = "%s:%d" % (sc.co_filename, sc.co_firstlineno)
+        scode = inspect.getsource(self.sf)
+        return "%s with scheme %s defined @ %s" % (self.__class__.__name__, scode.lstrip(), loc)
 
-        
-        #schemes = [CoupledPicard]
+    def test_scheme_calls_update_properly_2d(self):
+       self._test_scheme_calls_update_properly(2)
 
-        # Currently passing:
-        schemes = []
-        schemes.append(IPCS)
-        schemes.append(SegregatedIPCS)
-        schemes.append(SegregatedIPCS_Optimized)
-        schemes.append(IPCS_Stabilized)
-        schemes.append(PenaltyIPCS)
-        schemes.append(SegregatedPenaltyIPCS)
+    def test_scheme_calls_update_properly_3d(self):
+       self._test_scheme_calls_update_properly(3)
 
-        #schemes.append(IPCS_Stable) # Not passing, timestepping thingy
-        #schemes.append(CoupledNonLinear)
-        #schemes.append(CoupledPicard) # WIP: Needs to set pressure average
-        #schemes.append(Stokes)
+    def _test_scheme_calls_update_properly(self, d):
+        # Mock postprocessing update function
+        update_record = []
+        def update(u, p, t, timestep, spaces):
+            update_record.append((float(t), int(timestep)))
 
-        missing_schemes = set(all_schemes) - set(schemes)
-        if missing_schemes:
-            print
-            print "Not testing schemes:"
-            print '\n'.join(sorted('    '+scheme.__name__ for scheme in missing_schemes))
-            print
+        # Run scheme with mock problem and configured scheme
+        problem = MockProblem({'d':d})
+        scheme = self.sf()
+        namespace = scheme.solve(problem, update)
 
-        problems = [MockProblem]
+        # Check that update has been called properly and that the timesteps are as they should
+        self.assertEqual(len(update_record), 3)
+        self.assertEqual([r[1] for r in update_record], [0,1,2])
+        self.assertEqual([r[0] for r in update_record], [1.0,1.5,2.0])
 
-        for d in [2,3]:
-            for Problem in problems:
-                for Scheme in schemes:
+        # TODO: Add checks for all problem interface components
 
-                    # Mock postprocessing update function
-                    update_record = []
-                    def update(u, p, t, timestep, spaces):
-                        update_record.append((float(t), int(timestep)))
+        # Check that all problem interface functions were called
+        callnames = [c[0] for c in problem._calls]
+        self.assertIn("observations", callnames)
+        self.assertIn("controls", callnames)
+        self.assertIn("initial_conditions", callnames)
+        self.assertIn("boundary_conditions", callnames)
 
-                    # Run scheme with mock problem
-                    problem = Problem({'d':d})
-                    scheme = Scheme()
-                    namespace = scheme.solve(problem, update)
+        # TODO: Inspect problem._calls data
 
-                    # Check that update has been called properly and that the timesteps are as they should
-                    self.assertEqual(len(update_record), 3)
-                    self.assertEqual([r[1] for r in update_record], [0,1,2])
-                    self.assertEqual([r[0] for r in update_record], [1.0,1.5,2.0])
+        # Check that the returned namespace contains all expected values
+        self.assertIn("spaces", namespace)
+        self.assertIn("observations", namespace)
+        self.assertIn("controls", namespace)
+        self.assertIn("states", namespace)
+        self.assertIn("t", namespace)
+        self.assertIn("timesteps", namespace)
 
-                    # TODO: Add checks for all problem interface components
+        # TODO: Inspect namespace contents
 
-                    # Check that all problem interface functions were called
-                    callnames = [c[0] for c in problem._calls]
-                    self.assertIn("observations", callnames)
-                    self.assertIn("controls", callnames)
-                    self.assertIn("initial_conditions", callnames)
-                    self.assertIn("boundary_conditions", callnames)
+        # Check that the spaces object has the right function space properties
+        spaces = namespace["spaces"]
+        self.assertEqual(spaces.V.ufl_element().degree(), scheme.params.u_degree)
+        self.assertEqual(spaces.Q.ufl_element().degree(), scheme.params.p_degree)
+        self.assertEqual(spaces.V.ufl_element().value_shape(), (d,))
+        self.assertEqual(spaces.Q.ufl_element().value_shape(), ())
 
-                    # TODO: Inspect problem._calls data
+import itertools
+def make_suite(loader, testclass, initargs):
+    tests = []
+    for args in itertools.product(*initargs):
+        su = loader.loadTestsFromTestCase(testclass)
+        for tc in su:
+            tc.init(*args)
+        tests.append(su)
+    ts = unittest.TestSuite(tests)
+    return ts
 
-                    # Check that the returned namespace contains all expected values
-                    self.assertIn("spaces", namespace)
-                    self.assertIn("observations", namespace)
-                    self.assertIn("controls", namespace)
-                    self.assertIn("states", namespace)
-                    self.assertIn("t", namespace)
-                    self.assertIn("timesteps", namespace)
+def load_tests(loader, standard_tests, none):
 
-                    # TODO: Inspect namespace contents
+    # Make list of scheme classes that should work with default parameters:
+    working_schemes = [
+        # Passing:
+        IPCS,
+        SegregatedIPCS,
+        SegregatedIPCS_Optimized,
+        IPCS_Stabilized,
+        PenaltyIPCS,
+        SegregatedPenaltyIPCS,
+        # Not passing:
+        IPCS_Stable, # Not passing, timestepping thingy
+    #    CoupledPicard, # WIP: Needs to set pressure average
+    #    CoupledNonLinear, # Don't know
+        Stokes, # Don't know
+        ]
 
-                    # Check that the spaces object has the right function space properties
-                    spaces = namespace["spaces"]
-                    self.assertEqual(spaces.V.ufl_element().degree(), scheme.params.u_degree)
-                    self.assertEqual(spaces.Q.ufl_element().degree(), scheme.params.p_degree)
-                    self.assertEqual(spaces.V.ufl_element().value_shape(), (d,))
-                    self.assertEqual(spaces.Q.ufl_element().value_shape(), ())
+    # Print list of scheme classes that are not in the above list:
+    missing_schemes = set(all_schemes) - set(working_schemes)
+    if missing_schemes:
+        print
+        print "Not testing schemes:"
+        print '\n'.join(sorted('    '+scheme.__name__ for scheme in missing_schemes))
+        print
+
+    # Make list of factory functions for schemes with default parameters:
+    schemes = [lambda: Scheme() for Scheme in working_schemes]
+
+    # Add list of factory functions for schemes with non-default parameters:
+    schemes += [
+        lambda: IPCS_Stable({'theta':0.0}),
+        lambda: IPCS_Stable({'theta':1.0}),
+        ]
+
+    return make_suite(loader, TestProblemSchemeInterfacing, [schemes])
