@@ -199,18 +199,16 @@ def load_tests(loader, standard_tests, none):
 
     # Make list of scheme classes that should work with default parameters:
     working_schemes = [
-        # Passing:
         IPCS,
         SegregatedIPCS,
         SegregatedIPCS_Optimized,
         IPCS_Stabilized,
         PenaltyIPCS,
         SegregatedPenaltyIPCS,
-        # Not passing:
-        IPCS_Stable, # Not passing, timestepping thingy
+        IPCS_Stable,
+        CoupledNonLinear,
+        Stokes,
     #    CoupledPicard, # WIP: Needs to set pressure average
-    #    CoupledNonLinear, # Don't know
-        Stokes, # Don't know
         ]
 
     # Print list of scheme classes that are not in the above list:
@@ -228,6 +226,7 @@ def load_tests(loader, standard_tests, none):
     schemes += [
         lambda: IPCS_Stable({'theta':0.0}),
         lambda: IPCS_Stable({'theta':1.0}),
+        lambda: IPCS_Stable({'theta':0.5, 'adaptive_timestepping':True}),
         ]
 
     return make_suite(loader, TestProblemSchemeInterfacing, [schemes])
