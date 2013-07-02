@@ -139,13 +139,21 @@ class TestProblemSchemeInterfacing(unittest.TestCase):
         schemes.append(IPCS)
         schemes.append(SegregatedIPCS)
         schemes.append(SegregatedIPCS_Optimized)
-        #schemes.append(IPCS_Stable) # Not passing, timestepping thingy
         schemes.append(IPCS_Stabilized)
         schemes.append(PenaltyIPCS)
         schemes.append(SegregatedPenaltyIPCS)
+
+        #schemes.append(IPCS_Stable) # Not passing, timestepping thingy
         #schemes.append(CoupledNonLinear)
         #schemes.append(CoupledPicard) # WIP: Needs to set pressure average
         #schemes.append(Stokes)
+
+        missing_schemes = set(all_schemes) - set(schemes)
+        if missing_schemes:
+            print
+            print "Not testing schemes:"
+            print '\n'.join(sorted('    '+scheme.__name__ for scheme in missing_schemes))
+            print
 
         problems = [MockProblem]
 
