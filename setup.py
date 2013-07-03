@@ -3,6 +3,7 @@
 from distutils.core import setup
 from distutils import sysconfig
 from os.path import join as pjoin, split as psplit
+from glob import glob
 import sys
 import platform
 
@@ -49,10 +50,13 @@ setup(name = "headflow",
                   "headflow.schemes",
                   "headflow.bcs",
                   "headflow.postprocessing",
-                  "headflow.utils"
+                  "headflow.utils",
+                  "headflow.utils.fenicstools",
                   # TODO: Add submodules here
                   ],
       package_dir = {"headflow": "site-packages/headflow"},
+      package_data = {"headflow": ["utils/fenicstools/Probe/*.h", "utils/fenicstools/Probe/*.cpp"]},
 #     data_files = [(pjoin("share", "man", "man1"),
 #                    [pjoin("doc", "man", "man1", "headflow.1.gz")])]
     )
+
