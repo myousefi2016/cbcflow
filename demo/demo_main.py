@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from headflow import ParamDict, NSSolver, NSPostProcessor, all_schemes, show_problem
+from headflow.postprocessing import *
 import sys
 
 all_scheme_names = sorted([s.__name__ for s in all_schemes])
@@ -27,6 +28,22 @@ def solve_ns_problem(Problem, Scheme, args):
     scheme = Scheme(params.scheme)
     solver = NSSolver(problem, scheme, postproc, params.solver)
 
+    # Add postprocessing fields
+    postproc.add_fields([
+        Pressure(dict(plot=True)),
+        Velocity(dict(plot=True)),
+        VelocityCurl(dict(plot=True)),
+    #    VelocityDivergence(dict(plot=True)),
+        L2norm("Velocity", dict(plot=True)),
+    #    H1norm("Velocity", dict(plot=True)),
+    #    H1seminorm("Velocity", dict(plot=True)),
+    #    Strain(dict(plot=True)),
+    #    Stress(dict(plot=True)),
+    #    Q(dict(plot=True)),
+    #    Delta(dict(plot=True)),
+    #    Lambda2(dict(plot=True)),
+        ])
+    
     # Execution
     namespace = solver.solve()
     return namespace
