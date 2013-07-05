@@ -7,7 +7,8 @@ import unittest
 
 from collections import defaultdict
 
-from headflow import ParamDict, NSProblem, NSPostProcessor, PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS
+from headflow import (ParamDict, NSProblem, NSPostProcessor,
+    PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS)
 from headflow.core.spaces import NSSpacePoolSplit
 
 import dolfin
@@ -336,5 +337,5 @@ class TestPostProcessing2(unittest.TestCase):
     def test_get_second_time_derivative(self):
         self.assertEqual(1, 1) # FIXME
 
-    def test_get_third_time_derivative(self):
+    def test_get_norms(self):
         self.assertEqual(1, 1) # FIXME
