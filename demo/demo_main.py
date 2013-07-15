@@ -24,26 +24,46 @@ def solve_ns_problem(Problem, Scheme, args):
 
     # Setup
     problem = Problem(params.problem)
-    postproc = NSPostProcessor(params.postproc)
     scheme = Scheme(params.scheme)
+    params.postproc.casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    postproc = NSPostProcessor(params.postproc)
     solver = NSSolver(problem, scheme, postproc, params.solver)
 
-    # Add postprocessing fields
-    postproc.add_fields([
-        Pressure(dict(plot=True)),
-        Velocity(dict(plot=True)),
-        VelocityCurl(dict(plot=True)),
-    #    VelocityDivergence(dict(plot=True)),
-        L2norm("Velocity", dict(plot=True)),
-    #    H1norm("Velocity", dict(plot=True)),
-    #    H1seminorm("Velocity", dict(plot=True)),
-    #    Strain(dict(plot=True)),
-    #    Stress(dict(plot=True)),
-    #    Q(dict(plot=True)),
-    #    Delta(dict(plot=True)),
-    #    Lambda2(dict(plot=True)),
-        ])
-    
+    # Add postprocessing fields (a few configurations)
+    if 1:
+        postproc.add_fields([
+            Velocity(dict(save=True)),
+            Pressure(dict(save=True)),
+            H1norm("Velocity", dict(save=True)),
+            Stress(dict(save=True)),
+            WSS(dict(save=True)),
+            Q(dict(save=True)),
+            ])
+
+    if 0:
+        postproc.add_fields([
+            Pressure(dict(plot=True)),
+            Velocity(dict(plot=True)),
+            VelocityCurl(dict(plot=True)),
+            Lambda2(dict(plot=True)),
+            ])
+
+    if 0:
+        postproc.add_fields([
+            Pressure(dict(plot=True)),
+            Velocity(dict(plot=True)),
+            VelocityCurl(dict(plot=True)),
+            VelocityDivergence(dict(plot=True)),
+            L2norm("Velocity", dict(plot=True)),
+            H1norm("Velocity", dict(plot=True)),
+            H1seminorm("Velocity", dict(plot=True)),
+            Strain(dict(plot=True)),
+            Stress(dict(plot=True)),
+            Q(dict(plot=True)),
+            Delta(dict(plot=True)),
+            Lambda2(dict(plot=True)),
+            ])
+
     # Execution
     namespace = solver.solve()
     return namespace

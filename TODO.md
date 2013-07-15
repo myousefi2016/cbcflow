@@ -9,11 +9,6 @@ Things to do in headflow
 WIP Martin
 ==========
 
-- Improve on NSScheme unit test with mock problem stepping through each scheme for 2
-  timesteps and checking types, using headflow.all_schemes and their default parameters.
-
-- Remove fetch_bcs from scheme class
-
 
 WIP Oyvind
 ==========
@@ -29,6 +24,12 @@ WIP Kent
 
 Backlog
 =======
+
+Known bugs
+----------
+
+- CoupledNonLinear has incorrect boundary terms (try channel demo to see)
+
 
 General
 -------
@@ -80,8 +81,6 @@ Postprocessing
 
 - Improve postprocessing further (not sure what is needed yet).
   Cover this well in unit tests!
-
-- Move data flow code from ppfield baseclass to nspostprocessor
 
 - Handle transient dependencies
 
