@@ -13,7 +13,9 @@ minor = 1
 maintenance = 0
 
 # TODO: Add eventual commandline scripts here:
-scripts = [] #[pjoin("scripts", "headflow-info")]
+scripts = [
+    pjoin("scripts", "headflow-showcase"),
+    ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
     # In the Windows command prompt we can't execute Python scripts
