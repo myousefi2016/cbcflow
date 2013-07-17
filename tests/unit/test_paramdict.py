@@ -31,13 +31,19 @@ class TestParamDict(unittest.TestCase):
         self.assertEqual(pd.b, 2)
         self.assertEqual(pd.c, 3)
 
-    def test_add_params_after_init(self):
+    def test_add_params_after_init_succeeds_with_dict_notation(self):
         pd = ParamDict()
-        pd.a = 1
-        pd.b = 2
+        pd["a"] = 1
+        pd["b"] = 2
         self.assertEqual(pd.a, 1)
         self.assertEqual(pd.b, 2)
         self.assertEqual(len(pd), 2)
+
+    def test_add_params_after_init_raises_with_attribute_notation(self):
+        pd = ParamDict()
+        def tryadd():
+            pd.a = 1
+        self.assertRaises(RuntimeError, tryadd)
 
     def test_shallow_iteration(self):
         keys = ('a', 'b', 'c')
@@ -122,6 +128,77 @@ class TestParamDict(unittest.TestCase):
         pd1.c1.cc2.ccb = 60
         self.assertEqual(pd1.c1.cc2.ccb, 60)
         self.assertEqual(pd2.c1.cc2.ccb, 50)
+
+    def test_shallow_replace(self):
+        pd1 = ParamDict(a=3, b=4)
+        pd2 = ParamDict(b=14)
+        pd3 = ParamDict(c=15)
+        pd1orig = pd1.copy()
+        pd1.replace_shallow(pd2)
+        self.assertTrue(all(k in pd1 for k in pd1orig))
+        self.assertTrue(all(pd1[k] == pd2[k] for k in pd2))
+        self.assertTrue(all(pd1[k] == pd1orig[k] for k in pd1orig if not k in pd2))
+        self.assertRaises(RuntimeError, lambda: pd1.replace_shallow(pd3))
+
+    def test_recursive_replace(self):
+        # Build multilevel test data
+        pdcc1 = ParamDict(cca=30)
+        pdcc2 = ParamDict(ccb=40)
+        pdc1 = ParamDict(a=3, b=4, cc1=pdcc1, cc2=pdcc2)
+        pdc2 = ParamDict(c=5, d=6)
+        pdorig = ParamDict(c1=pdc1, c2=pdc2, v=7)
+
+        # Build alternative multilevel test data
+        apdcc1 = ParamDict(cca=31)
+        apdcc2 = ParamDict(ccb=41)
+        apdc1 = ParamDict(a=5, b=8, cc1=apdcc1, cc2=apdcc2)
+        apdc2 = ParamDict(c=7, d=9)
+        apdorig = ParamDict(c1=apdc1, c2=apdc2, v=2)
+
+        self.assertNotEqual(pdorig, apdorig)
+
+        # Supply a single item
+        pd = pdorig.copy_recursive()
+        self.assertEqual(pd.v, 7)
+        pd.replace_recursive(v=9)
+        self.assertEqual(pd.v, 9)
+        pd.replace_recursive({'v':10})
+        self.assertEqual(pd.v, 10)
+        pd.replace_recursive(ParamDict(v=11))
+        self.assertEqual(pd.v, 11)
+
+        # Supply multiple items for child
+        pd = pdorig.copy_recursive()
+        self.assertEqual(pd.c1.a, 3)
+        self.assertEqual(pd.c1.b, 4)
+        if 0:
+            pd.replace_recursive(c1={'a':11, 'b':22})
+            self.assertEqual(pd.c1.a, 11)
+            self.assertEqual(pd.c1.b, 22)
+        pd.replace_recursive(c1=ParamDict(a=13, b=25))
+        self.assertEqual(pd.c1.a, 13)
+        self.assertEqual(pd.c1.b, 25)
+
+        # Supply a full multilevel paramdict
+        pd = pdorig.copy_recursive()
+        self.assertEqual(pd, pdorig)
+        self.assertNotEqual(pd, apdorig)
+        pd.replace_recursive(apdorig)
+        self.assertNotEqual(pd, pdorig)
+        self.assertEqual(pd, apdorig)
+
+        # Raises for single missing item
+        pd = pdorig.copy_recursive()
+        self.assertRaises(RuntimeError, lambda: pd.replace_recursive(v2=13))
+
+        # Build alternative multilevel test data
+        rpdcc1 = ParamDict(cca2=32)
+        rpdc1 = ParamDict(cc1=rpdcc1)
+        rpdorig = ParamDict(c1=rpdc1)
+
+        # Raises for item deep in recursive structure
+        pd = pdorig.copy_recursive()
+        self.assertRaises(RuntimeError, lambda: pd.replace_recursive(rpdorig))
 
     def test_shallow_update(self):
         pd1 = ParamDict(a=3, b=4)
