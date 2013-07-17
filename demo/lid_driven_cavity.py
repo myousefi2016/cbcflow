@@ -32,16 +32,19 @@ class LidDrivenCavity(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
-    def default_user_params(cls):
-        params = ParamDict(
-            # Spatial parameters
-            N=32,
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
             dt=0.001,
             T=0.5,
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
+            )
+        params.replace(
+            # Spatial parameters
+            N=32,
             )
         return params
 

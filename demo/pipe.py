@@ -23,12 +23,10 @@ class Pipe(NSProblem):
         self.length = 10.0
         self.radius = 0.5
 
-        # Set end time based on period and number of periods NB! Overrides given T!
-        self.params.T = self.params.period * self.params.num_periods
-
     @classmethod
-    def default_user_params(cls):
-        params = ParamDict(
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
             T=None,
             dt=1e-3,
@@ -38,7 +36,8 @@ class Pipe(NSProblem):
             # Physical parameters
             rho=1.0,
             mu=0.035,
-
+            )
+        params.update(
             # Pressure gradient amplitude
             beta=5.0,
             )

@@ -15,24 +15,32 @@ class MockProblem(NSProblem):
         NSProblem.__init__(self, params)
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(p=1)
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(T=1.0)
+        params.update(p=1)
+        return params
 
 class MockPostProcessor(NSPostProcessor):
     def __init__(self, params):
         NSPostProcessor.__init__(self, params)
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(pp=2)
+    def default_params(cls):
+        params = NSPostProcessor.default_params()
+        params.update(pp=2)
+        return params
 
 class MockScheme(NSScheme):
     def __init__(self, params):
         NSScheme.__init__(self, params)
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(s=3)
+    def default_params(cls):
+        params = NSScheme.default_params()
+        #params.replace(u_degree=1, p_degree=1)
+        params.update(s=3)
+        return params
 
 class TestNSSolver(unittest.TestCase):
     def test_base_class_data_flow(self):

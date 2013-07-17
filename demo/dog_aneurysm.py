@@ -26,28 +26,24 @@ class DogAneurysm(NSProblem):
         mesh = Mesh(self.params.mesh_file)
         self.initialize_geometry(mesh)
 
-        # Set end time based on period and number of periods NB! Overrides given T!
-        self.params.T = self.params.period * self.params.num_periods
-
     @classmethod
-    def default_user_params(cls):
-        """Add default parameters for this problem.
-
-        (print NSProblem.default_params()  to see all NSProblem parameters.
-        """
-        params = ParamDict(
-            # Spatial discretization parameters
-            mesh_file="../data/dog_mesh_37k.xml.gz",
-            boundary_mesh_file="../data/dog_boundary_mesh_37k.xml.gz",
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
+            dt=1e-3,
             period=1.0,
             num_periods=0.3,
             T=None,
-            dt=1e-3,
             # Physical parameters
             mu=0.00345,
             rho=0.00106,
-        )
+            )
+        params.update(
+            # Spatial discretization parameters
+            mesh_file="../data/dog_mesh_37k.xml.gz",
+            boundary_mesh_file="../data/dog_boundary_mesh_37k.xml.gz",
+            )
         return params
 
     def initial_conditions(self, spaces, controls):

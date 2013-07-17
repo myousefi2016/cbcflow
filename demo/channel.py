@@ -44,16 +44,19 @@ class Channel(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
-    def default_user_params(cls):
-        params = ParamDict(
-            # Spatial parameters
-            N=16,
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
             T=0.5,
             dt=1.0/80,
             # Physical parameters
             rho=1.0,
             mu=1.0/8.0,
+            )
+        params.update(
+            # Spatial parameters
+            N=16,
             )
         return params
 

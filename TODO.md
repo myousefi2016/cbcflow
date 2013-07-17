@@ -34,7 +34,12 @@ Known bugs
 General
 -------
 
-- Find a better name than headflow
+- Find a better name than headflow. Suggestions:
+
+    - bioflow
+    - fenflow
+    - dolflow
+    - dolflo
 
 - Make an email list (using google groups?)
 
@@ -59,11 +64,6 @@ General
 Parameters
 ----------
 
-- Add locking of parameter names to ParamDict, a serious correctness liability.
-  Cover with unit tests, making sure we never use the wrong parameter names!
-
-- Improve Parameterized system to work better with (problem) subclassing twice
-
 - Include and improve upon parameter sweep scripts. Cover this well in unit tests!
 
 
@@ -79,12 +79,12 @@ BCs
 Postprocessing
 --------------
 
-- Improve postprocessing further (not sure what is needed yet).
-  Cover this well in unit tests!
+- Add scripts for inspecting cases
 
 - Handle transient dependencies
 
-- Add scripts for inspecting cases
+- Improve postprocessing further (not sure what is needed yet).
+  Cover this well in unit tests!
 
 
 Tools

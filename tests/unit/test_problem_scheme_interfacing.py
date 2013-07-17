@@ -66,17 +66,20 @@ class MockProblem(NSProblem):
         self._calls = []
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             T0=1.0,
             T=2.0,
             dt=0.5,
 
             mu=1.0,
             rho=1.0,
-
+            )
+        params.update(
             d=2,
             )
+        return params
 
     def observations(self, spaces, t):
         # Record this call

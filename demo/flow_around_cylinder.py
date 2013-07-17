@@ -42,16 +42,19 @@ class FlowAroundCylinder(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
-    def default_user_params(cls):
-        params = ParamDict(
-            # Spatial parameters
-            N=64,
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
             T=5.0,
             dt=0.1,
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
+            )
+        params.update(
+            # Spatial parameters
+            N=64,
             )
         return params
 

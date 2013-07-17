@@ -22,15 +22,18 @@ _mesh = UnitSquareMesh(32, 32)
 
 class MockProblem(NSProblem):
     def __init__(self):
-        NSProblem.__init__(self)
+        NSProblem.__init__(self, None)
         self.initialize_geometry(_mesh)
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
+            T = 1.0,
             mu = 0.1,
             rho = 0.9,
             )
+        return params
 
 class MockPPField(PPField):
     def __init__(self, params=None):
@@ -38,8 +41,9 @@ class MockPPField(PPField):
         self.touched = 0
 
     @classmethod
-    def default_user_params(cls):
-        return ParamDict(
+    def default_params(cls):
+        params = PPField.default_params()
+        params.replace(
             # Don't compute unless asked
             start_timestep=1e16,
             end_timestep=-1e16,
@@ -54,6 +58,7 @@ class MockPPField(PPField):
             plot = False,
             callback = True,
             )
+        return params
 
 
 class MockVelocity(MockPPField):

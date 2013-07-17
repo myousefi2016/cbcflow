@@ -57,16 +57,19 @@ class PipeAneurysm(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
-    def default_user_params(cls):
-        params = ParamDict(
-            # Spatial discretization parameters
-            refinement_level = 1,
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
             # Time parameters
             dt = 0.005,
             T = 0.05,
             # Physical parameters
             rho = 1.0,
             mu = 3.5 / 1.025e6,
+            )
+        params.update(
+            # Spatial discretization parameters
+            refinement_level = 1,
             )
         return params
 
