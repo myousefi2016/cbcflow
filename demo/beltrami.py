@@ -13,21 +13,17 @@ from headflow.dol import *
 
 from math import pi, e
 
-# Problem definition
 class Beltrami(NSProblem):
     "3D test problem with known analytical solution."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
 
-        # Create mesh
-        # We start with a UnitCubeMesh and modify it to get the mesh we
-        # want: (-1, 1) x (-1, 1) x (-1, 1)
-
+        # Create mesh of box (-1, 1) x (-1, 1) x (-1, 1)
         N = self.params.N
         mesh = UnitCubeMesh(N, N, N)
-        scale  = 2*(mesh.coordinates() - 0.5)
-        mesh.coordinates()[:, :] = scale
+        scaled = 2*(mesh.coordinates() - 0.5)
+        mesh.coordinates()[:, :] = scaled
 
         # Store mesh and markers
         self.initialize_geometry(mesh)
