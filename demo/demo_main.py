@@ -30,7 +30,7 @@ def solve_ns_problem(Problem, Scheme, args):
     solver = NSSolver(problem, scheme, postproc, params.solver)
 
     # Add postprocessing fields (a few configurations)
-    if 1:
+    if 0:
         postproc.add_fields([
             Velocity(dict(save=True)),
             Pressure(dict(save=True)),
@@ -38,6 +38,12 @@ def solve_ns_problem(Problem, Scheme, args):
             Stress(dict(save=True)),
             WSS(dict(save=True)),
             Q(dict(save=True)),
+            ])
+
+    if 1:
+        postproc.add_fields([
+            Pressure(dict(plot=True, save=True)),
+            Velocity(dict(plot=True, save=True)),
             ])
 
     if 0:
