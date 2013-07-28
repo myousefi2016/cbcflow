@@ -9,6 +9,26 @@ Things to do in headflow
 WIP Martin
 ==========
 
+- Implement demos for testing:
+
+  - [done] Pouseille 2D, start with analytical solution and stay steady
+
+  - [mainly done but blows up] Pouseille 3D, start with analytical solution and stay steady
+
+  - Womersley 2D, start with analytical solution and stay with the transient solution
+
+  - Womersley 3D, start with analytical solution and stay with the transient solution
+
+- Test all schemes with demos:
+
+  - Pouseille 2D
+
+  - Pouseille 3D
+
+  - Womersley 2D
+
+  - Womersley 3D
+
 
 WIP Oyvind
 ==========
