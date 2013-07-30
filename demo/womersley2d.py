@@ -20,7 +20,7 @@ class Right(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] > LENGTH*(1.0 - DOLFIN_EPS)
 
-class Pouseille2D(NSProblem):
+class Womersley2D(NSProblem):
     "3D pipe test problem with known stationary analytical solution."
 
     def __init__(self, params=None):
@@ -50,11 +50,11 @@ class Pouseille2D(NSProblem):
         Left().mark(facet_domains, self.left_boundary_id)
         Right().mark(facet_domains, self.right_boundary_id)
 
-        # Setup analytical solution constants
+        # Setup analytical solution constants # FIXME: This is the pouseille data
         self.Upeak = 5.0
         self.U = self.Upeak / RADIUS**2
-        nu = self.params.mu / self.params.rho
-        self.beta = 2.0 * nu * self.U
+        self.nu = self.params.mu / self.params.rho
+        self.beta = 2.0 * self.nu * self.U
 
         print
         print "Expected peak velocity:", self.Upeak
@@ -97,11 +97,13 @@ class Pouseille2D(NSProblem):
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Toggle to compare built-in BC class and direct use of analytical solution:
-        if 1:
+        if 0:
             ua, pa = self.analytical_solution(spaces, t)
         else:
+            # FIXME: FIRST make womersley match the stationary velocity provided here.
+            # TODO: THEN test a transient flow rate.
             coeffs = [(0.0, self.Upeak), (1.0, self.Upeak)]
-            ua = make_pouseille_bcs(coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
+            ua = make_womersley_bcs(coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
             pa = Constant(-self.beta*LENGTH)
 
         # Create no-slip and inflow boundary condition for velocity
@@ -118,4 +120,4 @@ class Pouseille2D(NSProblem):
 
 if __name__ == "__main__":
     from demo_main import demo_main
-    demo_main(Pouseille2D)
+    demo_main(Womersley2D)
