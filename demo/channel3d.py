@@ -9,7 +9,7 @@ from headflow.dol import *
 
 from numpy import array
 
-LENGTH = 10.0
+LENGTH = 4.0
 RADIUS = 0.5
 
 class Left(SubDomain):
@@ -75,7 +75,7 @@ class Channel3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            N=8,
+            N=6,
             )
         return params
 
@@ -85,7 +85,7 @@ class Channel3D(NSProblem):
         c0 = Constant(0)
         u0 = [ux, c0, c0]
 
-        p0 = Expression("-beta*x[0]", beta=1.0, length=LENGTH)
+        p0 = Expression("-beta*x[0]", beta=1.0)
         p0.beta = self.beta
 
         return (u0, p0)

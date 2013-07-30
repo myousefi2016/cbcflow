@@ -37,12 +37,18 @@ class Pouseille2D(NSProblem):
         mesh.coordinates()[:,0] = x
         mesh.coordinates()[:,1] = y
 
+        # We will apply markers with these id values
+        self.wall_boundary_id = 0
+        self.left_boundary_id = 1
+        self.right_boundary_id = 2
+        self.undefined_boundary_id = 3
+
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
-        facet_domains.set_all(4)
-        DomainBoundary().mark(facet_domains, 0)
-        Left().mark(facet_domains, 1)
-        Right().mark(facet_domains, 2)
+        facet_domains.set_all(self.undefined_boundary_id)
+        DomainBoundary().mark(facet_domains, self.wall_boundary_id)
+        Left().mark(facet_domains, self.left_boundary_id)
+        Right().mark(facet_domains, self.right_boundary_id)
 
         # Setup analytical solution constants
         self.Upeak = 5.0
@@ -81,7 +87,7 @@ class Pouseille2D(NSProblem):
         uy = Constant(0)
         u0 = [ux, uy]
 
-        p0 = Expression("-beta*x[0]", beta=1.0, length=LENGTH)
+        p0 = Expression("-beta*x[0]", beta=1.0)
         p0.beta = self.beta
 
         return (u0, p0)
@@ -90,17 +96,22 @@ class Pouseille2D(NSProblem):
         return self.analytical_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        ua, pa = self.analytical_solution(spaces, t)
+        # Toggle to compare built-in BC class and direct use of analytical solution:
+        if 1:
+            ua, pa = self.analytical_solution(spaces, t)
+        else:
+            ua = PouseilleBC(fixme)
+            pa = Constant(-self.beta*LENGTH)
 
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
         bcu = [
-            ([c0, c0], 0),
-            (ua, 1),
+            ([c0, c0], self.wall_boundary_id),
+            (ua, self.left_boundary_id),
             ]
 
         # Create outflow boundary conditions for pressure
-        bcp = [(pa, 2)]
+        bcp = [(pa, self.right_boundary_id)]
 
         return (bcu, bcp)
 

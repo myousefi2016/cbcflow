@@ -72,7 +72,12 @@ class Pouseille3D(NSProblem):
         return self.analytical_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        ua, pa = self.analytical_solution(spaces, t)
+        # Toggle to compare built-in BC class and direct use of analytical solution:
+        if 1:
+            ua, pa = self.analytical_solution(spaces, t)
+        else:
+            ua = PouseilleBC(fixme)
+            pa = Constant(-self.beta*LENGTH)
 
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
