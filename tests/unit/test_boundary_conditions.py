@@ -7,8 +7,9 @@ FIXME: This is a prime candidate for better unit tests!!!
 
 import unittest
 
+import numpy as np
 from headflow import make_pouseille_bcs, make_womersley_bcs
-from headflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC
+from headflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds
 
 class TestBoundaryConditions(unittest.TestCase):
     def setUp(self):
@@ -21,6 +22,7 @@ class TestBoundaryConditions(unittest.TestCase):
         x = [0.0, 0.2, 0.3, 0.4, 0.8]
         y = [1.0, 5.0, 3.0, 2.0, 1.0]
         self.coeffs = zip(x,y)
+        self.period = max(x)
 
         # Function space and function
         self.V = VectorFunctionSpace(self.mesh, "CG", 1)
@@ -30,25 +32,69 @@ class TestBoundaryConditions(unittest.TestCase):
         nu = 4.0
         expressions = make_womersley_bcs(self.coeffs, self.mesh, self.indicator, nu, None, self.facet_domains)
 
-        # Test that expressions are Expressions and can be applied as BCs providing nonzero change to rhs vector
-        self.u.vector().zero()
-        for i, bc in enumerate(expressions):
+        # Test that expressions are Expressions
+        for bc in expressions:
             self.assertTrue(isinstance(bc, Expression))
-            dbc = DirichletBC(self.V.sub(i), bc, 1)
-            dbc.apply(self.u.vector())
-        self.assertGreater(self.u.vector().norm('l2'), 0.0)
+
+        # Test that expressions can be applied as BCs providing nonzero change to rhs vector for some ts
+        for t in np.linspace(0.0, self.period, 10):
+            self.u.vector().zero()
+
+            for bc in expressions:
+                bc.set_t(t)
+
+            for i, bc in enumerate(expressions):
+                dbc = DirichletBC(self.V.sub(i), bc, self.indicator)
+                dbc.apply(self.u.vector())
+
+            self.assertGreater(self.u.vector().norm('l2'), 0.0)
 
         # FIXME: Now test that the values are correct!
 
     def test_pouseille(self):
         expressions = make_pouseille_bcs(self.coeffs, self.mesh, self.indicator, None, self.facet_domains)
 
-        # Test that expressions are Expressions and can be applied as BCs providing nonzero change to rhs vector
-        self.u.vector().zero()
-        for i, bc in enumerate(expressions):
+        # Test that expressions are Expressions
+        for bc in expressions:
             self.assertTrue(isinstance(bc, Expression))
-            dbc = DirichletBC(self.V.sub(i), bc, 1)
-            dbc.apply(self.u.vector())
-        self.assertGreater(self.u.vector().norm('l2'), 0.0)
+
+        # Test that expressions can be applied as BCs providing nonzero change to rhs vector for some ts
+        for t in np.linspace(0.0, self.period, 10):
+            self.u.vector().zero()
+
+            for bc in expressions:
+                bc.set_t(t)
+
+            for i, bc in enumerate(expressions):
+                dbc = DirichletBC(self.V.sub(i), bc, self.indicator)
+                dbc.apply(self.u.vector())
+
+            self.assertGreater(self.u.vector().norm('l2'), 0.0)
 
         # FIXME: Now test that the values are correct!
+
+    def test_womersley_is_pouseille_with_stationary_coefficients(self):
+        x = [0.0, 0.2, 0.3, 0.4, 0.8]
+        y = [1.0, 1.0, 1.0, 1.0, 1.0]
+        coeffs = zip(x,y)
+        period = max(x)
+
+        nu = 1.0
+        wexpressions = make_womersley_bcs(coeffs, self.mesh, self.indicator, nu, None, self.facet_domains)
+        pexpressions = make_pouseille_bcs(coeffs, self.mesh, self.indicator, None, self.facet_domains)
+
+        for t in np.linspace(0.0, self.period, 10):
+            for bc in wexpressions:
+                bc.set_t(t)
+            for bc in pexpressions:
+                bc.set_t(t)
+                
+            for wbc, pbc in zip(wexpressions, pexpressions):
+                diff = assemble((wbc-pbc)**2*ds[self.facet_domains](self.indicator), mesh=self.mesh)
+                self.assertAlmostEqual(diff, 0.0)
+
+    def test_pouseille_flow_rates_are_correct(self):
+        pass # FIXME
+
+    def test_womersley_flow_rates_are_correct(self):
+        pass # FIXME
