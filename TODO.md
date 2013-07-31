@@ -9,6 +9,10 @@ Things to do in headflow
 WIP Martin
 ==========
 
+- Make relative error norms! L2norm("VelocityError") is just ||ua-u||, also want ||ua-u|| / ||ua||
+
+- Use VelocityError and PressureError in tests instead of AnalyticalSolutionAnalyzer and get rid of that one.
+
 - Implement demos for testing:
 
   - [done] Pouseille 2D, start with analytical solution and stay steady
