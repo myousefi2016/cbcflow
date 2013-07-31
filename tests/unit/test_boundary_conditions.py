@@ -19,10 +19,10 @@ class TestBoundaryConditions(unittest.TestCase):
         self.indicator = 1
 
         # Temporal profile coefficients
-        x = [0.0, 0.2, 0.3, 0.4, 0.8]
-        y = [1.0, 5.0, 3.0, 2.0, 1.0]
-        self.coeffs = zip(x,y)
-        self.period = max(x)
+        ts = [0.0, 0.2, 0.3, 0.4, 0.8]
+        Qs = [1.0, 5.0, 3.0, 2.0, 1.0]
+        self.coeffs = zip(ts,Qs)
+        self.period = max(ts)
 
         # Function space and function
         self.V = VectorFunctionSpace(self.mesh, "CG", 1)
@@ -74,24 +74,29 @@ class TestBoundaryConditions(unittest.TestCase):
         # FIXME: Now test that the values are correct!
 
     def test_womersley_is_pouseille_with_stationary_coefficients(self):
-        x = [0.0, 0.2, 0.3, 0.4, 0.8]
-        y = [1.0, 1.0, 1.0, 1.0, 1.0]
-        coeffs = zip(x,y)
-        period = max(x)
+        ts = [0.0, 0.2, 0.3, 0.4, 0.8]
+        Qs = [1.0, 1.0, 1.0, 1.0, 1.0]
+        coeffs = zip(ts, Qs)
+        period = max(ts)
 
         nu = 1.0
         wexpressions = make_womersley_bcs(coeffs, self.mesh, self.indicator, nu, None, self.facet_domains)
         pexpressions = make_pouseille_bcs(coeffs, self.mesh, self.indicator, None, self.facet_domains)
 
-        for t in np.linspace(0.0, self.period, 10):
+        dsi = ds[self.facet_domains](self.indicator)
+
+        for t in np.linspace(0.0, period, 10):
             for bc in wexpressions:
                 bc.set_t(t)
             for bc in pexpressions:
                 bc.set_t(t)
-                
+
             for wbc, pbc in zip(wexpressions, pexpressions):
-                diff = assemble((wbc-pbc)**2*ds[self.facet_domains](self.indicator), mesh=self.mesh)
+                wnorm = np.sqrt(assemble(wbc**2*dsi, mesh=self.mesh)) 
+                pnorm = np.sqrt(assemble(pbc**2*dsi, mesh=self.mesh))
+                diff = np.sqrt(assemble((wbc-pbc)**2*dsi, mesh=self.mesh))
                 self.assertAlmostEqual(diff, 0.0)
+                self.assertAlmostEqual(wnorm, pnorm)
 
     def test_pouseille_flow_rates_are_correct(self):
         pass # FIXME
