@@ -32,6 +32,14 @@ def solve_ns_problem(Problem, Scheme, args):
     # FIXME: Need better way to configure what to show/save/compute for demos!
 
     # Add postprocessing fields (a few configurations)
+    if 1:
+        fp = dict(plot=True, save=True, start_timestep=1)
+        f = L2norm(VelocityError())
+        postproc.add_fields([
+            f,
+            TimeIntegral(f, fp),
+            ])
+
     if 0:
         fp = dict(plot=True, save=True)
         postproc.add_fields([
@@ -45,7 +53,7 @@ def solve_ns_problem(Problem, Scheme, args):
             DomainAvg("Pressure", fp),
             ])
     
-    if 1:
+    if 0:
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
             Velocity(dict(plot=False, save=True)),
