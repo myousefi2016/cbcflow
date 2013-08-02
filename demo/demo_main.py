@@ -34,7 +34,8 @@ def solve_ns_problem(Problem, Scheme, args):
     # Add postprocessing fields (a few configurations)
     if 1:
         fp = dict(plot=True, save=True, start_timestep=1)
-        f = L2norm(VelocityError())
+        #f = L2norm(VelocityError())
+        f = L2norm(Pressure())
         postproc.add_fields([
             f,
             TimeIntegral(f, fp),

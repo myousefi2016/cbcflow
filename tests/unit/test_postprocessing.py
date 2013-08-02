@@ -30,6 +30,7 @@ class MockProblem(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             T = 1.0,
+            dt = 0.1,
             mu = 0.1,
             rho = 0.9,
             )
@@ -191,6 +192,7 @@ class TestPostProcessing2(unittest.TestCase):
 
         # This is the object we want to test!
         pp = NSPostProcessor()
+        pp.add_fields(["Velocity", "Pressure"])
 
         # Attach a callback to postprocessor so we can inspect direct compute requests
         def ppcallback(field, data, t, timestep):
