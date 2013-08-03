@@ -9,6 +9,11 @@ Things to do in headflow
 WIP Martin
 ==========
 
+- Handle transient dependencies
+
+- Improve postprocessing further (not sure what is needed yet).
+  Cover this well in unit tests!
+
 - Make relative error norms! L2norm("VelocityError") is just ||ua-u||, also want ||ua-u|| / ||ua||
 
 - Use VelocityError and PressureError in tests instead of AnalyticalSolutionAnalyzer and get rid of that one.
@@ -105,10 +110,9 @@ Postprocessing
 
 - Add scripts for inspecting cases
 
-- Handle transient dependencies
+- Add code to extend postprocessed data with new fields by reading and doing more computations
 
-- Improve postprocessing further (not sure what is needed yet).
-  Cover this well in unit tests!
+- Extract a Plotter and Storage classes from NSPostProcessor to separate concerns better
 
 
 Tools
