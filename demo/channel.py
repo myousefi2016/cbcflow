@@ -48,7 +48,7 @@ class Channel(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            T=0.5,
+            T=1.0/8,#0.5,
             dt=1.0/80,
             # Physical parameters
             rho=1.0,

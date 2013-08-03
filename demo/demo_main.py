@@ -33,13 +33,21 @@ def solve_ns_problem(Problem, Scheme, args):
 
     # Add postprocessing fields (a few configurations)
     if 1:
-        fp = dict(plot=True, save=True, start_timestep=1)
+        fp = dict(plot=True, save=True)#, start_timestep=1)
         #f = L2norm(VelocityError())
-        f = L2norm(Pressure())
+        #f = L2norm(Pressure(), fp)
+        f = "t"
         postproc.add_fields([
-            f,
-            TimeIntegral(f, fp),
+            #f,
+            #TimeIntegral(f, fp),
+            TimeDerivative(f, fp),
+            #SecondTimeDerivative(f, fp),
             ])
+        print 'plan', postproc._plan
+        print 'cache', postproc._cache
+        print 'deps', postproc._dependencies
+        print 'keys', postproc._sorted_fields_keys
+        print 'fields', postproc._fields
 
     if 0:
         fp = dict(plot=True, save=True)
