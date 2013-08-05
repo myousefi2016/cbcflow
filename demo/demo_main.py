@@ -39,15 +39,16 @@ def solve_ns_problem(Problem, Scheme, args):
         f = "t"
         postproc.add_fields([
             #f,
-            #TimeIntegral(f, fp),
+            TimeIntegral(f, fp),
             TimeDerivative(f, fp),
-            #SecondTimeDerivative(f, fp),
+            SecondTimeDerivative(f, fp),
             ])
-        print 'plan', postproc._plan
-        print 'cache', postproc._cache
-        print 'deps', postproc._dependencies
-        print 'keys', postproc._sorted_fields_keys
-        print 'fields', postproc._fields
+        if 0:
+            print 'plan', postproc._plan
+            print 'cache', postproc._cache
+            print 'deps', postproc._dependencies
+            print 'keys', postproc._sorted_fields_keys
+            print 'fields', postproc._fields
 
     if 0:
         fp = dict(plot=True, save=True)
@@ -61,7 +62,7 @@ def solve_ns_problem(Problem, Scheme, args):
             RunningMax("H1norm_VelocityError", fp),
             DomainAvg("Pressure", fp),
             ])
-    
+
     if 0:
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
