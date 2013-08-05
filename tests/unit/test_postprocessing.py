@@ -440,11 +440,11 @@ class TestPostProcessing2(unittest.TestCase):
 
         # Get and check values from the final timestep
         self.assertAlmostEqual(pp.get("TimeDerivative_t"), 1.0)
-        self.assertAlmostEqual(pp.get("TimeIntegral_t"), T-dt) # NB! Ideally should be T, but handling boundaries of [0,T] is tricky
+        self.assertAlmostEqual(pp.get("TimeIntegral_t"), T)
         self.assertAlmostEqual(pp.get("SecondTimeDerivative_t"), 0.0)
 
         self.assertAlmostEqual(pp.get("TimeDerivative_timestep"), 1.0/dt) # ts = (t-T0)/dt
-        self.assertAlmostEqual(pp.get("TimeIntegral_timestep"), (T-dt)/dt) # NB! Ideally should be T/dt, but handling boundaries of [0,T] is tricky
+        self.assertAlmostEqual(pp.get("TimeIntegral_timestep"), T/dt)
         self.assertAlmostEqual(pp.get("SecondTimeDerivative_timestep"), 0.0)
 
         #self.assertAlmostEqual(pp.get("TimeDerivative_L2norm_Pressure"), 0.0) # FIXME
