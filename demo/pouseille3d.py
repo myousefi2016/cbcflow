@@ -45,7 +45,7 @@ class Pouseille3D(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            T=3e-5,
+            T=0.1, #3e-5,
             dt=1e-5,
             # Physical parameters
             rho=1.0,
