@@ -8,7 +8,8 @@ import unittest
 from collections import defaultdict
 
 from headflow import (ParamDict, NSProblem, NSPostProcessor,
-    PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS)
+    PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
+    TimeDerivative, SecondTimeDerivative, TimeIntegral, L2norm)
 from headflow.core.spaces import NSSpacePoolSplit
 
 import dolfin
@@ -36,6 +37,38 @@ class MockProblem(NSProblem):
             )
         return params
 
+ppf_delayed_cb_params = ParamDict(
+    # Don't compute unless asked
+    start_timestep=1e16,
+    end_timestep=-1e16,
+    stride_timestep=0,
+
+    start_time=1.0e16,
+    end_time=-1.0e16,
+    stride_time=0.0,
+
+    # Don't save or plot, but call callback
+    save = False,
+    plot = False,
+    callback = True,
+    )
+
+ppf_immediate_cb_params = ParamDict(
+    # Compute every timestep
+    start_timestep=-1e16,
+    end_timestep=1e16,
+    stride_timestep=1,
+
+    start_time=1.0e16,
+    end_time=-1.0e16,
+    stride_time=0.0,
+
+    # Don't save or plot, but call callback
+    save = False,
+    plot = False,
+    callback = True,
+    )
+
 class MockPPField(PPField):
     def __init__(self, params=None):
         PPField.__init__(self, params)
@@ -44,21 +77,7 @@ class MockPPField(PPField):
     @classmethod
     def default_params(cls):
         params = PPField.default_params()
-        params.replace(
-            # Don't compute unless asked
-            start_timestep=1e16,
-            end_timestep=-1e16,
-            stride_timestep=0,
-
-            start_time=1.0e16,
-            end_time=-1.0e16,
-            stride_time=0.0,
-
-            # Don't save or plot, but call callback
-            save = False,
-            plot = False,
-            callback = True,
-            )
+        params.replace(**ppf_delayed_cb_params)
         return params
 
 
@@ -188,11 +207,15 @@ class TestPostProcessing2(unittest.TestCase):
             self.assertEqual(pressure.touched, 1) # Only increased first iteration!
             self.assertEqual(sigma.touched, 1) # ...
 
-    def test_get_time_and_solution(self):
+    def test_get_time_and_solution_from_pp_after_update_all(self):
 
         # This is the object we want to test!
         pp = NSPostProcessor()
-        pp.add_fields(["Velocity", "Pressure"])
+
+        # Should add Velocity and Pressure manually to make these available,
+        # this is to be able to skip unnecessary copying of these functions in the pp
+        ppp = MockPPField.default_params()
+        pp.add_fields([Velocity(ppp), Pressure(ppp)])
 
         # Attach a callback to postprocessor so we can inspect direct compute requests
         def ppcallback(field, data, t, timestep):
@@ -226,9 +249,10 @@ class TestPostProcessing2(unittest.TestCase):
         # Update postprocessor, this is where the main code under test is
         pp.update_all(u, p, t, timestep, spaces, problem)
 
-        # Check that we recover the velocity, pressure, and time
+        # Check that we recover the time and timestep, these are not fields but handled specially
         self.assertEqual(t, pp.get("t"))
         self.assertEqual(timestep, pp.get("timestep"))
+        # Check that we recover the velocity and pressure, these were requested above
         self.assertAlmostEqual(norm(u), norm(pp.get("Velocity")))
         self.assertAlmostEqual(norm(p), norm(pp.get("Pressure")))
         self.assertGreater(norm(u), 0.0) # Check that previous test was not worthless
@@ -308,7 +332,7 @@ class TestPostProcessing2(unittest.TestCase):
             a = assemble(expr**2*dx(), mesh=problem.mesh)
             e = assemble(pp.get(name)**2*dx(), mesh=problem.mesh)
             d = assemble((expr - pp.get(name))**2*dx(), mesh=problem.mesh)
-            print a, e, d, d/e
+            #print a, e, d, d/e
             return d / e
 
         if 0:
@@ -339,9 +363,72 @@ class TestPostProcessing2(unittest.TestCase):
         self.assertEqual(1, 1) # FIXME
 
     def test_get_first_time_derivative(self):
-        self.assertEqual(1, 1) # FIXME
+        # This is the object we want to test!
+        pp = NSPostProcessor()
+        ppp = ppf_immediate_cb_params # Important that we ask for the fields to be computed, as time dependencies will not work retrospectively after time loop is over!
+        pp.add_fields([
+                #Velocity(ppp),
+                #L2norm("Pressure", ppp),
+                TimeDerivative("t", ppp),
+                TimeDerivative("timestep", ppp),
+                #TimeDerivative("L2norm_Pressure", ppp),
+                #SecondTimeDerivative("L2norm_Pressure", ppp),
+                #TimeIntegral("L2norm_Pressure", ppp),
+                ])
+
+        # Attach a callback to postprocessor so we can inspect direct compute requests
+        def ppcallback(field, data, t, timestep):
+            print "DEBUG: In ppcallback", field, data, t, timestep
+            ppcallback.calls[field.name].append((t, timestep))
+        ppcallback.calls = defaultdict(list)
+        pp._callback = ppcallback
+
+        # Setup some mock problem state
+        problem = MockProblem()
+
+        # Toy state evolution
+        uexpr = Expression(("1.0 + 2*x[0] + 3*x[1]", "1.0 + 4*x[0] + 5*x[1]"))
+        pexpr = Expression("1.0 + 3 * x[0] * x[1]")
+
+        # Setup some mock scheme state
+        spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
+        u = Function(spaces.V)
+        p = Function(spaces.Q)
+
+        # Set "initial condition"
+        u.interpolate(uexpr)
+        p.interpolate(pexpr)
+
+        dt = problem.params.dt
+        T0 = problem.params.T0
+        T = problem.params.T
+
+        # Update postprocessor for a number of timesteps, this is where the main code under test is
+        for (t, timestep) in [(T0+i*dt, i) for i in range(int(0.5+T/dt))]:
+            pp.update_all(u, p, t, timestep, spaces, problem)
+
+        # We didn't make any direct compute requests, so no actions should be triggered:
+        #self.assertEqual(ppcallback.calls, defaultdict(list))
+
+        # Get and check values from last timestep
+        dt_dt = pp.get("TimeDerivative_t")
+        dts_dt = pp.get("TimeDerivative_timestep")
+        #t_itg_t = pp.get("TimeIntegral_t")
+        #ts_itg_t = pp.get("TimeIntegral_timestep")
+        #dt_dt2 = pp.get("SecondTimeDerivative_t")
+        #dts_dt2 = pp.get("SecondTimeDerivative_timestep")
+
+        self.assertAlmostEqual(dt_dt, 1.0)
+        self.assertAlmostEqual(dts_dt, 1.0/dt) # ts = (t-T0)/dt
+        #self.assertAlmostEqual(t_itg_t, T)
+        #self.assertAlmostEqual(ts_itg_t, T/dt)
+        #self.assertAlmostEqual(dt_dt2, 0.0)
+        #self.assertAlmostEqual(dts_dt2, 0.0)
 
     def test_get_second_time_derivative(self):
+        self.assertEqual(1, 1) # FIXME
+
+    def test_get_time_integral(self):
         self.assertEqual(1, 1) # FIXME
 
     def test_get_norms(self):
