@@ -22,8 +22,8 @@ dolfin.parameters["form_compiler"]["representation"] = "quadrature"
 _mesh = UnitSquareMesh(32, 32)
 
 class MockProblem(NSProblem):
-    def __init__(self):
-        NSProblem.__init__(self, None)
+    def __init__(self, params=None):
+        NSProblem.__init__(self, params)
         self.initialize_geometry(_mesh)
 
     @classmethod
@@ -59,8 +59,8 @@ ppf_immediate_cb_params = ParamDict(
     end_timestep=1e16,
     stride_timestep=1,
 
-    start_time=1.0e16,
-    end_time=-1.0e16,
+    start_time=-1.0e16,
+    end_time=1.0e16,
     stride_time=0.0,
 
     # Don't save or plot, but call callback
@@ -368,27 +368,39 @@ class TestPostProcessing2(unittest.TestCase):
         ppp = ppf_immediate_cb_params # Important that we ask for the fields to be computed, as time dependencies will not work retrospectively after time loop is over!
         pp.add_fields([
                 #Velocity(ppp),
-                #L2norm("Pressure", ppp),
+                L2norm("Pressure", ppp),
                 TimeDerivative("t", ppp),
                 TimeDerivative("timestep", ppp),
-                #TimeDerivative("L2norm_Pressure", ppp),
-                #SecondTimeDerivative("L2norm_Pressure", ppp),
-                #TimeIntegral("L2norm_Pressure", ppp),
+                TimeDerivative("L2norm_Pressure", ppp),
+                TimeDerivative("Pressure", ppp),
+                SecondTimeDerivative("t", ppp),
+                SecondTimeDerivative("timestep", ppp),
+                SecondTimeDerivative("L2norm_Pressure", ppp),
+                TimeIntegral("t", ppp),
+                TimeIntegral("timestep", ppp),
+                TimeIntegral("L2norm_Pressure", ppp),
                 ])
 
         # Attach a callback to postprocessor so we can inspect direct compute requests
         def ppcallback(field, data, t, timestep):
-            print "DEBUG: In ppcallback", field, data, t, timestep
+            print "DEBUG: In ppcallback", field.name, data, t, timestep
             ppcallback.calls[field.name].append((t, timestep))
         ppcallback.calls = defaultdict(list)
         pp._callback = ppcallback
 
         # Setup some mock problem state
-        problem = MockProblem()
+        problem = MockProblem(dict(T=0.3, dt=0.1))
+        dt = problem.params.dt
+        T0 = problem.params.T0
+        T = problem.params.T
 
         # Toy state evolution
         uexpr = Expression(("1.0 + 2*x[0] + 3*x[1]", "1.0 + 4*x[0] + 5*x[1]"))
-        pexpr = Expression("1.0 + 3 * x[0] * x[1]")
+        pexpr = Expression("t + 2.0*t*t + 3*t*t*t", t=0.0)
+        #dpdtexpr = Expression("1.0 + 4.0*t + 9.0*t*t", t=0.0) # exact derivative
+        #dpdtexpr = Expression("1.0 + 2.0*(2.0*t + dt) + 3.0*(3.0*t*t + 3.0*t*dt + dt*dt)", t=0.0, dt=0.0) # approximate derivative
+        dpdtexpr = Expression("1.0 + 2.0*(2.0*(t-dt) + dt) + 3.0*(3.0*(t-dt)*(t-dt) + 3.0*(t-dt)*dt + dt*dt)", t=0.0, dt=0.0) # approximate derivative
+        dpdtexpr.dt = dt
 
         # Setup some mock scheme state
         spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
@@ -397,33 +409,47 @@ class TestPostProcessing2(unittest.TestCase):
 
         # Set "initial condition"
         u.interpolate(uexpr)
-        p.interpolate(pexpr)
-
-        dt = problem.params.dt
-        T0 = problem.params.T0
-        T = problem.params.T
 
         # Update postprocessor for a number of timesteps, this is where the main code under test is
         for (t, timestep) in [(T0+i*dt, i) for i in range(int(0.5+T/dt))]:
+            # Fake a varying pressure
+            pexpr.t = t
+            p.interpolate(pexpr)
+            self.assertAlmostEqual(assemble(p**2*dx, mesh=problem.mesh), (t+2*t**2+3*t**3)**2)
+            #self.assertAlmostEqual(assemble(dpdtexpr**2*dx, mesh=problem.mesh), 0.0)
+
+            # Run postprocessing step
             pp.update_all(u, p, t, timestep, spaces, problem)
 
-        # We didn't make any direct compute requests, so no actions should be triggered:
+            # Test value of pressure derivative
+            pr = pp.get("Pressure")
+            print "ZZZ", assemble(pr**2*dx, mesh=problem.mesh)
+            if timestep > 0:
+                dpdtexpr.t = t
+                prm = pp.get("Pressure", -1)
+                tdp = pp.get("TimeDerivative_Pressure")
+                print "IDS", pr, prm
+                print "YYY", assemble(prm**2*dx, mesh=problem.mesh)
+                print "YYY", assemble(dpdtexpr**2*dx, mesh=problem.mesh)
+                print "YYY", assemble(tdp**2*dx, mesh=problem.mesh)
+                diff = assemble((dpdtexpr-tdp)**2*dx, mesh=problem.mesh)
+                self.assertAlmostEqual(diff, 0.0)
+
+        # TODO: Check that we get the right amount of calls:
         #self.assertEqual(ppcallback.calls, defaultdict(list))
 
-        # Get and check values from last timestep
-        dt_dt = pp.get("TimeDerivative_t")
-        dts_dt = pp.get("TimeDerivative_timestep")
-        #t_itg_t = pp.get("TimeIntegral_t")
-        #ts_itg_t = pp.get("TimeIntegral_timestep")
-        #dt_dt2 = pp.get("SecondTimeDerivative_t")
-        #dts_dt2 = pp.get("SecondTimeDerivative_timestep")
+        # Get and check values from the final timestep
+        self.assertAlmostEqual(pp.get("TimeDerivative_t"), 1.0)
+        self.assertAlmostEqual(pp.get("TimeIntegral_t"), T-dt) # NB! Ideally should be T, but handling boundaries of [0,T] is tricky
+        self.assertAlmostEqual(pp.get("SecondTimeDerivative_t"), 0.0)
 
-        self.assertAlmostEqual(dt_dt, 1.0)
-        self.assertAlmostEqual(dts_dt, 1.0/dt) # ts = (t-T0)/dt
-        #self.assertAlmostEqual(t_itg_t, T)
-        #self.assertAlmostEqual(ts_itg_t, T/dt)
-        #self.assertAlmostEqual(dt_dt2, 0.0)
-        #self.assertAlmostEqual(dts_dt2, 0.0)
+        self.assertAlmostEqual(pp.get("TimeDerivative_timestep"), 1.0/dt) # ts = (t-T0)/dt
+        self.assertAlmostEqual(pp.get("TimeIntegral_timestep"), (T-dt)/dt) # NB! Ideally should be T/dt, but handling boundaries of [0,T] is tricky
+        self.assertAlmostEqual(pp.get("SecondTimeDerivative_timestep"), 0.0)
+
+        #self.assertAlmostEqual(pp.get("TimeDerivative_L2norm_Pressure"), 0.0) # FIXME
+        #self.assertAlmostEqual(pp.get("TimeIntegral_L2norm_Pressure"), 0.0) # FIXME
+        #self.assertAlmostEqual(pp.get("SecondTimeDerivative_L2norm_Pressure"), 0.0) # FIXME
 
     def test_get_second_time_derivative(self):
         self.assertEqual(1, 1) # FIXME
