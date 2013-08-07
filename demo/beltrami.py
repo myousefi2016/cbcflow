@@ -45,7 +45,7 @@ class Beltrami(NSProblem):
             )
         return params
 
-    def analytical_solution(self, t):
+    def analytical_solution(self, spaces, t):
         # The analytical solution
         # Velocity
         analytical_u = \
@@ -80,11 +80,11 @@ class Beltrami(NSProblem):
         return (exact_u, exact_p)
 
     def initial_conditions(self, spaces, controls):
-        exact_u, exact_p = self.analytical_solution(t=0.0)
+        exact_u, exact_p = self.analytical_solution(spaces, t=0.0)
         return (exact_u, exact_p)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        exact_u, exact_p = self.analytical_solution(t=float(t))
+        exact_u, exact_p = self.analytical_solution(spaces, t=float(t))
         bcu = [(exact_u, DomainBoundary())]
         bcp = []
         return bcu, bcp
@@ -102,7 +102,7 @@ class Beltrami(NSProblem):
         if t < self.T:
             return 0.0
         else:
-            exact_u, exact_p = self.analytical_solution(t=t)
+            exact_u, exact_p = self.analytical_solution(spaces, t=t)
 
             error = 0
             for exact_u, calc_u in zip(exact_u, u):

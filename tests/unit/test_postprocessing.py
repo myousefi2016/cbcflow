@@ -423,15 +423,15 @@ class TestPostProcessing2(unittest.TestCase):
 
             # Test value of pressure derivative
             pr = pp.get("Pressure")
-            print "ZZZ", assemble(pr**2*dx, mesh=problem.mesh)
+            #print "ZZZ", assemble(pr**2*dx, mesh=problem.mesh)
             if timestep > 0:
                 dpdtexpr.t = t
                 prm = pp.get("Pressure", -1)
                 tdp = pp.get("TimeDerivative_Pressure")
-                print "IDS", pr, prm
-                print "YYY", assemble(prm**2*dx, mesh=problem.mesh)
-                print "YYY", assemble(dpdtexpr**2*dx, mesh=problem.mesh)
-                print "YYY", assemble(tdp**2*dx, mesh=problem.mesh)
+                #print "IDS", pr, prm
+                #print "YYY", assemble(prm**2*dx, mesh=problem.mesh)
+                #print "YYY", assemble(dpdtexpr**2*dx, mesh=problem.mesh)
+                #print "YYY", assemble(tdp**2*dx, mesh=problem.mesh)
                 diff = assemble((dpdtexpr-tdp)**2*dx, mesh=problem.mesh)
                 self.assertAlmostEqual(diff, 0.0)
 

@@ -83,15 +83,12 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         try:
             ns = solver.solve()
 
-            # Extract results
-            # TODO: Standardize and document interface for ppfield.get_data()
-            #results = { f.name: f.get_data() for f in fields }
-            results = {f.name: pp._cache[0][f.name] for f in fields}
-            #results = {f.name: pp.get(f.name) for f in fields}
+            # Extract results for each field
+            results = { f.name: pp.get(f.name) for f in fields }
             results["namespace"] = ns
+
         except Exception as e:
             # No results
-
             results = { "exception": str(e) }
 
         return results
@@ -100,6 +97,7 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         "Run sweep over discretization parameters and delegate analysis to subclass"
         # Run simulations and collect all data (implemented above)
         data = self._run_discretization_sweep(self._Ns(), self._dts())
+
         # Analyse this data (implemented by subclass)
         self._analyse_data(data)
 

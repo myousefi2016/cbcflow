@@ -9,7 +9,7 @@ from math import sqrt
 import dolfin
 dolfin.parameters["allow_extrapolation"] = True
 
-from .discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
+from discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
 
 
 class TestGridConvergence(DiscretizationSweepTestCase):
@@ -24,7 +24,7 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 
     def _make_fields(self):
         "Return postprocessing fields to apply in solve."
-        return [Velocity()]
+        return [Velocity()] # FIXME: Use VelocityError(), PressureError() here?
 
     def _analyse_data(self, data):
         "Analyse the data provided by the discretization parameter sweep."
@@ -48,8 +48,8 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 a = { "dt": dt, "N0": N0, "N1": N1 }
 
                 try:
-                    u_coarse = data0["Velocity"]["data"]
-                    u_fine = data1["Velocity"]["data"]
+                    u_coarse = data0["Velocity"]
+                    u_fine = data1["Velocity"]
                     uc = dolfin.interpolate(u_coarse, u_fine.function_space())
 
                     a["u_coarse_norm"] = dolfin.assemble(u_coarse**2*dolfin.dx())
@@ -99,8 +99,8 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 a = { "dt0": dt0, "dt1": dt1, "N": N }
 
                 try:
-                    u_coarse = data0["Velocity"]["data"]
-                    u_fine = data1["Velocity"]["data"]
+                    u_coarse = data0["Velocity"]
+                    u_fine = data1["Velocity"]
                     uc = dolfin.interpolate(u_coarse, u_fine.function_space())
 
                     a["u_coarse_norm"] = dolfin.assemble(u_coarse**2*dolfin.dx())
@@ -156,4 +156,3 @@ def load_tests(loader, standard_tests, none):
         ]
 
     return make_suite(TestGridConvergence, [schemes, problems])
-

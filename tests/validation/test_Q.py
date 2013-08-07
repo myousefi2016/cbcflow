@@ -9,7 +9,7 @@ from math import sqrt
 import dolfin
 dolfin.parameters["allow_extrapolation"] = True
 
-from .discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
+from discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
 
 
 class TestQ(DiscretizationSweepTestCase):

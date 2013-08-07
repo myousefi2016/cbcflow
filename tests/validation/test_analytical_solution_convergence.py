@@ -9,7 +9,39 @@ from math import sqrt
 import dolfin
 dolfin.parameters["allow_extrapolation"] = True
 
-from .discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
+from discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
+
+
+# TODO: Move these utils to shared code?
+
+def map_dict_values(container, mapping):
+    "Construct a new dict with mapping function applied to each value in input dict."
+    return { k: mapping(v) for k,v in container.iteritems() }
+
+def multi_level_get(top, *keys):
+    "Like top.get(key), but handling multi-level nested acces with given keys."
+    em = {}
+    d = top
+    for k in keys[:-1]:
+        d = d.get(k, em)
+    return d.get(keys[-1])
+
+def extract_table(data, Ns, dts, fieldname):
+    em = {}
+    return { (N,dt): data.get((N,dt),em).get(fieldname)
+             for N in Ns for dt in dts }
+
+# TODO: Find some better table formatting utils I have lying around somewhere
+def print_table(caption, table, Ns, dts):
+    print
+    print caption
+    print "dt    ",
+    for dt in dts:
+        print dt,
+    for N in Ns:
+        print "\nN  ", N,
+        print '  '.join(table[(N, dt)] for dt in dts),
+    print
 
 
 class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
@@ -19,16 +51,19 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
         save = False
         p1 = ParamDict(
-            save=True,
+            save=save,
             )
         p3 = ParamDict(
-            save=True,
+            save=save,
             stride_timestep=10,
             )
         return [
-            AnalyticalSolutionAnalyzer(params=p1),
-            EnergyAnalyzer(params=p1),
-            WSS(params=p3),
+            VelocityError(params=p1),
+            PressureError(params=p1),
+            H1norm("VelocityError"),
+            H1seminorm("VelocityError"),
+            L2norm("VelocityError"),
+            L2norm("PressureError"),
             ]
 
     def _analyse_data(self, data):
@@ -37,46 +72,13 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         self._print_table(data)
 
     def _print_table(self, data):
-
         print data
-
-        # TODO: Move these utils to shared code?
-
-        def map_dict_values(table, mapping):
-            return { k:mapping(v) for k,v in table.iteritems() }
-
-        def multi_get(top, *keys):
-            em = {}
-            d = top
-            for k in keys[:-1]:
-                d = d.get(k,em)
-            return d.get(keys[-1])
-
-        def extract_table(data, Ns, dts, fieldname, subfieldname):
-            em = {}
-            return { (N,dt): multi_get(data, (N,dt), fieldname, subfieldname)
-                     for N in Ns for dt in dts }
-
-        # TODO: Find some better table formatting utils I have lying around somewhere
-        def print_table(table, Ns, dts):
-            print
-            print x
-            print "dt    ",
-            for dt in dts:
-                print dt,
-            for N in Ns:
-                print "\nN  ", N,
-                print '  '.join(table[(N, dt)] for dt in dts),
-            print
-
         Ns = self._Ns()
         dts = self._dts()
-        fieldname = "AnalyticalSolutionAnalyzer"
-        subfields = ["u0", "u1", "u2", "p"]
-        for x in subfields:
-            table = extract_table(data, Ns, dts, fieldname, x)
+        for fieldname in ("L2norm_VelocityError", "H1norm_VelocityError", "H1seminorm_VelocityError", "L2norm_PressureError"):
+            table = extract_table(data, Ns, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
-            print_table(table, Ns, dts)
+            print_table(fieldname, table, Ns, dts)
 
 # Importing problems from headflow/demo/
 # NB! Assuming run from the headflow/tests/ directory!
@@ -96,7 +98,7 @@ def load_tests(loader, standard_tests, none):
         lambda: IPCS_Stable({'theta':0.5}),
         ]
 
-    # FIXME: Add more problems
+    # FIXME: Add more problems: Pouseille2d, Pouseille3d, Womersley2d, Womersley3d
     problems = [
         lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
         ]
