@@ -58,12 +58,11 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
             stride_timestep=10,
             )
         return [
-            VelocityError(params=p1),
-            PressureError(params=p1),
-            H1norm("VelocityError"),
-            H1seminorm("VelocityError"),
-            L2norm("VelocityError"),
-            L2norm("PressureError"),
+            #VelocityError(params=p1),
+            #PressureError(params=p1),
+            DiffL2norm("Velocity", "AnalyticalVelocity", params=p1),
+            DiffH1norm("Velocity", "AnalyticalVelocity", params=p1),
+            DiffH1seminorm("Velocity", "AnalyticalVelocity", params=p1),
             ]
 
     def _analyse_data(self, data):
@@ -75,7 +74,13 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         print data
         Ns = self._Ns()
         dts = self._dts()
-        for fieldname in ("L2norm_VelocityError", "H1norm_VelocityError", "H1seminorm_VelocityError", "L2norm_PressureError"):
+        fieldnames = [
+            "DiffL2norm_Velocity_AnalyticalVelocity",
+            "DiffH1norm_Velocity_AnalyticalVelocity",
+            "DiffH1seminorm_Velocity_AnalyticalVelocity",
+            ]
+        #("L2norm_VelocityError", "H1norm_VelocityError", "H1seminorm_VelocityError", "L2norm_PressureError"):
+        for fieldname in fieldnames:
             table = extract_table(data, Ns, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
             print_table(fieldname, table, Ns, dts)
