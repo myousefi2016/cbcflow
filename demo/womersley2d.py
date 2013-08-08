@@ -69,7 +69,7 @@ class Womersley2D(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            T=0.3,
+            T=0.03,
             dt=1e-3,
             # Physical parameters
             rho=1.0,
