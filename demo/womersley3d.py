@@ -29,8 +29,8 @@ class Womersley3D(NSProblem):
         # Setup analytical solution constants # FIXME: This is the pouseille data
         self.Upeak = 1.0
         self.U = self.Upeak / RADIUS**2
-        nu = self.params.mu / self.params.rho
-        self.beta = 2.0 * nu * self.U
+        self.nu = self.params.mu / self.params.rho
+        self.beta = 2.0 * self.nu * self.U
 
         print
         print "Expected peak velocity:", self.Upeak
@@ -87,7 +87,7 @@ class Womersley3D(NSProblem):
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
         bcu = [
-            ([c0, c0], self.wall_boundary_id),
+            ([c0, c0, c0], self.wall_boundary_id),
             (ua, self.left_boundary_id),
             ]
 
