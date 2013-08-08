@@ -45,11 +45,11 @@ class Womersley3D(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            T=0.1, #3e-5,
-            dt=1e-5,
+            T=0.3,
+            dt=1e-3,
             # Physical parameters
             rho=1.0,
-            mu=1.0/10.0,
+            mu=1.0/30.0,
             )
         params.update(
             # Spatial parameters
@@ -80,6 +80,8 @@ class Womersley3D(NSProblem):
             # TODO: THEN test a transient flow rate.
             coeffs = [(0.0, self.Upeak), (1.0, self.Upeak)]
             ua = make_womersley_bcs(coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
+            for uc in ua:
+                uc.set_t(t)
             pa = Constant(-self.beta*LENGTH)
 
         # Create no-slip and inflow boundary condition for velocity
@@ -93,6 +95,12 @@ class Womersley3D(NSProblem):
         bcp = [(pa, self.right_boundary_id)]
 
         return (bcu, bcp)
+
+    def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
+        bcu, bcp = bcs
+        ua = bcu[1][0]
+        for uc in ua:
+            uc.set_t(t)
 
 if __name__ == "__main__":
     from demo_main import demo_main
