@@ -12,8 +12,8 @@ from numpy import array
 LENGTH = 10.0
 RADIUS = 0.5
 
-class Pouseille3D(NSProblem):
-    "3D pipe test problem with known stationary analytical solution."
+class Womersley3D(NSProblem):
+    "3D pipe test problem with known transient analytical solution."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
@@ -26,7 +26,7 @@ class Pouseille3D(NSProblem):
         self.left_boundary_id = 2
         self.right_boundary_id = 1
 
-        # Setup analytical solution constants
+        # Setup analytical solution constants # FIXME: This is the pouseille data
         self.Upeak = 1.0
         self.U = self.Upeak / RADIUS**2
         nu = self.params.mu / self.params.rho
@@ -49,7 +49,7 @@ class Pouseille3D(NSProblem):
             dt=1e-5,
             # Physical parameters
             rho=1.0,
-            mu=1.0,#/10.0,
+            mu=1.0/10.0,
             )
         params.update(
             # Spatial parameters
@@ -58,7 +58,7 @@ class Pouseille3D(NSProblem):
         return params
 
     def analytical_solution(self, spaces, t):
-        ux = Expression("U*(radius*radius - x[1]*x[1] - x[2]*x[2])", U=1.0, radius=RADIUS)
+        ux = Expression("U*(radius*radius - x[1]*x[1] - x[2]*x[2])", U=1.0, radius=RADIUS) # FIXME: Insert womersley function here
         ux.U = self.U
         c0 = Constant(0)
         u0 = [ux, c0, c0]
@@ -76,14 +76,16 @@ class Pouseille3D(NSProblem):
         if 0:
             ua, pa = self.analytical_solution(spaces, t)
         else:
+            # FIXME: FIRST make womersley match the stationary velocity provided here.
+            # TODO: THEN test a transient flow rate.
             coeffs = [(0.0, self.Upeak), (1.0, self.Upeak)]
-            ua = make_pouseille_bcs(coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
+            ua = make_womersley_bcs(coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
             pa = Constant(-self.beta*LENGTH)
 
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
         bcu = [
-            ([c0, c0, c0], self.wall_boundary_id),
+            ([c0, c0], self.wall_boundary_id),
             (ua, self.left_boundary_id),
             ]
 
@@ -94,4 +96,4 @@ class Pouseille3D(NSProblem):
 
 if __name__ == "__main__":
     from demo_main import demo_main
-    demo_main(Pouseille3D)
+    demo_main(Womersley3D)

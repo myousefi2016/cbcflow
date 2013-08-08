@@ -97,7 +97,7 @@ class Pouseille2D(NSProblem):
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Toggle to compare built-in BC class and direct use of analytical solution:
-        if 1:
+        if 0:
             ua, pa = self.analytical_solution(spaces, t)
         else:
             coeffs = [(0.0, self.Upeak), (1.0, self.Upeak)]

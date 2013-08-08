@@ -21,7 +21,7 @@ class Right(SubDomain):
         return x[0] > LENGTH*(1.0 - DOLFIN_EPS)
 
 class Womersley2D(NSProblem):
-    "3D pipe test problem with known stationary analytical solution."
+    "3D pipe test problem with known transient analytical solution."
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
@@ -82,7 +82,7 @@ class Womersley2D(NSProblem):
         return params
 
     def analytical_solution(self, spaces, t):
-        ux = Expression("U*(radius*radius - x[1]*x[1])", U=1.0, radius=RADIUS)
+        ux = Expression("U*(radius*radius - x[1]*x[1])", U=1.0, radius=RADIUS) # FIXME: Insert womersley function here
         ux.U = self.U
         uy = Constant(0)
         u0 = [ux, uy]
