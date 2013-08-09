@@ -31,7 +31,7 @@ class Pipe(NSProblem):
             T=None,
             dt=1e-3,
             period=0.8,
-            num_periods=3,
+            num_periods=1.0,
 
             # Physical parameters
             rho=1.0,

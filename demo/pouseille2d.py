@@ -7,7 +7,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from headflow import *
 from headflow.dol import *
 
-from numpy import array
+import numpy as np
 
 LENGTH = 10.0
 RADIUS = 0.5
@@ -51,7 +51,8 @@ class Pouseille2D(NSProblem):
         Right().mark(facet_domains, self.right_boundary_id)
 
         # Setup analytical solution constants
-        self.Upeak = 1.0
+        self.Q = 1.0
+        self.Upeak = self.Q / (0.5 * pi * RADIUS**2)
         self.U = self.Upeak / RADIUS**2
         nu = self.params.mu / self.params.rho
         self.beta = 2.0 * nu * self.U
@@ -69,8 +70,10 @@ class Pouseille2D(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            T=0.3,
+            T=None,
             dt=1e-3,
+            period=0.8,
+            num_periods=1.0,
             # Physical parameters
             rho=1.0,
             mu=1.0/30.0,
@@ -98,9 +101,20 @@ class Pouseille2D(NSProblem):
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Toggle to compare built-in BC class and direct use of analytical solution:
         if 0:
+            print "Using analytical_solution as bcs."
             ua, pa = self.analytical_solution(spaces, t)
         else:
-            coeffs = [(0.0, self.Upeak), (1.0, self.Upeak)]
+            if 0:
+                print "Using stationary bcs."
+                coeffs = [(0.0, self.Q), (1.0, self.Q)]
+            else:
+                print "Using transient bcs."
+                T = self.params.T
+                P = self.params.period
+                tv = np.linspace(0.0, P)
+                Q = self.Q * (0.3 + 0.7*np.sin(pi*((P-tv)/P)**2)**2)
+                coeffs = zip(tv, Q)
+            # Make pouseille objects
             ua = make_pouseille_bcs(coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
             for uc in ua:
                 uc.set_t(t)
