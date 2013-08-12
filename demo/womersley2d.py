@@ -98,12 +98,30 @@ class Womersley2D(NSProblem):
 
         return (u0, p0)
 
+    def analytical_solution(self, spaces, t):
+        if 0:
+            print "Using stationary bcs."
+            coeffs = [(0.0, self.Q), (1.0, self.Q)]
+        else:
+            print "Using transient bcs."
+            T = self.params.T
+            P = self.params.period
+            tv = np.linspace(0.0, P)
+            Q = self.Q * (0.3 + 0.7*np.sin(pi*((P-tv)/P)**2)**2)
+            coeffs = zip(tv, Q)
+        # Create womersley objects
+        ua = make_womersley_bcs(coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
+        for uc in ua:
+            uc.set_t(t)
+        pa = Expression("-beta*x[0]", beta=self.beta)
+        return (ua, pa)
+
     def initial_conditions(self, spaces, controls):
         return self.analytical_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Toggle to compare built-in BC class and direct use of analytical solution:
-        if 0:
+        if 1:
             print "Using analytical_solution as bcs."
             ua, pa = self.analytical_solution(spaces, t)
         else:
@@ -126,7 +144,7 @@ class Womersley2D(NSProblem):
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
         bcu = [
-            ([c0, c0], self.wall_boundary_id),
+            ([c0, c0], self.wall_boundary_id), # TODO: Change ordering, should be the same if ua is actually zero on boundary
             (ua, self.left_boundary_id),
             ]
 
