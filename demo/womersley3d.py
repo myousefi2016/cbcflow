@@ -30,6 +30,18 @@ class Womersley3D(NSProblem):
         self.Q = 1.0
         self.nu = self.params.mu / self.params.rho
 
+        # Setup transient flow rate coefficients
+        if 0:
+            print "Using stationary bcs."
+            self.Q_coeffs = [(0.0, self.Q), (1.0, self.Q)]
+        else:
+            print "Using transient bcs."
+            T = self.params.T
+            P = self.params.period
+            tv = np.linspace(0.0, P)
+            Q = self.Q * (0.3 + 0.7*np.sin(pi*((P-tv)/P)**2)**2)
+            self.Q_coeffs = zip(tv, Q)
+
         # FIXME: This is the pouseille data, update this and analytical_solution
         self.Upeak = self.Q / (0.5 * pi * RADIUS**2)
         self.U = self.Upeak / RADIUS**2
@@ -64,44 +76,23 @@ class Womersley3D(NSProblem):
         return params
 
     def analytical_solution(self, spaces, t):
-        ux = Expression("U*(radius*radius - x[1]*x[1] - x[2]*x[2])", U=1.0, radius=RADIUS) # FIXME: Insert womersley function here
-        ux.U = self.U
-        c0 = Constant(0)
-        u0 = [ux, c0, c0]
-
-        p0 = Expression("-beta*x[0]", beta=1.0, length=LENGTH)
-        p0.beta = self.beta
-
-        return (u0, p0)
+        # Create womersley objects
+        ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
+        for uc in ua:
+            uc.set_t(t)
+        pa = Expression("-beta*x[0]", beta=self.beta)
+        return (ua, pa)
 
     def initial_conditions(self, spaces, controls):
         return self.analytical_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        # Toggle to compare built-in BC class and direct use of analytical solution:
-        if 0:
-            print "Using analytical_solution as bcs."
-            ua, pa = self.analytical_solution(spaces, t)
-        else:
-            if 0:
-                print "Using stationary bcs."
-                coeffs = [(0.0, self.Q), (1.0, self.Q)]
-            else:
-                print "Using transient bcs."
-                T = self.params.T
-                P = self.params.period
-                tv = np.linspace(0.0, P)
-                Q = self.Q * (0.3 + 0.7*np.sin(pi*((P-tv)/P)**2)**2)
-                coeffs = zip(tv, Q)
-            # Create womersley objects
-            ua = make_womersley_bcs(coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
-            for uc in ua:
-                uc.set_t(t)
-            pa = Constant(-self.beta*LENGTH)
+        ua, pa = self.analytical_solution(spaces, t)
 
         # Create no-slip and inflow boundary condition for velocity
         c0 = Constant(0)
         bcu = [
+            # Note the ordering, ua should be zero on the outer edges!
             ([c0, c0, c0], self.wall_boundary_id),
             (ua, self.left_boundary_id),
             ]

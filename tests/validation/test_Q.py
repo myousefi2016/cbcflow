@@ -53,4 +53,4 @@ def load_tests(loader, standard_tests, none):
         lambda N,dt: FlowAroundCylinder(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
         ]
 
-    return []#make_suite(TestAnalyticalSolutionConvergence, [schemes, problems]) # FIXME: Enable when test case does something
+    return unittest.TestSuite([]) #make_suite(TestAnalyticalSolutionConvergence, [schemes, problems]) # FIXME: Enable when test case does something
