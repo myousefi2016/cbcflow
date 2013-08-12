@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-__author__ = "Martin Sandve Alnes <kent-and@simula.no>"
-__date__ = "2013-07-28"
+__author__ = "Martin Sandve Alnes <martinal@simula.no>"
+__date__ = "2013-08-12"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
@@ -27,8 +27,11 @@ class Womersley3D(NSProblem):
         self.right_boundary_id = 1
 
          # Setup analytical solution constants
-        self.Q = 1.0
+        Q = self.params.Q
         self.nu = self.params.mu / self.params.rho
+
+        # Beta is the Pouseille pressure drop if the flow rate is stationary Q
+        self.beta = 4.0 * self.nu * Q / (pi * RADIUS**4)
 
         # Setup transient flow rate coefficients
         if 0:
@@ -38,20 +41,9 @@ class Womersley3D(NSProblem):
             print "Using transient bcs."
             T = self.params.T
             P = self.params.period
-            tv = np.linspace(0.0, P)
-            Q = self.Q * (0.3 + 0.7*np.sin(pi*((P-tv)/P)**2)**2)
-            self.Q_coeffs = zip(tv, Q)
-
-        # FIXME: This is the pouseille data, update this and analytical_solution
-        self.Upeak = self.Q / (0.5 * pi * RADIUS**2)
-        self.U = self.Upeak / RADIUS**2
-        self.beta = 2.0 * self.nu * self.U
-
-        print
-        print "NB! This demo is work in progress."
-        #print "Expected peak velocity:", self.Upeak
-        #print "Expected total pressure drop:", self.beta*LENGTH
-        print
+            tvalues = np.linspace(0.0, P)
+            Qvalues = Q * (0.3 + 0.7*np.sin(pi*((P-tvalues)/P)**2)**2)
+            self.Q_coeffs = zip(tvalues, Qvalues)
 
         # Store mesh and markers
         self.initialize_geometry(mesh)
@@ -72,41 +64,49 @@ class Womersley3D(NSProblem):
         params.update(
             # Spatial parameters
             mesh_filename="../data/pipe_0.2.xml.gz",
+            # Analytical solution parameters
+            Q=1.0,
             )
         return params
 
     def analytical_solution(self, spaces, t):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
+        #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
         for uc in ua:
             uc.set_t(t)
-        pa = Expression("-beta*x[0]", beta=self.beta)
+        pa = Expression("-beta * x[0]", beta=1.0)
+        pa.beta = self.beta # TODO: This is not correct unless stationary...
         return (ua, pa)
 
     def initial_conditions(self, spaces, controls):
         return self.analytical_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
+        # Create no-slip bcs
+        d = len(u)
+        u0 = [Constant(0.0)] * d
+        noslip = (u0, self.wall_boundary_id)
+
+        # Get other bcs from analytical solution functions
         ua, pa = self.analytical_solution(spaces, t)
 
-        # Create no-slip and inflow boundary condition for velocity
-        c0 = Constant(0)
-        bcu = [
-            # Note the ordering, ua should be zero on the outer edges!
-            ([c0, c0, c0], self.wall_boundary_id),
-            (ua, self.left_boundary_id),
-            ]
+        # Create inflow boundary conditions for velocity
+        inflow = (ua, self.left_boundary_id)
 
         # Create outflow boundary conditions for pressure
-        bcp = [(pa, self.right_boundary_id)]
+        outflow = (pa, self.right_boundary_id)
 
+        # Return bcs in two lists
+        bcu = [noslip, inflow]
+        bcp = [outflow]
         return (bcu, bcp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
         bcu, bcp = bcs
-        ua = bcu[1][0]
-        for uc in ua:
-            uc.set_t(t)
+        uin = bcu[1][0]
+        for ucomp in uin:
+            ucomp.set_t(t)
 
 if __name__ == "__main__":
     from demo_main import demo_main
