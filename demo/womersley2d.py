@@ -78,7 +78,7 @@ class Womersley2D(NSProblem):
         params.replace(
             # Time parameters
             T=None,
-            dt=1e-3,
+            dt=1e-2,
             period=0.8,
             num_periods=1.0,
             # Physical parameters

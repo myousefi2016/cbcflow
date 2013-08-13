@@ -81,7 +81,7 @@ class Pouseille2D(NSProblem):
             T=None,
             dt=1e-2,
             period=0.8,
-            num_periods=0.01,
+            num_periods=0.1,
             # Physical parameters
             rho=1.0,
             mu=1.0/30.0,
