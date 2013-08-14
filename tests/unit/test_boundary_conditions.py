@@ -92,9 +92,14 @@ class TestBoundaryConditions(unittest.TestCase):
                 bc.set_t(t)
 
             for wbc, pbc in zip(wexpressions, pexpressions):
-                wnorm = np.sqrt(assemble(wbc**2*dsi, mesh=self.mesh)) 
+                wnorm = np.sqrt(assemble(wbc**2*dsi, mesh=self.mesh))
                 pnorm = np.sqrt(assemble(pbc**2*dsi, mesh=self.mesh))
                 diff = np.sqrt(assemble((wbc-pbc)**2*dsi, mesh=self.mesh))
+                if 0:
+                    print "wnorm", wnorm
+                    print "pnorm", pnorm
+                    print "diff", diff
+                    print "rel", diff/pnorm # |w-p|_Gamma / |p|_Gamma
                 self.assertAlmostEqual(diff, 0.0)
                 self.assertAlmostEqual(wnorm, pnorm)
 
