@@ -54,48 +54,44 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
 
     def _make_fields(self):
         "Return postprocessing fields to apply in solve."
-        # FIXME: Make storing configurable, better in an automated test to have automatic in-memory analysis
-        save = False
-        p1 = ParamDict(
-            save=save,
+        # TODO: Make storing configurable, better in an automated test to have automatic in-memory analysis
+        p = ParamDict(
+            save=False,
             )
-        p3 = ParamDict(
-            save=save,
-            stride_timestep=10,
-            )
-        return [
-            #VelocityError(params=p1),
-            #PressureError(params=p1),
-            DiffL2norm("Velocity", "AnalyticalVelocity", params=p1),
-            DiffH1norm("Velocity", "AnalyticalVelocity", params=p1),
-            DiffH1seminorm("Velocity", "AnalyticalVelocity", params=p1),
-            # FIXME: Add time to norms, i.e. wrap spatial norms in sup_T, L2_T
+        fields = [
+            Velocity(p),
+            AnalyticalVelocity(p),
             ]
+
+        xnorms = [
+            DiffL2norm("Velocity", "AnalyticalVelocity", p),
+            DiffH1norm("Velocity", "AnalyticalVelocity", p),
+            DiffH1seminorm("Velocity", "AnalyticalVelocity", p),
+            ]
+        tnorms = []
+        tnorms += [RunningMax(xn, p) for xn in xnorms]
+        tnorms += [RunningL2norm(xn, p) for xn in xnorms]
+        self._norm_field_names = [tn.name for tn in tnorms]
+
+        fields += xnorms
+        fields += tnorms
+        return fields
 
     def _analyse_data(self, data):
         "Analyse the data provided by the discretization parameter sweep."
-        # FIXME: Don't use print! Log to file and compare with reference data, and use assertions for values with known properties.
-        self._print_table(data)
-
-    def _print_table(self, data):
-        print data
+        # FIXME: Compare with reference data, and use assertions for values with known properties.
+        #print data
         Ns = self._Ns()
         dts = self._dts()
-        fieldnames = [
-            "DiffL2norm_Velocity_AnalyticalVelocity",
-            "DiffH1norm_Velocity_AnalyticalVelocity",
-            "DiffH1seminorm_Velocity_AnalyticalVelocity",
-            ]
-        #("L2norm_VelocityError", "H1norm_VelocityError", "H1seminorm_VelocityError", "L2norm_PressureError"):
-        for fieldname in fieldnames:
+        for fieldname in self._norm_field_names:
             table = extract_table(data, Ns, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
             formatted = print_table(fieldname, table, Ns, dts)
             self._write_reference(fieldname, formatted)
 
 # Importing problems from headflow/demo/
-# NB! Assuming run from the headflow/tests/ directory!
-sys.path.insert(0, "../demo")
+sys.path.insert(0, "../demo") # NB! Assuming run from the headflow/tests/ directory!
+#sys.path.insert(0, os.path.abspath( os.path.join(os.path.dirname(__file__), '../../demo/') ))
 from pouseille2d import Pouseille2D
 from pouseille3d import Pouseille3D
 from womersley2d import Womersley2D
@@ -115,9 +111,9 @@ def load_tests(loader, standard_tests, none):
     #    lambda N,dt: CoupledPicard(),
     #    lambda N,dt: IPCS(),
     #    lambda N,dt: IPCS_Stabilized(),
-        lambda N,dt: IPCS_Stable({'theta':0.0}),
+    #    lambda N,dt: IPCS_Stable({'theta':0.0}),
         lambda N,dt: IPCS_Stable({'theta':0.5}),
-        lambda N,dt: IPCS_Stable({'theta':1.0}),
+    #    lambda N,dt: IPCS_Stable({'theta':1.0}),
     #    lambda N,dt: Karper(),
     #    lambda N,dt: PISO(),
     #    lambda N,dt: PenaltyIPCS(),
@@ -143,8 +139,10 @@ def load_tests(loader, standard_tests, none):
             )]
     else:
         params = [dict(
-            Ns  = [16, 32],
-            dts = [0.01, 0.005, 0.0025, 0.00125],
+        #    Ns  = [16, 32],
+            Ns  = [8, 16],
+            dts = [0.01, 0.005],
+        #    dts = [0.01, 0.005, 0.0025, 0.00125],
             )]
 
     tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))

@@ -7,6 +7,7 @@ from headflow import *
 
 from math import sqrt
 import dolfin
+from dolfin import *
 dolfin.parameters["allow_extrapolation"] = True
 
 from discretization_sweep_test_case import DiscretizationSweepTestCase, make_suite
@@ -50,11 +51,11 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 try:
                     u_coarse = data0["Velocity"]
                     u_fine = data1["Velocity"]
-                    uc = dolfin.interpolate(u_coarse, u_fine.function_space())
+                    uc = interpolate(u_coarse, u_fine.function_space())
 
-                    a["u_coarse_norm"] = dolfin.assemble(u_coarse**2*dolfin.dx())
-                    a["u_fine_norm"] = dolfin.assemble(u_fine**2*dolfin.dx())
-                    a["u_diff_norm"] = dolfin.assemble((u_fine - uc)**2*dolfin.dx())
+                    a["u_coarse_norm"] = assemble(u_coarse**2*dx())
+                    a["u_fine_norm"] = assemble(u_fine**2*dx())
+                    a["u_diff_norm"] = assemble((u_fine - uc)**2*dx())
 
                 except Exception as e:
                     a["exception"] = str(e)

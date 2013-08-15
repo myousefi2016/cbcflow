@@ -114,7 +114,8 @@ class DiscretizationSweepTestCase(unittest.TestCase):
 
     def _write_reference(self, name, data):
         path = os.path.join("output", self.__class__.__name__)
-        os.makedirs(path)
+        if not os.path.isdir(path):
+            os.makedirs(path)
         with open(os.path.join(path, name), "w") as f:
             f.write(data)
 
