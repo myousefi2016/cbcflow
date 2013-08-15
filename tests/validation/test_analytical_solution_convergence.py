@@ -33,16 +33,22 @@ def extract_table(data, Ns, dts, fieldname):
 
 # TODO: Find some better table formatting utils I have lying around somewhere
 def print_table(caption, table, Ns, dts):
-    print
-    print caption
-    print "dt    ",
-    for dt in dts:
-        print dt,
-    for N in Ns:
-        print "\nN  ", N,
-        print '  '.join(table[(N, dt)] for dt in dts),
-    print
+    maxchars = max(len(v) for v in table.values())
+    widthfmt = "%%%ds" % maxchars
+    dtfmt = "%.4e"
+    sep = "  "
 
+    colheader = "dt       " + sep.join(widthfmt % (dtfmt % dt) for dt in dts)
+    lines = ["", caption, colheader]
+
+    for N in Ns:
+        row = "N %5d  " % N
+        row += sep.join(widthfmt % table[(N, dt)] for dt in dts)
+        lines.append(row)
+
+    table = "\n".join(lines)
+    print table
+    return table
 
 class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
 
@@ -63,6 +69,7 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
             DiffL2norm("Velocity", "AnalyticalVelocity", params=p1),
             DiffH1norm("Velocity", "AnalyticalVelocity", params=p1),
             DiffH1seminorm("Velocity", "AnalyticalVelocity", params=p1),
+            # FIXME: Add time to norms, i.e. wrap spatial norms in sup_T, L2_T
             ]
 
     def _analyse_data(self, data):
@@ -83,12 +90,16 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         for fieldname in fieldnames:
             table = extract_table(data, Ns, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
-            print_table(fieldname, table, Ns, dts)
+            formatted = print_table(fieldname, table, Ns, dts)
+            self._write_reference(fieldname, formatted)
 
 # Importing problems from headflow/demo/
 # NB! Assuming run from the headflow/tests/ directory!
 sys.path.insert(0, "../demo")
-from flow_around_cylinder import FlowAroundCylinder
+from pouseille2d import Pouseille2D
+from pouseille3d import Pouseille3D
+from womersley2d import Womersley2D
+from womersley3d import Womersley3D
 from beltrami import Beltrami
 
 def load_tests(loader, standard_tests, none):
@@ -99,20 +110,43 @@ def load_tests(loader, standard_tests, none):
 
     # FIXME: Add more schemes
     schemes = [
-        lambda: IPCS(),
-        lambda: IPCS_Stable({'theta':0.5}),
+    #    lambda N,dt: BottiPietro(),
+    #    lambda N,dt: CoupledNonLinear(),
+    #    lambda N,dt: CoupledPicard(),
+    #    lambda N,dt: IPCS(),
+    #    lambda N,dt: IPCS_Stabilized(),
+        lambda N,dt: IPCS_Stable({'theta':0.0}),
+        lambda N,dt: IPCS_Stable({'theta':0.5}),
+        lambda N,dt: IPCS_Stable({'theta':1.0}),
+    #    lambda N,dt: Karper(),
+    #    lambda N,dt: PISO(),
+    #    lambda N,dt: PenaltyIPCS(),
+    #    lambda N,dt: SegregatedIPCS(),
+    #    lambda N,dt: SegregatedIPCS_Optimized(),
+    #    lambda N,dt: SegregatedPenaltyIPCS(),
+    #    lambda N,dt: Stokes(),
         ]
 
-    # FIXME: Add more problems: Pouseille2d, Pouseille3d, Womersley2d, Womersley3d
-    problems = [
-        lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
+    problems = [ # FIXME: Limiting T for debugging:
+        #lambda N,dt: Pouseille2D(ParamDict(N=N, dt=dt, T=dt*5, num_periods=None)),
+        #lambda N,dt: Pouseille3D(ParamDict(N=N, dt=dt, T=dt*2, num_periods=None)),
+        lambda N,dt: Womersley2D(ParamDict(N=N, dt=dt, T=None, num_periods=.1)),
+        #lambda N,dt: Womersley3D(ParamDict(N=N, dt=dt, T=dt*2, num_periods=None)),
+        #lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)),
         ]
-    params = [dict(
-    #    Ns  = [2, 4, 8, 16],
-    #    dts = [0.1, 0.05, 0.025, 0.0125],
-        Ns  = [2, 4],
-        dts = [0.1, 0.05],
-        )]
+
+    fast = False
+    if fast:
+        params = [dict(
+            Ns  = [2, 4],
+            dts = [0.1, 0.05],
+            )]
+    else:
+        params = [dict(
+            Ns  = [16, 32],
+            dts = [0.01, 0.005, 0.0025, 0.00125],
+            )]
+
     tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
 
     return unittest.TestSuite(tests)

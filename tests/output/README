@@ -1,0 +1,1 @@
+Output directory for reference data produced by tests. Files in here get overwritten when running the tests.

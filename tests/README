@@ -20,6 +20,10 @@ The subfolders are organized as follows:
 
   - benchmark: performance measurements, warning when performance drops from reference values
 
+  - output: data produced by running tests
+
+  - references: archived reference data produced by running tests, used to check for regressions
+
 The unit test suite should be kept efficient such that it can be run often while developing.
 The regression tests can be a bit more costly, but preferrably runnable before pushing.
 Validation can be costly, and benchmarks must be costly to measure performance properly.
