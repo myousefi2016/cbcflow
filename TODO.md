@@ -9,26 +9,11 @@ Things to do in headflow
 WIP Martin
 ==========
 
-- Handle transient dependencies
-
-- Improve postprocessing further (not sure what is needed yet).
-  Cover this well in unit tests!
-
 - Make relative error norms! L2norm("VelocityError") is just ||ua-u||, also want ||ua-u|| / ||ua||
 
 - Use VelocityError and PressureError in tests instead of AnalyticalSolutionAnalyzer and get rid of that one.
 
-- Implement demos for testing:
-
-  - [done] Pouseille 2D, start with analytical solution and stay steady
-
-  - [mainly done but blows up] Pouseille 3D, start with analytical solution and stay steady
-
-  - Womersley 2D, start with analytical solution and stay with the transient solution
-
-  - Womersley 3D, start with analytical solution and stay with the transient solution
-
-- Test all schemes with demos:
+- Automated test of all schemes with demo problems:
 
   - Pouseille 2D
 
@@ -37,6 +22,8 @@ WIP Martin
   - Womersley 2D
 
   - Womersley 3D
+
+  - Beltrami
 
 
 WIP Oyvind
@@ -99,10 +86,7 @@ Parameters
 BCs
 ---
 
-- Update boundary handling to fenics dev? Need to agree on a time to do this.
-
-- Improve boundary condition utilities further (not sure what is needed yet).
-  Cover these well in unit tests!
+- Make utilities to convert peak velocities to flow rates under assumption of Womersley flow (using Jarles formulas)
 
 
 Postprocessing
@@ -113,6 +97,11 @@ Postprocessing
 - Add code to extend postprocessed data with new fields by reading and doing more computations
 
 - Extract a Plotter and Storage classes from NSPostProcessor to separate concerns better
+
+- Test multiple levels of time dependencies (e.g. TimeDerivative(TimeDerivative(foo)) == SecondTimeDerivative(foo))
+
+- Improve postprocessing further (not sure what is needed yet).
+  Cover this well in unit tests!
 
 
 Tools
@@ -130,9 +119,7 @@ Tools
 Demos
 -----
 
-- Update the last demos for new problem interface
-
-- Fix and validate all demo problems for all schemes
+- Add some more interesting demo problems
 
 
 Tests
