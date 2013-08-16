@@ -227,9 +227,11 @@ def load_tests(loader, standard_tests, none):
 
     # Add list of factory functions for schemes with non-default parameters:
     schemes += [
-        lambda: IPCS_Stable({'theta':0.0}),
-        lambda: IPCS_Stable({'theta':1.0}),
-        lambda: IPCS_Stable({'theta':0.5, 'adaptive_timestepping':True}),
+        lambda: IPCS_Stable(),
+        lambda: IPCS_Stabilized({'theta':0.0}),
+        lambda: IPCS_Stabilized({'theta':1.0}),
+        lambda: IPCS_Stabilized({'theta':0.5}),
+        lambda: IPCS_Stable({'adaptive_timestepping':True}),
         ]
 
     return make_suite(loader, TestProblemSchemeInterfacing, [schemes])

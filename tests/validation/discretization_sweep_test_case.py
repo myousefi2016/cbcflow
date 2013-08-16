@@ -9,9 +9,27 @@ from math import sqrt
 import dolfin
 dolfin.parameters["allow_extrapolation"] = True
 
+def common_basedir(all_casedirs):
+    all_casedirs = list(all_casedirs)
+    n = len(all_casedirs)
+    j = min(len(a) for a in all_casedirs)
+
+    for k0 in xrange(n):
+        a = all_casedirs[k0]
+        for k1 in xrange(k0+1, n):
+            b = all_casedirs[k1]
+
+            for i in xrange(min(j,len(b))):
+                if a[i] != b[i]:
+                    j = min(j, i)
+                    break
+    basedir = all_casedirs[0][:j]
+    assert all(basedir == cn[:j] for cn in all_casedirs)
+    return basedir
 
 def run_discretization_sweep(scheme_factory, problem_factory, fields_factory, casedirs_factory, keys):
     "Call _run for each combination of N and dt and return dict with all data."
+    all_casedirs = set()
     data = {}
     for key in keys:
         # Make sure key is a tuple for convenience below
@@ -21,7 +39,7 @@ def run_discretization_sweep(scheme_factory, problem_factory, fields_factory, ca
             key = (key,)
 
         # Construct fresh scheme
-        scheme = scheme_factory(*key)
+        scheme = scheme_factory()
 
         # Construct fresh problem
         problem = problem_factory(*key)
@@ -30,21 +48,25 @@ def run_discretization_sweep(scheme_factory, problem_factory, fields_factory, ca
         fields = fields_factory()
 
         # Construct fresh casedirs
-        casedirs = casedirs_factory(*((problem, scheme)+key))
+        casedirs = tuple(casedirs_factory(*((problem, scheme)+key)))
+        all_casedirs.add(casedirs)
+        casedir = os.path.join(*casedirs)
 
         # Execute problem and collect postprocessing results
-        results = run_problem(problem, scheme, fields, casedirs)
+        results = run_problem(problem, scheme, fields, casedir)
 
         # Store by parameter key
         data[key] = results
 
+    # Extract common part of casedirs
+    data["basedir"] = common_basedir(all_casedirs)
+
     return data
 
-def run_problem(problem, scheme, fields, casedirs):
+def run_problem(problem, scheme, fields, casedir):
     "Execute problem with this scheme and return results collected from fields."
 
     # Construct fresh postprocessor
-    casedir = os.path.join(*casedirs)
     pp = NSPostProcessor(ParamDict(casedir=casedir))
 
     # Add freshly constructed fields
@@ -112,18 +134,26 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         "Analyse the data provided by the discretization parameter sweep."
         raise NotImplementedError("Missing implementation of _analyse_data in test class!")
 
-    def _write_reference(self, name, data):
-        path = os.path.join("output", self.__class__.__name__)
+    def _write_reference(self, path, name, data, basedir="output"):
+        path = (path,) if isinstance(path, str) else tuple(path)
+        path = os.path.join(*((basedir,) + path))
+        print "PATH", path
         if not os.path.isdir(path):
             os.makedirs(path)
-        with open(os.path.join(path, name), "w") as f:
+        fullname = os.path.join(path, name)
+        with open(fullname, "w") as f:
             f.write(data)
 
-    def _read_reference(self, name):
+    def _read_reference(self, path, name, basedir="references"):
         data = None
-        path = os.path.join("references", self.__class__.__name__)
-        with open(os.path.join(path, name), "r") as f:
-            data = f.read()
+        path = (path,) if isinstance(path, str) else tuple(path)
+        path = os.path.join(*((basedir,) + path))
+        fullname = os.path.join(path, name)
+        if os.path.isfile(fullname):
+            with open(fullname, "r") as f:
+                data = f.read()
+        else:
+            data = None
         return data
 
     def runTest(self):
@@ -137,8 +167,8 @@ class DiscretizationSweepTestCase(unittest.TestCase):
 
         casedirs_factory = lambda p, s, N, dt: [
             self.__class__.__name__,
-            str(s),
-            str(p),
+            s.shortname(),
+            p.shortname(),
             "N_%s" % str(N),
             "dt_%g" % dt,
             ]

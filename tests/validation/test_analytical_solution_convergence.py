@@ -87,7 +87,13 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
             table = extract_table(data, Ns, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
             formatted = print_table(fieldname, table, Ns, dts)
-            self._write_reference(fieldname, formatted)
+
+            # Store formatted table as a reference TODO: Store floats so we can use a precision argument for comparing
+            self._write_reference(data["basedir"], fieldname, formatted)
+
+            # While we're at it, check that we can read back the reference data
+            readback = self._read_reference(data["basedir"], fieldname, basedir="output")
+            self.assertEqual(readback.strip(), formatted.strip())
 
 # Importing problems from headflow/demo/
 sys.path.insert(0, "../demo") # NB! Assuming run from the headflow/tests/ directory!
@@ -106,43 +112,48 @@ def load_tests(loader, standard_tests, none):
 
     # FIXME: Add more schemes
     schemes = [
-    #    lambda N,dt: BottiPietro(),
-    #    lambda N,dt: CoupledNonLinear(),
-    #    lambda N,dt: CoupledPicard(),
-    #    lambda N,dt: IPCS(),
-    #    lambda N,dt: IPCS_Stabilized(),
-    #    lambda N,dt: IPCS_Stable({'theta':0.0}),
-        lambda N,dt: IPCS_Stable({'theta':0.5}),
-    #    lambda N,dt: IPCS_Stable({'theta':1.0}),
-    #    lambda N,dt: Karper(),
-    #    lambda N,dt: PISO(),
-    #    lambda N,dt: PenaltyIPCS(),
-    #    lambda N,dt: SegregatedIPCS(),
-    #    lambda N,dt: SegregatedIPCS_Optimized(),
-    #    lambda N,dt: SegregatedPenaltyIPCS(),
-    #    lambda N,dt: Stokes(),
+    #    lambda: BottiPietro(),
+    #    lambda: CoupledNonLinear(),
+    #    lambda: CoupledPicard(),
+    #    lambda: IPCS(),
+    #    lambda: IPCS_Stabilized({'theta':0.0}),
+        lambda: IPCS_Stabilized({'theta':0.5}),
+    #    lambda: IPCS_Stabilized({'theta':1.0}),
+        lambda: IPCS_Stable(),
+    #    lambda: Karper(),
+    #    lambda: PISO(),
+    #    lambda: PenaltyIPCS(),
+    #    lambda: SegregatedIPCS(),
+    #    lambda: SegregatedIPCS_Optimized(),
+    #    lambda: SegregatedPenaltyIPCS(),
+    #    lambda: Stokes(),
         ]
 
-    problems = [ # FIXME: Limiting T for debugging:
-        #lambda N,dt: Pouseille2D(ParamDict(N=N, dt=dt, T=dt*5, num_periods=None)),
-        #lambda N,dt: Pouseille3D(ParamDict(N=N, dt=dt, T=dt*2, num_periods=None)),
-        lambda N,dt: Womersley2D(ParamDict(N=N, dt=dt, T=None, num_periods=.1)),
-        #lambda N,dt: Womersley3D(ParamDict(N=N, dt=dt, T=dt*2, num_periods=None)),
-        #lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)),
+    T = lambda dt: dt*5
+    num_periods = None
+    problems = [
+        lambda N,dt: Pouseille2D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
+    #    lambda N,dt: Pouseille3D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
+        lambda N,dt: Womersley2D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)),
+    #    lambda N,dt: Womersley3D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)), # FIXME: Parameterize by N
+        lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=1.0)),
         ]
 
-    fast = False
+    fast = True
     if fast:
         params = [dict(
             Ns  = [2, 4],
             dts = [0.1, 0.05],
             )]
+    elif 1:
+        params = [dict(
+            Ns  = [8, 16],
+            dts = [0.1, 0.05],
+            )]
     else:
         params = [dict(
-        #    Ns  = [16, 32],
-            Ns  = [8, 16],
-            dts = [0.01, 0.005],
-        #    dts = [0.01, 0.005, 0.0025, 0.00125],
+            Ns  = [16, 32],
+            dts = [0.01, 0.005, 0.0025, 0.00125],
             )]
 
     tests.append(make_suite(TestAnalyticalSolutionConvergence, [schemes, problems, params]))
