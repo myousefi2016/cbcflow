@@ -15,7 +15,7 @@ WIP Martin
 WIP Oyvind
 ==========
 
-- Add your own focus points here!
+- Implement proper adaptive time-stepping (John, Rang: Adaptive time step control for the incompressible Navier-Stokes equations, 2010)
 
 
 WIP Kent
