@@ -42,7 +42,7 @@ class LidDrivenCavity(NSProblem):
             rho=1.0,
             mu=1.0/1000.0,
             )
-        params.replace(
+        params.update(
             # Spatial parameters
             N=32,
             )
