@@ -55,7 +55,7 @@ class DogAneurysm(NSProblem):
     def boundary_conditions(self, spaces, u, p, t, controls):
         "Return boundary conditions as lists."
 
-        factor = 1000
+        factor = 3000
         profile = [0.4, 1.6, 1.4, 1.0, 0.8, 0.6, 0.55, 0.5, 0.5, 0.45, 0.4]
         profile = [p*factor for p in profile]
         time = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
