@@ -67,6 +67,7 @@ def solve_ns_problem(Problem, Scheme, args):
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
             Velocity(dict(plot=False, save=True)),
+            L2norm("VelocityDivergence", dict(plot=False, save=True)),
             ])
 
     if 0:
