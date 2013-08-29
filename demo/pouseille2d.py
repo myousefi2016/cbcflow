@@ -121,13 +121,14 @@ class Pouseille2D(NSProblem):
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id)
+        #outflow2 = (uin, self.right_boundary_id)
 
         # Create outflow bcs for pressure
         pa = Constant(-self.beta*LENGTH)
         outflow = (pa, self.right_boundary_id)
 
         # Return bcs in two lists
-        bcu = [noslip, inflow]
+        bcu = [noslip, inflow]#, outflow2]
         bcp = [outflow]
         return (bcu, bcp)
 
