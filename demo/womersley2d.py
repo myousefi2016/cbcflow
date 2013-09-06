@@ -66,7 +66,10 @@ class Womersley2D(NSProblem):
             T = self.params.T
             P = self.params.period
             tvalues = np.linspace(0.0, P)
-            Qvalues = Q * (0.3 + 0.7*np.sin(pi*((P-tvalues)/P)**2)**2)
+            #Qfloor, Qpeak = 1.0, 0.0
+            #Qfloor, Qpeak = 0.3, 0.7
+            Qfloor, Qpeak = -0.2, 1.0
+            Qvalues = Q * (Qfloor + (Qpeak-Qfloor)*np.sin(pi*((P-tvalues)/P)**2)**2)
             self.Q_coeffs = zip(tvalues, Qvalues)
 
         # Store mesh and markers
@@ -84,6 +87,7 @@ class Womersley2D(NSProblem):
             # Physical parameters
             rho=1.0,
             mu=1.0/30.0,
+           #mu=1.0e6, #1.0/30.0,
             )
         params.update(
             # Spatial parameters
@@ -118,12 +122,19 @@ class Womersley2D(NSProblem):
         # Create inflow boundary conditions for velocity
         inflow = (ua, self.left_boundary_id)
 
+        # Create outflow boundary conditions for velocity
+        u_outflow = (ua, self.right_boundary_id)
+
         # Create outflow boundary conditions for pressure
-        outflow = (pa, self.right_boundary_id)
+        p_outflow = (pa, self.right_boundary_id)
 
         # Return bcs in two lists
         bcu = [noslip, inflow]
-        bcp = [outflow]
+        bcp = []
+        if 1: # Switch between pressure or dbc at outlet
+            bcp += [p_outflow]
+        else:
+            bcu += [u_outflow]
         return (bcu, bcp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
