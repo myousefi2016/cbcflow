@@ -20,7 +20,18 @@ def solve_ns_problem(Problem, Scheme, args):
         scheme=Scheme.default_params(),
         solver=NSSolver.default_params(),
         )
-    #params.parse_cmdline(args) # FIXME: Parse commandline arguments
+    #params.parse_cmdline(args) # FIXME: Parse commandline arguments better
+    for arg in args:
+        k,v = arg.split('=')
+        if '.' in k:
+            ks = k.split('.')
+            par = params
+            for k in ks[:-1]:
+                par = params[k]
+            par[ks[-1]] = v
+        else:
+            params[k] = v
+    #print params
 
     # Setup
     problem = Problem(params.problem)
