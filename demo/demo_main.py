@@ -28,7 +28,7 @@ def solve_ns_problem(Problem, Scheme, args):
             par = params
             for k in ks[:-1]:
                 par = params[k]
-            par[ks[-1]] = v
+            par[ks[-1]] = type(par[ks[-1]])(v)
         else:
             params[k] = v
     #print params
