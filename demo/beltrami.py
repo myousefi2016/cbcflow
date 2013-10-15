@@ -24,9 +24,12 @@ class Beltrami(NSProblem):
         mesh = UnitCubeMesh(N, N, N)
         scaled = 2*(mesh.coordinates() - 0.5)
         mesh.coordinates()[:, :] = scaled
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(1)
+        DomainBoundary().mark(facet_domains, 0)
 
         # Store mesh and markers
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_params(cls):
@@ -85,7 +88,7 @@ class Beltrami(NSProblem):
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         exact_u, exact_p = self.analytical_solution(spaces, t=float(t))
-        bcu = [(exact_u, DomainBoundary())]
+        bcu = [(exact_u, 0)]
         bcp = []
         return bcu, bcp
 

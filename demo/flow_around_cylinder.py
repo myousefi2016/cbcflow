@@ -71,13 +71,18 @@ class FlowAroundCylinder(NSProblem):
         # Create no-slip boundary condition for velocity
         bcu1 = ([c1, c0], 1)
         bcu2 = ([c0, c0], 0)
+        bcu3 = ([c1, c0], 2)
 
         # Create boundary conditions for pressure
         bcp1 = (c0, 2)
 
         # Collect and return
         bcu = [bcu1, bcu2]
-        bcp = [bcp1]
+        bcp = []
+        if 1:
+            bcp += [bcp1]
+        else:
+            bcu += [bcu3]
         return (bcu, bcp)
 
     '''

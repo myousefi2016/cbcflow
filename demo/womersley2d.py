@@ -69,11 +69,29 @@ class Womersley2D(NSProblem):
             #Qfloor, Qpeak = 1.0, 0.0
             #Qfloor, Qpeak = 0.3, 0.7
             Qfloor, Qpeak = -0.2, 1.0
+            #Qfloor, Qpeak = 1.0, 1.0
             Qvalues = Q * (Qfloor + (Qpeak-Qfloor)*np.sin(pi*((P-tvalues)/P)**2)**2)
             self.Q_coeffs = zip(tvalues, Qvalues)
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
+
+        # To be able to compare womersley profiles based on midpoint velocity and flow rate,
+        # we here sample the flow rate based womersley profile in the midpoints to get
+        # matching midpoint velocity coefficients
+        if self.params.coeffstype == "V":
+            # Build midpoint velocity coefficients from evaluating flow rate based womersley profile
+            ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains, "Q",
+                                    num_fourier_coefficients=self.params.num_womersley_coefficients)
+            ua = ua[0]
+            V_coeffs = []
+            x = ua.center
+            value = np.zeros((1,))
+            for t,Q in self.Q_coeffs:
+                ua.set_t(t)
+                ua.eval(value, x)
+                V_coeffs.append((float(t), float(value[0])))
+            self.Q_coeffs = V_coeffs
 
     @classmethod
     def default_params(cls):
@@ -94,12 +112,15 @@ class Womersley2D(NSProblem):
             N=32,
             # Analytical solution parameters
             Q=1.0,
+            coeffstype="Q",
+            num_womersley_coefficients=25,
             )
         return params
 
     def analytical_solution(self, spaces, t):
         # Create womersley objects
-        ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
+        ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains,
+                                self.params.coeffstype, num_fourier_coefficients=self.params.num_womersley_coefficients)
         #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
         for uc in ua:
             uc.set_t(t)
