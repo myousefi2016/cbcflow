@@ -32,9 +32,9 @@ class DogAneurysm(NSProblem):
         params.replace(
             # Time parameters
             dt=1e-3,
-            period=1.0,
-            num_periods=0.3,
-            T=None,
+            #period=1.0,
+            #num_periods=0.3,
+            T=2,
             # Physical parameters
             mu=0.00345,
             rho=0.00106,
@@ -42,7 +42,6 @@ class DogAneurysm(NSProblem):
         params.update(
             # Spatial discretization parameters
             mesh_file="../data/dog_mesh_37k.xml.gz",
-            boundary_mesh_file="../data/dog_boundary_mesh_37k.xml.gz",
             )
         return params
 
@@ -55,7 +54,7 @@ class DogAneurysm(NSProblem):
     def boundary_conditions(self, spaces, u, p, t, controls):
         "Return boundary conditions as lists."
 
-        factor = 3000
+        factor = 1000
         profile = [0.4, 1.6, 1.4, 1.0, 0.8, 0.6, 0.55, 0.5, 0.5, 0.45, 0.4]
         profile = [p*factor for p in profile]
         time = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
