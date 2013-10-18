@@ -181,7 +181,7 @@ class TestPostProcessing2(unittest.TestCase):
         timestep = 0
 
         # Update postprocessor fields using mock problem
-        pp.update_all(u, p, t, timestep, spaces, problem)
+        pp.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, problem)
 
         # Get strain twice
         for i in range(2):
@@ -247,7 +247,7 @@ class TestPostProcessing2(unittest.TestCase):
         p.interpolate(pexpr)
 
         # Update postprocessor, this is where the main code under test is
-        pp.update_all(u, p, t, timestep, spaces, problem)
+        pp.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, problem)
 
         # Check that we recover the time and timestep, these are not fields but handled specially
         self.assertEqual(t, pp.get("t"))
@@ -270,7 +270,7 @@ class TestPostProcessing2(unittest.TestCase):
             p.interpolate(pexpr)
 
             # Update postprocessor, this is where the main code under test is
-            pp.update_all(u, p, t, timestep, spaces, problem)
+            pp.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, problem)
 
             # Check that we recover the basic quantities velocity, pressure, and time
             self.assertEqual(t, pp.get("t"))
@@ -325,7 +325,7 @@ class TestPostProcessing2(unittest.TestCase):
         p.interpolate(pexpr)
 
         # Update postprocessor, this is where the main code under test is
-        pp.update_all(u, p, t, timestep, spaces, problem)
+        pp.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, problem)
 
         # Check that we recover the velocity, pressure, and time
         def _errornorm(expr, name):
@@ -419,7 +419,7 @@ class TestPostProcessing2(unittest.TestCase):
             #self.assertAlmostEqual(assemble(dpdtexpr**2*dx, mesh=problem.mesh), 0.0)
 
             # Run postprocessing step
-            pp.update_all(u, p, t, timestep, spaces, problem)
+            pp.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, problem)
 
             # Test value of pressure derivative
             pr = pp.get("Pressure")
