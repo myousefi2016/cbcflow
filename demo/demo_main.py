@@ -79,6 +79,17 @@ def solve_ns_problem(Problem, Scheme, args):
             Pressure(dict(plot=False, save=True)),
             Velocity(dict(plot=False, save=True)),
             L2norm("VelocityDivergence", dict(plot=False, save=True)),
+            WSS(dict(plot=False, save=True)),
+            ])
+
+    if 0:
+        postproc.add_fields([
+            WSS(dict(plot=False, save=True, stride_timestep=2)),
+            ])
+
+    if 0:
+        postproc.add_fields([
+            Velocity(dict(plot=True, save=False, plot_args={"mode":"displacement"})),
             ])
 
     if 0:
