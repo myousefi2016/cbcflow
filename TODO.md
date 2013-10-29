@@ -6,32 +6,8 @@ Things to do in headflow
 - The backlog contains todos nobody are working on yet
 
 
-WIP Martin
-==========
-
-- ?
-
-
-WIP Oyvind
-==========
-
-- Implement proper adaptive time-stepping (John, Rang: Adaptive time step control for the incompressible Navier-Stokes equations, 2010)
-
-
-WIP Kent
-========
-
-- Add your own focus points here!
-
-
 Backlog
 =======
-
-Known bugs
-----------
-
-- CoupledNonLinear has incorrect boundary terms (try channel demo to see)
-
 
 General
 -------
@@ -78,10 +54,6 @@ BCs
 Postprocessing
 --------------
 
-- Add scripts for inspecting cases
-
-- Add code to extend postprocessed data with new fields by reading and doing more computations
-
 - Extract a Plotter and Storage classes from NSPostProcessor to separate concerns better
 
 - Test multiple levels of time dependencies (e.g. TimeDerivative(TimeDerivative(foo)) == SecondTimeDerivative(foo))
@@ -92,12 +64,6 @@ Postprocessing
 
 Tools
 -----
-
-- Improve show_problem to be more useful.
-  Hard to unit test with all the plotting though.
-
-- Add a check_problem to do something similar to show_problem but without plotting.
-  Cover with unit tests demonstrating various possible user errors
 
 - Transform Kents demo/test_*.py into something reusable (analyze_problem_foo?)
 
