@@ -87,9 +87,12 @@ def run_problem(problem, scheme, fields, casedir):
         # Also store solver namespace
         results["namespace"] = ns
 
-    except Exception as e:
+    except Exception:
         # No results, something failed so we just store the exception for the record
-        results = { "exception": str(e) }
+        import sys, traceback
+        ex_type, ex, tb = sys.exc_info()
+        tb = ''.join(traceback.format_tb(tb))
+        results = { "exception": ex, "traceback": tb }
 
     return results
 
