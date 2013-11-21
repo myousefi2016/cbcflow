@@ -57,17 +57,21 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                     a["u_fine_norm"] = assemble(u_fine**2*dx())
                     a["u_diff_norm"] = assemble((u_fine - uc)**2*dx())
 
-                except Exception as e:
-                    a["exception"] = str(e)
+                except Exception as ex:
+                    a["exception"] = ex
 
                 analysis[dt].append(a)
 
         # Slight modification of the prints that Kent did before:
         for dt in dts:
             for a in analysis[dt]:
-                print "Difference between level ", a["N1"], " and ", a["N0"], " with dt ", dt, \
-                  " is ", a["u_diff_norm"], " versus u_fine_norm ", a["u_fine_norm"], \
-                  " relative root ", sqrt(a["u_diff_norm"] / (a["u_fine_norm"]+eps))
+                if "exception" in a:
+                    print ("Got exception %s: %s when running level " % (type(a["exception"]), str(a["exception"]))), \
+                      a["N1"], " and ", a["N0"], " with dt ", dt
+                else:
+                    print "Difference between level ", a["N1"], " and ", a["N0"], " with dt ", dt, \
+                      " is ", a["u_diff_norm"], " versus u_fine_norm ", a["u_fine_norm"], \
+                      " relative root ", sqrt(a["u_diff_norm"] / (a["u_fine_norm"]+eps))
 
         # FIXME: Add assertions to validate convergence rate from analysis[dt][:]
         for dt in dts:
@@ -108,15 +112,21 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                     a["u_fine_norm"] = dolfin.assemble(u_fine**2*dolfin.dx())
                     a["u_diff_norm"] = dolfin.assemble((u_fine - uc)**2*dolfin.dx())
 
-                except Exception as e:
-                    a["exception"] = str(e)
+                except Exception as ex:
+                    a["exception"] = ex
+
+                analysis[N].append(a)
 
         # Slight modification of the prints that Kent did before:
         for N in Ns:
             for a in analysis[N]:
-                print "Difference between dt ", a["dt1"], " and ", a["dt0"], " at level ", N, \
-                  " is ", a["u_diff_norm"], " versus u_fine_norm ", a["u_fine_norm"], \
-                  " relative root ", sqrt(a["u_diff_norm"] / (a["u_fine_norm"]+eps))
+                if "exception" in a:
+                    print ("Got exception %s: %s when running with dt " % (type(a["exception"]), str(a["exception"]))), \
+                      a["dt1"], " and ", a["dt0"], " at level ", N
+                else:
+                    print "Difference between dt ", a["dt1"], " and ", a["dt0"], " at level ", N, \
+                      " is ", a["u_diff_norm"], " versus u_fine_norm ", a["u_fine_norm"], \
+                      " relative root ", sqrt(a["u_diff_norm"] / (a["u_fine_norm"]+eps))
 
         # FIXME: Add assertions to validate convergence rate from analysis[N][:]
         for N in Ns:
