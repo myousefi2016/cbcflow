@@ -2,6 +2,7 @@
 
 from headflow import ParamDict, NSSolver, NSPostProcessor, all_schemes, show_problem
 from headflow.postprocessing import *
+from dolfin import Point
 import sys
 
 all_scheme_names = sorted([s.__name__ for s in all_schemes])
@@ -75,10 +76,17 @@ def solve_ns_problem(Problem, Scheme, args):
             ])
 
     if 1:
+        points = [Point(1.0, 0.0, 0.0),
+                  Point(3.0, 0.0, 0.0),
+                  Point(5.0, 0.0, 0.0),
+                  Point(7.0, 0.0, 0.0),
+                  Point(9.0, 0.0, 0.0)]
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
             PhysicalPressure(dict(plot=False, save=True)),
             Velocity(dict(plot=False, save=True)),
+            #PointEval("PhysicalPressure", points, dict(plot=False, save=True)),
+            #PointEval("Velocity", points, dict(plot=False, save=True)),
             L2norm("VelocityDivergence", dict(plot=False, save=True)),
             WSS(dict(plot=False, save=True)),
             ])
