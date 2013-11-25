@@ -1,0 +1,11 @@
+#!/bin/bash
+export PYTHONPATH=../site-packages:${PYTHONPATH}
+export PYTHONPATH=../demo:${PYTHONPATH}
+export HEADFLOW_DATA=../data
+echo
+echo
+echo Type: 'run -m unittest discover' in gdb
+echo
+echo
+gdb python
+exit $?
