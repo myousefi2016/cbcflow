@@ -76,21 +76,26 @@ def solve_ns_problem(Problem, Scheme, args):
             ])
 
     if 1:
-        points = [Point(1.0, 0.0, 0.0),
-                  Point(3.0, 0.0, 0.0),
-                  Point(5.0, 0.0, 0.0),
-                  Point(7.0, 0.0, 0.0),
-                  Point(9.0, 0.0, 0.0)]
+        points = [(1.0, 0.0, 0.0),
+                  (3.0, 90.0, 0.0),
+                  (5.0, 0.0, 0.0),
+                  (7.0, 90.0, 0.0),
+                  (9.0, 0.0, 0.0)]
+
+        from headflow.postprocessing.PointEval import points_in_circle
+        points2 = points_in_circle((5.0, 0.0), 0.5, 20)
+
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
             PhysicalPressure(dict(plot=True, save=True)),
             Velocity(dict(plot=True, save=True)),
-            #PointEval("PhysicalPressure", points, dict(plot=False, save=True)),
-            #PointEval("Velocity", points, dict(plot=False, save=True)),
+            WSS(dict(plot=False, save=True)),
+            PointEval("PhysicalPressure", "Midline", points, dict(plot=False, save=True)),
+            PointEval("PhysicalPressure", "Circle", points2, dict(plot=False, save=True)),
+            PointEval("Velocity", "Midline", points, dict(plot=False, save=True)),
             L2norm("VelocityDivergence", dict(plot=False, save=True)),
             LocalCfl(dict(plot=False, save=True)),
             Linfnorm("LocalCfl", dict(plot=True, save=True)),
-            WSS(dict(plot=False, save=True)),
             ])
 
     if 0:
