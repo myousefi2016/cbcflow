@@ -83,11 +83,13 @@ def solve_ns_problem(Problem, Scheme, args):
                   Point(9.0, 0.0, 0.0)]
         postproc.add_fields([
             Pressure(dict(plot=False, save=True)),
-            PhysicalPressure(dict(plot=False, save=True)),
-            Velocity(dict(plot=False, save=True)),
+            PhysicalPressure(dict(plot=True, save=True)),
+            Velocity(dict(plot=True, save=True)),
             #PointEval("PhysicalPressure", points, dict(plot=False, save=True)),
             #PointEval("Velocity", points, dict(plot=False, save=True)),
             L2norm("VelocityDivergence", dict(plot=False, save=True)),
+            LocalCfl(dict(plot=False, save=True)),
+            Linfnorm("LocalCfl", dict(plot=True, save=True)),
             WSS(dict(plot=False, save=True)),
             ])
 
