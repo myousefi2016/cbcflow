@@ -54,10 +54,11 @@ setup(name = "headflow",
                   "headflow.postprocessing",
                   "headflow.utils",
                   "headflow.utils.fenicstools",
+                  "headflow.utils.fenicstools.fem",
                   # TODO: Add submodules here
                   ],
       package_dir = {"headflow": "site-packages/headflow"},
-      package_data = {"headflow": ["utils/fenicstools/Probe/*.h", "utils/fenicstools/Probe/*.cpp", "utils/fenicstools/Probe/fem/*.cpp"]},
+      package_data = {"headflow": ["utils/fenicstools/Probe/*.h", "utils/fenicstools/Probe/*.cpp", "utils/fenicstools/fem/*.cpp"]},
 #     data_files = [(pjoin("share", "man", "man1"),
 #                    [pjoin("doc", "man", "man1", "headflow.1.gz")])]
     )
