@@ -10,8 +10,8 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Mikael Mortensen, 2009.
 # Modified by Martin Alnaes, 2013.
 
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
 from numpy import array
 

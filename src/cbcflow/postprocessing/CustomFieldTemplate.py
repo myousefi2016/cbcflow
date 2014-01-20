@@ -1,4 +1,4 @@
-from headflow.postprocessing.PPField import PPField
+from cbcflow.postprocessing.PPField import PPField
 import dolfin
 import numpy
 

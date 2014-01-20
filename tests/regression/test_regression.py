@@ -1,6 +1,6 @@
 import unittest
 
-from headflow import NSProblem, NSScheme, NSSolver
+from cbcflow import NSProblem, NSScheme, NSSolver
 
 # FIXME: Set up a small collection of representative problems for regression testing
 # FIXME: Make some reusable code for regression tests, just swapping problems and schemes

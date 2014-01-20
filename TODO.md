@@ -1,4 +1,4 @@
-Things to do in headflow
+Things to do in cbcflow
 ************************
 
 - The WIP (work in progress) lists is what we work on short term
@@ -12,18 +12,7 @@ Backlog
 General
 -------
 
-- Find a better name than headflow. Suggestions:
-
-    - bioflow
-    - fenflow
-    - dolflow
-    - dolflo
-
 - Make an email list (using google groups?)
-
-- Make a team and project repository on bitbucket
-
-- Get buildbot running
 
 - Add licence headers
 

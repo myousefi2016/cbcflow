@@ -10,9 +10,9 @@ the control and data flow between the classes.
 import unittest
 import inspect
 
-from headflow import ParamDict, NSProblem, all_schemes
-from headflow import *
-from headflow.dol import *
+from cbcflow import ParamDict, NSProblem, all_schemes
+from cbcflow import *
+from cbcflow.dol import *
 
 class Left(SubDomain):
     def inside(self, x, on_boundary):

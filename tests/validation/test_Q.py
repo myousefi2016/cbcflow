@@ -3,7 +3,7 @@
 import sys, os, itertools
 import unittest
 
-from headflow import *
+from cbcflow import *
 
 from math import sqrt
 import dolfin
@@ -31,8 +31,8 @@ class TestQ(DiscretizationSweepTestCase):
         pass
 
 
-# Importing problems from headflow/demo/
-# NB! Assuming run from the headflow/tests/ directory!
+# Importing problems from cbcflow/demo/
+# NB! Assuming run from the cbcflow/tests/ directory!
 sys.path.insert(0, "../demo")
 from flow_around_cylinder import FlowAroundCylinder
 from beltrami import Beltrami

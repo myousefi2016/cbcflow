@@ -2,7 +2,7 @@
 
 import unittest
 
-from headflow import ParamDict
+from cbcflow import ParamDict
 
 class TestParamDict(unittest.TestCase):
     def test_init_from_dict(self):

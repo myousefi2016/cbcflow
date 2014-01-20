@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Tests of the custom boundary condition functionality in headflow.
+Tests of the custom boundary condition functionality in cbcflow.
 
 FIXME: This is a prime candidate for better unit tests!!!
 """
@@ -8,8 +8,8 @@ FIXME: This is a prime candidate for better unit tests!!!
 import unittest
 
 import numpy as np
-from headflow import make_pouseille_bcs, make_womersley_bcs
-from headflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds
+from cbcflow import make_pouseille_bcs, make_womersley_bcs
+from cbcflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds
 
 class TestBoundaryConditions(unittest.TestCase):
     def setUp(self):

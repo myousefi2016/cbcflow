@@ -8,8 +8,8 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2010.
 # Modified by Martin Alnaes, 2013.
 
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
 from math import pi, e
 

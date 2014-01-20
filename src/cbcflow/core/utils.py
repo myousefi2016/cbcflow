@@ -8,15 +8,15 @@ master = MPI.process_number() == 0
 import os
 from time import time
 
-def headflow_warning(msg):
+def cbcflow_warning(msg):
     if master:
         warning(msg)
 
-def headflow_print(msg):
+def cbcflow_print(msg):
     if master:
         print msg
 
-def headflow_log(level, msg):
+def cbcflow_log(level, msg):
     if master:
         log(level, msg)
 
@@ -47,7 +47,7 @@ def timeit(t0=None, msg=None):
         return time()
     else:
         t = time() - t0
-        headflow_print("%s: %g" % (msg, t))
+        cbcflow_print("%s: %g" % (msg, t))
         return t
 
 class Timer:
@@ -59,7 +59,7 @@ class Timer:
         t = time()
         ms = (t - self._timer)*1000
         if self._enabled:
-            headflow_print("%10.0f ms: %s" % (ms, msg))
+            cbcflow_print("%10.0f ms: %s" % (ms, msg))
         self._timer = t
 
 
@@ -115,7 +115,7 @@ class DataURLOpener(urllib.FancyURLopener):
     def http_error_default(self, url, fp, errcode, errmsg, headers):
         raise IOError(str(errcode)+" "+errmsg+", "+self.url)
 
-def retrieve(filename, urlbase='http://simula.no/~jobh/headflow'):
+def retrieve(filename, urlbase='http://simula.no/~jobh/cbcflow'):
     if not filename.endswith(".gz"):
         # Enforcing .gz extension is a quick fix to avoid trouble when
         # httpserver serves .gz file without extension, which is then
@@ -220,9 +220,9 @@ tolerance = default_tolerance = 1e-4
 
 def has_converged(r, iter, method, maxiter=default_maxiter, tolerance=default_tolerance):
     "Check if solution has converged."
-    headflow_print("Residual = %.3g" % r)
+    cbcflow_print("Residual = %.3g" % r)
     if r < tolerance:
-        headflow_print("%s iteration converged in %d iteration(s)." % (method, iter + 1))
+        cbcflow_print("%s iteration converged in %d iteration(s)." % (method, iter + 1))
         return True
     elif iter == maxiter - 1:
         raise RuntimeError("%s iteration did not converge." % method)

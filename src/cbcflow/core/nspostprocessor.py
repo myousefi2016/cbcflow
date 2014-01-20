@@ -8,7 +8,7 @@ from .parameterized import Parameterized
 from ..postprocessing import field_classes, PPField
 from ..postprocessing import * # TODO: Remove this, want to know what dependencies we have here to avoid spaghetti...
 from .utils_pyminifier import minify
-from .utils import headflow_warning, headflow_print, hdf5_link, safe_mkdir, timeit
+from .utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit
 
 from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMFFile, error
 
@@ -27,7 +27,7 @@ else:
 
 # Disable all plotting if we run in parallell
 if MPI.num_processes() > 1:
-    headflow_warning("Unable to plot dolfin plots in paralell. Disabling.")
+    cbcflow_warning("Unable to plot dolfin plots in paralell. Disabling.")
     disable_plotting = True
 else:
     disable_plotting = False
@@ -42,7 +42,7 @@ else:
         pylab.ion()
     except:
         pylab = None
-        headflow_warning("Unable to load pylab. Disabling pylab plotting.")
+        cbcflow_warning("Unable to load pylab. Disabling pylab plotting.")
 
 
 # Enable dolfin plotting if environment variable DISPLAY is set
@@ -52,7 +52,7 @@ else:
     if 'DISPLAY' in os.environ:
         dolfin_plotting = True
     else:
-        headflow_warning("Did not find display. Disabling dolfin plotting.")
+        cbcflow_warning("Did not find display. Disabling dolfin plotting.")
         dolfin_plotting = False
 
 
@@ -608,7 +608,7 @@ class NSPostProcessor(Parameterized):
         # TODO: We don't need to cache a distinct Function
         # object like we do for plotting, or?
         if isinstance(data, Function):
-            data.rename(field_name, "Function produced by headflow postprocessing.")
+            data.rename(field_name, "Function produced by cbcflow postprocessing.")
 
         # Write data to file for each filetype
         for saveformat in save_as:
@@ -645,7 +645,7 @@ class NSPostProcessor(Parameterized):
             if pylab:
                 self._plot_pylab(field.name, data)
         else:
-            headflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
+            cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
 
     def _plot_dolfin(self, field_name, data):
         # Get current time
@@ -792,7 +792,7 @@ class NSPostProcessor(Parameterized):
             try:
                 data = self.get(name)
             except DependencyException as e:
-                headflow_warning(e.message)
+                cbcflow_warning(e.message)
                 data = None
 
             # Apply action if it was triggered directly this timestep (not just indirectly)

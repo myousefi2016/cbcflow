@@ -9,8 +9,8 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Martin Alnaes, 2013.
 
 #from scipy import *
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
 # Inflow boundary
 class Inflow(SubDomain):

@@ -3,9 +3,9 @@
 
 
 # Hack until we place these tests in a proper framework
-import sys; sys.path.insert(0, "../demo") # FIXME: Assuming run from the headflow/tests/ directory!
+import sys; sys.path.insert(0, "../demo") # FIXME: Assuming run from the cbcflow/tests/ directory!
 
-from headflow import *
+from cbcflow import *
 from math import sqrt
 import dolfin
 import unittest

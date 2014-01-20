@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """
-Tests of postprocessing framework in headflow.
+Tests of postprocessing framework in cbcflow.
 """
 
 import unittest
 
 from collections import defaultdict
 
-from headflow import (ParamDict, NSProblem, NSPostProcessor,
+from cbcflow import (ParamDict, NSProblem, NSPostProcessor,
     PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
     TimeDerivative, SecondTimeDerivative, TimeIntegral, L2norm)
-from headflow.core.spaces import NSSpacePoolSplit
+from cbcflow.core.spaces import NSSpacePoolSplit
 
 import dolfin
 from dolfin import UnitSquareMesh, Function, Expression, norm, errornorm, assemble, dx

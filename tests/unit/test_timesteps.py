@@ -5,9 +5,9 @@ Tests of timestepping utilities.
 
 import unittest
 
-from headflow import NSProblem
-from headflow.core.adaptivetimestepping import AdaptiveTimestepping
-from headflow.core.timesteps import compute_regular_timesteps
+from cbcflow import NSProblem
+from cbcflow.core.adaptivetimestepping import AdaptiveTimestepping
+from cbcflow.core.timesteps import compute_regular_timesteps
 
 class MockProblem(NSProblem):
     def __init__(self, params):

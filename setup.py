@@ -9,12 +9,12 @@ import platform
 
 # Version number
 major = 0
-minor = 1
+minor = 5
 maintenance = 0
 
 # TODO: Add eventual commandline scripts here:
 scripts = [
-    pjoin("scripts", "headflow-showcase"),
+    pjoin("scripts", "cbcflow-showcase"),
     ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
@@ -30,36 +30,36 @@ if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
         batch_files.append(batch_file)
     scripts.extend(batch_files)
 
-setup(name = "headflow",
+setup(name = "cbcflow",
       version = "%d.%d.%d" % (major, minor, maintenance),
-      description = "Headflow Navier-Stokes solver collection",
+      description = "cbc.flow -- Navier-Stokes solver from the Center of Biomedical Computing",
       author = "Oyvind Evju, Martin Sandve Alnaes, Kent-Andre Mardal",
       author_email = "martinal@simula.no", # TODO: Email list?
-      url = 'https://bitbucket.org/martinal/headflow',
-      classifiers=[
+      url = 'https://bitbucket.org/simula_cbc/cbcflow',
+      classifiers = [
           'Development Status :: 2 - Pre-Alpha',
           'Environment :: Console',
           'Intended Audience :: Developers',
           'Intended Audience :: Science/Research',
-          'Programming Language :: Python :: 2.5',
+          'Programming Language :: Python :: 2.6',
           'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
           'Topic :: Scientific/Engineering :: Mathematics',
           'Topic :: Software Development :: Libraries :: Python Modules',
           ],
       scripts = scripts,
-      packages = ["headflow",
-                  "headflow.core",
-                  "headflow.schemes",
-                  "headflow.bcs",
-                  "headflow.postprocessing",
-                  "headflow.utils",
-                  "headflow.utils.fenicstools",
-                  "headflow.utils.fenicstools.fem",
+      packages = ["cbcflow",
+                  "cbcflow.core",
+                  "cbcflow.schemes",
+                  "cbcflow.bcs",
+                  "cbcflow.postprocessing",
+                  "cbcflow.utils",
+                  "cbcflow.utils.fenicstools",
+                  "cbcflow.utils.fenicstools.fem",
                   # TODO: Add submodules here
                   ],
-      package_dir = {"headflow": "site-packages/headflow"},
-      package_data = {"headflow": ["utils/fenicstools/Probe/*.h", "utils/fenicstools/Probe/*.cpp", "utils/fenicstools/fem/*.cpp"]},
+      package_dir = {"cbcflow": "src/cbcflow"},
+      package_data = {"cbcflow": ["utils/fenicstools/Probe/*.h", "utils/fenicstools/Probe/*.cpp", "utils/fenicstools/fem/*.cpp"]},
 #     data_files = [(pjoin("share", "man", "man1"),
-#                    [pjoin("doc", "man", "man1", "headflow.1.gz")])]
+#                    [pjoin("doc", "man", "man1", "cbcflow.1.gz")])]
     )
 

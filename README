@@ -1,23 +1,23 @@
-Headflow
+cbc.flow
 ========
 
 Description
 -----------
 
-Headflow is a collection of solvers for the incompressible Navier Stokes equations,
+cbc.flow is a collection of solvers for the incompressible Navier Stokes equations,
 built on the FEniCS project. It is originally based on solvers from the NSbench project.
 
 Authors
 -------
 
-Headflow is developed by
+cbc.flow is developed by
 
   * Øyvind Evju
   * Martin Sandve Alnæs
   * Kent-Andre Mardal
   * Kristian Valen-Sendstad
 
-Previous contributors to headflow are:  
+Previous contributors to cbc.flow are:  
 
   * Joachim Berdal Haga 
 
@@ -32,10 +32,10 @@ The original NSbench was written by
 Licence
 -------
 
-Headflow is licensed under the GNU GPL, version 3 or (at your option) any
+cbc.flow is licensed under the GNU GPL, version 3 or (at your option) any
 later version.
 
-Headflow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
+cbc.flow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
 
 Documentation
 -------------
@@ -52,16 +52,24 @@ The solvers in the original NSbench project is documented in
 Installation
 ------------
 
-Headflow requires an installation of FEniCS version (???), see www.fenicsproject.org.
+cbc.flow requires an installation of FEniCS version 1.3, see www.fenicsproject.org.
 
-Simply run
+To install simply run
 
   python setup.py install --prefix=/path/to/your/favourite/site-packages
 
 Contact
 -------
 
-Report bugs and other issues through the bitbucket issue tracker at:
+The latest version of this software can be obtained from
 
-  www.bitbucket.org/martinal/headflow/issues
+  www.bitbucket.org/simula_cbc/cbc.flow/
+
+Please report bugs and other issues through the bitbucket issue tracker at:
+
+  www.bitbucket.org/simula_cbc/cbc.flow/issues
+
+More about the Center for Biomedical Computing can be found at
+
+  cbc.simula.no
 

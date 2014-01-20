@@ -4,8 +4,8 @@ __date__ = "2013-08-12"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
 import numpy as np
 

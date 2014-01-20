@@ -1,6 +1,6 @@
 
 from .PPField import PPField
-from ..core.utils import headflow_print, headflow_warning
+from ..core.utils import cbcflow_print, cbcflow_warning
 from ..core.utils import sigma
 
 from dolfin import *
@@ -65,7 +65,7 @@ class WSS(PPField):
         degree = spaces.V.ufl_element().degree()
         if degree > 1:
             if degree > 2:
-                headflow_warning("WSS is reduced to piecewise linears.")
+                cbcflow_warning("WSS is reduced to piecewise linears.")
             Q = VectorFunctionSpace(problem.mesh, "CG", 1)
             Q_boundary = VectorFunctionSpace(boundary, "CG", 1)
         else:

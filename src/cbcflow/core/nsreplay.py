@@ -14,9 +14,9 @@ from .spaces import NSSpacePoolSplit
 import pickle
 import os
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
-from .utils import headflow_print
+from .utils import cbcflow_print
 import inspect, shelve
-from .utils import headflow_warning
+from .utils import cbcflow_warning
 
 
 class NSReplay(Parameterized):
@@ -68,7 +68,7 @@ class NSReplay(Parameterized):
                         if key not in data:
                             data[key] = {}
                         #if int(key) not in data:
-                        #    headflow_warning("Unable to find timestep %d in play-file, but found in metadata for field %s." %(int(key), fieldname))
+                        #    cbcflow_warning("Unable to find timestep %d in play-file, but found in metadata for field %s." %(int(key), fieldname))
                         #    continue
                         if "hdf5" in value:
                             value['hdf5']['filename'] = fieldname+".hdf5"
@@ -216,8 +216,8 @@ class NSReplay(Parameterized):
         
         # Run replay
         for timestep in sorted(replay_plan.keys()):
-            #headflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, len(replay_plan.keys())-1, 100.0*(timestep)/(len(replay_plan.keys())-1)))
-            headflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, max(replay_plan.keys()), 100.0*(timestep)/(max(replay_plan.keys()))))
+            #cbcflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, len(replay_plan.keys())-1, 100.0*(timestep)/(len(replay_plan.keys())-1)))
+            cbcflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, max(replay_plan.keys()), 100.0*(timestep)/(max(replay_plan.keys()))))
 
             # Load solution at this timestep (all available fields)
             saved_fields = replay_plan[timestep]

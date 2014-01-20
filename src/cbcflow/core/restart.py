@@ -12,7 +12,7 @@ from glob import glob
 import re
 import subprocess
 
-from ..core.utils import headflow_warning, headflow_print
+from ..core.utils import cbcflow_warning, cbcflow_print
 
 
 def clean_hdf5_file(filename, datasets):
@@ -36,7 +36,7 @@ def clean_hdf5_file(filename, datasets):
     
     hdf5_file = "%s/%s/%s.hdf5" %(self.casedir, fieldname, fieldname)
     if not os.path.isfile(hdf5_file):
-        headflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
+        cbcflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
         return
     
     if len(datasets) > 0:
@@ -88,7 +88,7 @@ class Restart(object):
             p_filepath = self.casedir + "/Pressure/" + p_name
             
         if u_timestep != p_timestep or not os.path.isfile(p_filepath):
-            headflow_warning("Unable to find matching restart info for pressure. Using Constant(0).")
+            cbcflow_warning("Unable to find matching restart info for pressure. Using Constant(0).")
         
         # Replace problems initial_condition function    
         self._replace_ic(problem, u_datatype, u_name, u_filepath, p_datatype, p_name, p_filepath)
@@ -211,22 +211,22 @@ class Restart(object):
         try:
             self._clean_hdf5(fieldname, del_metadata)
         except:
-            headflow_warning("Cleaning hdf5-file for restart failed. hdf5-file might be corrupted.")
+            cbcflow_warning("Cleaning hdf5-file for restart failed. hdf5-file might be corrupted.")
         
         try:
             self._clean_xml(fieldname, del_metadata)
         except:
-            headflow_warning("Cleaning xml-files for restart failed. xml-files might be corrupted.")
+            cbcflow_warning("Cleaning xml-files for restart failed. xml-files might be corrupted.")
         
         try:
             self._clean_xmlgz(fieldname, del_metadata)
         except:
-            headflow_warning("Cleaning xml.gz-files for restart failed. xml-files might be corrupted.")
+            cbcflow_warning("Cleaning xml.gz-files for restart failed. xml-files might be corrupted.")
         
         try:
             self._clean_xdmf(fieldname, del_metadata)
         except:
-            headflow_warning("Cleaning xdmf-file for restart failed. xdmf-file might be corrupted.")
+            cbcflow_warning("Cleaning xdmf-file for restart failed. xdmf-file might be corrupted.")
         
         self._clean_pvd(fieldname, del_metadata)
     
@@ -259,7 +259,7 @@ class Restart(object):
         
         hdf5_file = "%s/%s/%s.hdf5" %(self.casedir, fieldname, fieldname)
         if not os.path.isfile(hdf5_file):
-            headflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
+            cbcflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
             return
         
         for dataset in del_datasets:
@@ -317,7 +317,7 @@ class Restart(object):
     
     def _clean_pvd(self, fieldname, del_metadata):
         if os.path.isfile(self.casedir+"/"+fieldname+"/"+fieldname+".pvd"):
-            headflow_warning("No functionality for cleaning pvd-files for restart. Will overwrite.")
+            cbcflow_warning("No functionality for cleaning pvd-files for restart. Will overwrite.")
     
     def _rewrite_metadata(self, fieldname, metadata):
         f = open(self.casedir+"/"+fieldname+"/metadata.txt", 'w')

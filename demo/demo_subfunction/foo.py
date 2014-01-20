@@ -2,10 +2,10 @@ import sys
 sys.path.insert(0, "../../site-packages/")
 
 
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
-from headflow.core.spaces import NSSpacePool
+from cbcflow.core.spaces import NSSpacePool
 set_log_level(100)
 parameters["allow_extrapolation"] = True
 class Scheme(NSScheme):

@@ -3,7 +3,7 @@
 import sys, os, itertools, inspect
 import unittest
 
-from headflow import *
+from cbcflow import *
 
 from math import sqrt
 import dolfin

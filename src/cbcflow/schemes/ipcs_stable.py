@@ -8,7 +8,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from ..core.nsscheme import *
 from ..core.rhsgenerator import *
 from ..core.timesteps import compute_regular_timesteps
-from ..core.utils import Timer, is_periodic, headflow_log
+from ..core.utils import Timer, is_periodic, cbcflow_log
 #from ..core.adaptivetimestepping import AdaptiveTimestepping
 #from ..core.constanttimestepping import ConstantTimestepping
 from ..core.schemeutils import (assign_ics_segregated,
@@ -249,13 +249,13 @@ class IPCS_Stable(NSScheme):
                 timestep_modified, dt = timestepper.adjusted_timestep(avg_num_iterations)
 
                 if not timestep_modified:
-                    headflow_log(INFO, "Timestep not modified. (dt=%.3e)" %dt)
+                    cbcflow_log(INFO, "Timestep not modified. (dt=%.3e)" %dt)
 
                 if timestep_modified:
                     old_dt = float(k)
                     k.assign(dt)
 
-                    headflow_log(INFO, "Modified timestep: %.3e -> %.3e" % (old_dt, dt))
+                    cbcflow_log(INFO, "Modified timestep: %.3e -> %.3e" % (old_dt, dt))
 
                     # Reassemble dt-dependent matrices
                     assemble(a1+a2, tensor=A_u_tent)

@@ -3,7 +3,7 @@
 import sys, os, itertools
 import unittest
 
-from headflow import *
+from cbcflow import *
 
 from math import sqrt
 import dolfin
@@ -95,8 +95,8 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
             readback = self._read_reference(data["basedir"], fieldname, basedir="output")
             self.assertEqual(readback.strip(), formatted.strip())
 
-# Importing problems from headflow/demo/
-sys.path.insert(0, "../demo") # NB! Assuming run from the headflow/tests/ directory!
+# Importing problems from cbcflow/demo/
+sys.path.insert(0, "../demo") # NB! Assuming run from the cbcflow/tests/ directory!
 #sys.path.insert(0, os.path.abspath( os.path.join(os.path.dirname(__file__), '../../demo/') ))
 from pouseille2d import Pouseille2D
 from pouseille3d import Pouseille3D

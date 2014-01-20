@@ -4,8 +4,8 @@ __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from headflow import *
-from headflow.dol import *
+from cbcflow import *
+from cbcflow.dol import *
 
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
@@ -99,7 +99,7 @@ class FlowAroundCylinder(NSProblem):
             vals  = psi.vector().array()
             vmin = MPI.min(vals.min())
 
-            headflow_print("Stream function has minimal value %s" % vmin)
+            cbcflow_print("Stream function has minimal value %s" % vmin)
 
             return vmin
 

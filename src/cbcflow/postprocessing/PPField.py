@@ -8,7 +8,7 @@ from dolfin import Function, File, MPI, TestFunction, assemble, inner, dx, proje
 from ..core.paramdict import ParamDict
 from ..core.parameterized import Parameterized
 
-from ..core.utils import headflow_warning
+from ..core.utils import cbcflow_warning
 
 class PPField(Parameterized):
     def __init__(self, params=None, label=None):

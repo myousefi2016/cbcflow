@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from headflow import ParamDict, NSSolver, NSPostProcessor, all_schemes, show_problem
-from headflow.postprocessing import *
+from cbcflow import ParamDict, NSSolver, NSPostProcessor, all_schemes, show_problem
+from cbcflow.postprocessing import *
 from dolfin import Point
 import sys
 
@@ -82,7 +82,7 @@ def solve_ns_problem(Problem, Scheme, args):
                   (7.0, 90.0, 0.0),
                   (9.0, 0.0, 0.0)]
 
-        from headflow.postprocessing.PointEval import points_in_circle
+        from cbcflow.postprocessing.PointEval import points_in_circle
         points2 = points_in_circle((5.0, 0.0), 0.5, 20)
 
         postproc.add_fields([

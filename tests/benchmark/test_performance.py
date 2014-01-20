@@ -6,7 +6,7 @@ Work in progress.
 import unittest
 import time
 
-from headflow import NSProblem, NSScheme, NSSolver, all_schemes
+from cbcflow import NSProblem, NSScheme, NSSolver, all_schemes
 
 class PerformanceProblem(NSProblem):
     def __init__(self):

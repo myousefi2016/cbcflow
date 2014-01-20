@@ -13,7 +13,7 @@ import re
 
 from .paramdict import ParamDict
 from .parameterized import Parameterized
-from .utils import get_memory_usage, time_to_string, headflow_print, headflow_warning
+from .utils import get_memory_usage, time_to_string, cbcflow_print, cbcflow_warning
 from .restart import Restart
 
 class NSSolver(Parameterized):
@@ -74,13 +74,13 @@ class NSSolver(Parameterized):
     def _summarize(self):
         final_time = time()
         msg = "Total time spent in NSSolver: %s" % time_to_string(final_time - self._initial_time)
-        headflow_print(msg)
+        cbcflow_print(msg)
 
         if self.params.check_mem_frequency > 0:
             final_memory = get_memory_usage()
             msg = "Memory usage before solve: %s\nMemory usage after solve: %s" % (
                 self._initial_memory, final_memory)
-            headflow_print(msg)
+            cbcflow_print(msg)
 
     def _update_timing(self, timestep, t, time_at_top):
         # Time since last update equals the time for scheme solve
@@ -118,18 +118,18 @@ class NSSolver(Parameterized):
                                           remaining,
                                           ))
         # TODO: Report to file, with additional info like memory usage, and make reporting configurable
-        headflow_print(msg)
+        cbcflow_print(msg)
 
     def _update_memory(self, timestep):
         fr = self.params.check_mem_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            headflow_print('Memory usage is: %s' % get_memory_usage())
+            cbcflow_print('Memory usage is: %s' % get_memory_usage())
 
     def _update_plot(self, u, p):
         if self.params.plot_solution:
             if MPI.num_processes() > 1:
-                headflow_print("Unable to plot in parallel.")
+                cbcflow_print("Unable to plot in parallel.")
                 return
 
             if self.scheme._segregated:

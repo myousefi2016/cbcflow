@@ -1,5 +1,5 @@
 
-from headflow.core.spaces import SpacePool, NSSpacePool, NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
+from cbcflow.core.spaces import SpacePool, NSSpacePool, NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
 from dolfin import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, Function
 
 from collections import defaultdict

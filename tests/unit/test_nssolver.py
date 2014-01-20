@@ -8,7 +8,7 @@ the control and data flow between the classes.
 
 import unittest
 
-from headflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
+from cbcflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
 
 class MockProblem(NSProblem):
     def __init__(self, params):
