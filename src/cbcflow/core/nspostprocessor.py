@@ -612,9 +612,11 @@ class NSPostProcessor(Parameterized):
         with open(tfn, 'w') as f:
             f.write(str(params))
 
-        #jfn = os.path.join(casedir, "params.json")
-        #with open(jfn, 'w') as f:
-        #    f.write(params.to_json())
+    def store_mesh(self, mesh):
+        casedir = self._get_casedir()
+        meshfile = HDF5File(os.path.join(casedir, "mesh.hdf5"), 'w')
+        meshfile.write(mesh, "Mesh")
+        del meshfile
 
     def _action_save(self, field, data):
         "Apply the 'save' action to computed field data."

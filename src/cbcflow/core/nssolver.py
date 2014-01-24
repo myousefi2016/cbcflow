@@ -4,7 +4,7 @@ __date__ = "2013-04-26"
 __copyright__ = "Copyright (C) 2013-2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import plot, parameters, as_vector, MPI
+from ..dol import plot, parameters, as_vector, MPI, Mesh
 
 from time import time
 import os
@@ -47,6 +47,8 @@ class NSSolver(Parameterized):
                            scheme=self.scheme.params,
                            postprocessor=self.postprocessor.params)
         self.postprocessor.store_params(params)
+        assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
+        self.postprocessor.store_mesh(self.problem.mesh)
 
         if self.params.restart:
             Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
