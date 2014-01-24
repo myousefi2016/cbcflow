@@ -564,6 +564,33 @@ class NSPostProcessor(Parameterized):
             datafile.close()
         return metadata
 
+    def _fetch_play_log(self):
+        casedir = self._get_casedir()
+        play_log_file = os.path.join(casedir, "play.db")
+        play_log = shelve.open(play_log_file)
+        return play_log
+
+
+    def _update_play_log(self, t, timestep):
+        if on_master_node:
+            play_log = self._fetch_play_log()
+            if str(timestep) in play_log:
+                play_log.close()
+                return
+            play_log[str(timestep)] = {"t":float(t)}
+            play_log.close()
+
+    def _fill_play_log(self, field, timestep, save_as):
+        if on_master_node:
+            play_log = self._fetch_play_log()
+            timestep_dict = dict(play_log[str(timestep)])
+            if "fields" not in timestep_dict:
+                timestep_dict["fields"] = {}
+            timestep_dict["fields"][field.name] = {"type": field.__class__.shortname(), "save_as": save_as}
+            play_log[str(timestep)] = timestep_dict
+            play_log.close()
+
+
     def store_params(self, params):
         casedir = self._create_casedir()
 
@@ -630,6 +657,8 @@ class NSPostProcessor(Parameterized):
 
         # Write new data to metadata file
         self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
+        
+        self._fill_play_log(field, timestep, save_as)
 
         # Update save count
         self._save_counts[field_name] = save_count + 1
@@ -849,6 +878,9 @@ class NSPostProcessor(Parameterized):
         self._problem = problem
         self._spaces = spaces
         self._solution = solution
+
+        # Update play log
+        self._update_play_log(t, timestep)
 
         # Update cache to keep what's needed later according to plan, forget what we don't need
         self._update_cache()
