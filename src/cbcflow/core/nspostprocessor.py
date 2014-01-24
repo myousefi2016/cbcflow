@@ -360,7 +360,7 @@ class NSPostProcessor(Parameterized):
             if isinstance(data, Function):
                 save_as = ['xdmf', 'hdf5']
             elif isinstance(data, (float, int, list, tuple, dict)):
-                save_as = ['txt']
+                save_as = ['txt', 'shelve']
             else:
                 error("Unknown data type %s, cannot determine file type automatically." % type(data).__name__)
         else:
@@ -478,7 +478,8 @@ class NSPostProcessor(Parameterized):
             # If we have a new filename each time, store the name in metadata
             #metadata = [('filename', filename)]
             metadata['filename'] = filename
-
+        if saveformat == "shelve":
+            filename = "%s.%s" % (field_name, "db")
         else:
             filename = "%s.%s" % (field_name, saveformat)
             if saveformat == 'hdf5':
@@ -564,12 +565,21 @@ class NSPostProcessor(Parameterized):
             datafile.close()
         return metadata
 
+    def _update_shelve_file(self, field_name, saveformat, data, save_count, t):
+        assert saveformat == "shelve"
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        if on_master_node:
+            datafile = shelve.open(fullname)
+            datafile[str(save_count)] = data
+            datafile.close()
+            
+        return metadata
+
     def _fetch_play_log(self):
         casedir = self._get_casedir()
         play_log_file = os.path.join(casedir, "play.db")
         play_log = shelve.open(play_log_file)
         return play_log
-
 
     def _update_play_log(self, t, timestep):
         if on_master_node:
@@ -652,6 +662,8 @@ class NSPostProcessor(Parameterized):
                 metadata[saveformat] = self._update_txt_file(field_name, saveformat, data, save_count, t)
             elif saveformat == 'hdf5':
                 metadata[saveformat] = self._update_hdf5_file(field_name, saveformat, data, save_count, t)
+            elif saveformat == 'shelve':
+                metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, save_count, t)
             else:
                 error("Unknown save format %s." % (saveformat,))
 
