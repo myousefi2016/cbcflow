@@ -20,6 +20,10 @@ from .utils import cbcflow_warning
 
 fetchable_formats = ["hdf5", "xml", "shelve"]
 
+def print_replay_plan(plan):
+    for timestep in sorted(plan.keys()):
+        print timestep, plan[timestep].keys()
+
 class NSReplay(Parameterized):
     """ Replay class for postprocessing exisiting solution data. """
     def __init__(self, postprocessor, params=None):
@@ -55,7 +59,6 @@ class NSReplay(Parameterized):
                 
                 if fieldname not in metadata_files:
                     metadata_files[fieldname] = shelve.open(os.path.join(casedir, fieldname, "metadata.db"))
-                    print metadata_files[fieldname]
                 
                 save_count = metadata_files[fieldname][str(timestep)]["save_count"]
                 
@@ -187,6 +190,7 @@ class NSReplay(Parameterized):
 
             # Check timesteps covered by current field
             keys = self._check_field_coverage(replay_plan, fieldname)
+            print fieldname, keys
             
             # Get the time dependency for the field
             t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
@@ -195,17 +199,25 @@ class NSReplay(Parameterized):
             # TODO: Determine what the best way to do this is
             added_to_postprocessor = False
             for i, (ppkeys, ppt_dep, pp) in enumerate(postprocessors):
-                if keys == ppkeys:
+                if t_dep == 0 and set(keys).issubset(set(ppkeys)):
+                    # TODO: Check this extend
+                    ppkeys.extend(keys)
                     pp.add_field(field)
-                elif t_dep == ppt_dep == 0:
+                    added_to_postprocessor = True
+                    break
+                elif t_dep == ppt_dep and keys == ppkeys:
                     pp.add_field(field)
-
+                    added_to_postprocessor = True
+                    break
+                else:
+                    continue
+                    
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
                 pp = NSPostProcessor({"casedir": self.postproc._get_casedir()})
                 pp.add_field(field)
                 postprocessors.append([keys, t_dep, pp])
-        
+                
         # Run replay
         for timestep in sorted(replay_plan.keys()):
             cbcflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, max(replay_plan.keys()), 100.0*(timestep)/(max(replay_plan.keys()))))
@@ -217,8 +229,21 @@ class NSReplay(Parameterized):
             # Cycle through postprocessors and update if required
             for ppkeys, ppt_dep, pp in postprocessors:
                 if timestep in ppkeys:
-                    #print pp._fields
+                    # Add dummy solutions to avoid error when handling dependencies
+                    # We know this should work, because it has already been established that
+                    # the fields to be computed at this timestep can be computed from stored
+                    # solutions.
+                    for field in pp._fields:
+                        for dep in pp._dependencies[field]:
+                            if dep[0] == "t" or dep[1] != 0:
+                                continue
+                            if dep[0] not in solution.keys():
+                                solution[dep[0]] = None
+
                     pp.update_all(solution, t, timestep, self._get_spaces(), problem)
+                    
+                    # Clear None-objects from solution
+                    [solution.pop(k) for k in solution.keys() if not solution[k]]
 
                     # Update solution to avoid re-reading data
                     solution = pp._solution

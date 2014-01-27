@@ -306,8 +306,7 @@ class NSPostProcessor(Parameterized):
                 t0 = timeit()
                 if not name in self._solution:
                     data = field.compute(self, spaces, problem)
-                    self._solution[name] = data
-                else:
+                elif self._solution[name]:
                     data = field.convert(self, spaces, problem)
                 self._compute_counts[field.name] += 1
                 if self.params.enable_timer:
@@ -790,7 +789,8 @@ class NSPostProcessor(Parameterized):
             }
         # Loop over all planned field computations
         fields_to_compute = [name for name in self._sorted_fields_keys if name in self._plan[0]]
-        print fields_to_compute
+
+        #print fields_to_compute
         for name in fields_to_compute:
             field = self._fields[name]
             # Execute computation through get call
