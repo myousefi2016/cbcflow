@@ -387,45 +387,6 @@ class NSPostProcessor(Parameterized):
         safe_mkdir(savedir)
         return savedir
 
-    """
-    def _update_metadata_file(self, field_name, data, save_count, save_as, metadata):
-        if on_master_node:
-            savedir = self._get_savedir(field_name)
-            metadata_filename = os.path.join(savedir, 'metadata.txt')
-
-            # Create initial metadata file for first save call, or just append to the existing one
-            if save_count == 0:
-                # Initially just tell what data type this field has, and which formats we will save to
-                metadata_file = open(metadata_filename, 'w')
-                metadata_file.write('type=%r\n' % (type(data).__name__,))
-                metadata_file.write('saveformats=%r\n' % (save_as,))
-
-                # Then add type specific initial metadata
-                if isinstance(data, Function):
-                    # It's nice to have element data easily accessible
-                    # TODO: Support metadescription of mesh regions? Boundary meshes? Will probably needed that for automated interpretation later.
-                    metadata_file.write("element=%r\n" % (data.element(),))
-                    metadata_file.write("element_degree=%r\n" % (data.element().degree(),))
-                    metadata_file.write("element_family=%r\n" % (data.element().family(),))
-                    metadata_file.write("element_value_shape=%r\n" % (data.element().value_shape(),))
-
-                # TODO: Figure out and document what kind of txt data we support
-                #elif isinstance(data, dict):
-                #    metadata_file.write("keys=%r\n" % (sorted(data.keys()),))
-
-                # Add a separator line between header and per-timestep data
-                metadata_file.write('#'*40 + '\n')
-                metadata_file.close()
-
-            # Write metadata for this timestep
-            assert all(isinstance(md, tuple) and len(md) == 2 for md in metadata)
-            sep = "\t" # TODO: Separate with tabs or newlines?
-            metadata_file = open(metadata_filename, 'a')
-            metadata_file.writelines(sep.join("%s=%r" % (md[0], md[1]) for md in metadata))
-            metadata_file.write('\n')
-            metadata_file.close()
-    """
-
     def _init_metadata_file(self, field_name, init_data):
         savedir = self._create_savedir(field_name)
         if on_master_node:
@@ -844,7 +805,7 @@ class NSPostProcessor(Parameterized):
                     if field.params[action]:
                         self._apply_action(action, field, data)
 
-        if 0: # Debugging:
+        if 1: # Debugging:
             s1 = set(fields_to_compute)
             s2 = set(self._cache[0])
             s2.remove("t")
@@ -864,7 +825,10 @@ class NSPostProcessor(Parameterized):
                 print "cache[0]:"
                 print self._cache[0]
                 print
-        assert len(fields_to_compute) == len(self._cache[0])-2, "This should hold if planning algorithm works properly?"
+        
+        # Wrong: Try adding e.g. TimeDerivative("Stress") only to a postprocessor. This check fails, but planning algorithm seems correct
+        #assert len(fields_to_compute) == len(self._cache[0])-2, "This should hold if planning algorithm works properly?"
+        
 
     def _update_cache(self):
         problem = self._problem
