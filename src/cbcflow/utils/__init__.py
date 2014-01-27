@@ -1,2 +1,2 @@
-from .fenicstools import *
+#from .fenicstools import *
 from .Slice import Slice

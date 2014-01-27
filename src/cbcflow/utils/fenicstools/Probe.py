@@ -5,34 +5,17 @@ __license__  = "GNU Lesser GPL version 3 or any later version"
 """
 This module contains functionality for efficiently probing a Function many times. 
 """
-#from cbc.cfd.oasis import *
 from dolfin import *
 from numpy import alltrue, cos, zeros, array, repeat, squeeze, argmax, cumsum, sum, count_nonzero, reshape, resize, linspace, abs, sign, all, float32
 from numpy.linalg import norm as numpy_norm
-
 try:
     from scitools.std import surfc
     from scitools.basics import meshgrid
 except:
     pass
-
-import os, copy, cPickle, inspect
-
-try:
-    import h5py
-except:
-    h5py = None
-
-try:
-    import pyvtk
-except:
-    pyvtk = None
-
-try:
-    from mpi4py import MPI as nMPI
-    comm = nMPI.COMM_WORLD
-except:
-    comm = None
+import pyvtk, os, copy, cPickle, h5py, inspect
+from mpi4py import MPI as nMPI
+comm = nMPI.COMM_WORLD
 
 # Compile Probe C++ code
 def strip_essential_code(filenames):
@@ -49,16 +32,7 @@ code = strip_essential_code(headers)
 compiled_module = compile_extension_module(code=code, source_directory=os.path.abspath(dolfin_folder),
                                            sources=sources, include_dirs=[".", os.path.abspath(dolfin_folder)])
 
-fem_folder = os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "../fem"))
-fem_code = open(os.path.join(fem_folder, 'interpolation.cpp'), 'r').read()
-compiled_fem_module = compile_extension_module(code=fem_code)
-                                           
 # Give the compiled classes some additional pythonic functionality
-def interpolate_nonmatching_mesh(u0, V):
-    u = Function(V)
-    compiled_fem_module.interpolate_nonmatching_mesh(u0, u)
-    return u
-
 class Probe(compiled_module.Probe):
     
     def __call__(self, *args):
@@ -252,7 +226,8 @@ class StructuredGrid:
             x = self.create_dense_grid()
             if V.element().geometric_dimension() == 2:
                 x = x[:, :2]
-            self.probes = Probes(x.flatten(), V)
+            self.probes = (StatisticsProbes(x.flatten(), V, V.num_sub_spaces()==0) if statistics else
+                           Probes(x.flatten(), V))
         else:
             # Add plane by plane to avoid excessive memory use
             x = self.create_xy_slice(0)
@@ -501,7 +476,7 @@ class StructuredGrid:
         # between the processors starting with the highest rank and then 
         # gradually lower
         
-        MPI.barrier()
+        comm.barrier()
         Nc = comm.Get_size()
         myrank = comm.Get_rank()
         Np = self.probes.get_total_number_probes()
@@ -551,7 +526,7 @@ class StructuredGrid:
         z0 = z0.transpose((2,1,0,3))
         # Write owned data to hdf5 file
         owned = slice(owned_planes[myrank], owned_planes[myrank+1])
-        MPI.barrier()
+        comm.barrier()
         if owned.stop > owned.start:
             if self.probes.value_size() == 1:
                 f[loc+"/Scalar"][owned, :, :] = z0[:, :, :, 0]
@@ -571,7 +546,7 @@ class StructuredGrid:
                     f[loc+"/U"][owned, :, :] = z0[:, :, :, 0]
                     f[loc+"/V"][owned, :, :] = z0[:, :, :, 1]
                     f[loc+"/W"][owned, :, :] = z0[:, :, :, 2]
-        MPI.barrier()
+        comm.barrier()
         f.close()
 
     def surf(self, N, component=0):
@@ -770,8 +745,8 @@ def interpolate_nonmatching_mesh_python(u0, V):
 # Test the probe functions:
 if __name__=='__main__':
     import time
-    set_log_active(False)
-    #set_log_level(20)
+    #set_log_active(False)
+    set_log_level(20)
 
     mesh = UnitCubeMesh(16, 16, 16)
     #mesh = UnitSquareMesh(10, 10)
@@ -880,30 +855,6 @@ if __name__=='__main__':
     #slc.tovtk(0, 'testing_dump.vtk')
     #slc.toh5(0, 1, 'testing_dump.h5')
     
-    # Test for nonmatching mesh and FunctionSpace
-    mesh2 = UnitCubeMesh(32, 32, 32)
-    #x = mesh2.coordinates()
-    #x[:, :] = x[:, :] * 0.5 + 0.25
-    V2 = FunctionSpace(mesh2, 'CG', 1)
-    VV2 = VectorFunctionSpace(mesh2, 'CG', 1)
-    u = interpolate_nonmatching_mesh(x0, V2)
-    
-    t0 = time.time()
-    vv1 = interpolate_nonmatching_mesh_python(v0, VV2)
-    print 'Python ', time.time()-t0
-    
-    t0 = time.time()
-    vv2 = interpolate_nonmatching_mesh(v0, VV2)
-    print 'C++ ', time.time()-t0
-        
-    print all(abs(vv1.vector().array()-vv2.vector().array())<1e-12)
-    list_timings(True)
-
-    plot(vv1[0])
-    plot(vv2[0])
-    
-    W2 = V2 * VV2
-    ww = interpolate_nonmatching_mesh(w0, W2)
     
     #WS = W * W
     ##w11 = interpolate(Expression(('x[0]', 'x[1]', 'x[2]', 'x[1]*x[2]', 'x[0]', 'x[1]', 'x[2]', 'x[1]*x[2]')), WS)

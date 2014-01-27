@@ -20,7 +20,7 @@ namespace dolfin
     virtual ~Probe(); 
 
     // evaluate the probe.
-    virtual void eval(const Function& u);   
+    virtual void eval(const Function& u);     
       
     // Return all probe values for one component
     std::vector<double> get_probe_sub(std::size_t i);
@@ -64,15 +64,17 @@ namespace dolfin
     
     std::vector<double> coefficients;
     
+    std::vector<double> vertex_coordinates;
+    
     double _x[3];
     
     boost::shared_ptr<const FiniteElement> _element;
     
-    Cell* dolfin_cell;
+    Cell* dolfin_cell; 
     
-    UFCCell* ufc_cell;
+    ufc::cell* ufc_cell;  
     
-    std::size_t _value_size_loc, _num_evals;    
+    std::size_t _value_size_loc, _num_evals;     
     
     std::vector<std::vector<double> > _probes;
     
