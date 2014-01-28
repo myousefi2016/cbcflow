@@ -74,7 +74,7 @@ class PointEval(MetaPPField):
         self.coords = tuple(self.coords)
 
         # Create Probes object (from fenicsutils)
-        flattened_points = np.array(list(chain(*self.coords)))
+        flattened_points = np.array(list(chain(*self.coords)), dtype=np.float)
         V = u.function_space()
         self.probes = Probes(flattened_points, V)
         self._probetimestep = 0

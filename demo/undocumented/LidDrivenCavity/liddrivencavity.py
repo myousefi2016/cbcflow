@@ -41,7 +41,7 @@ class LidDrivenCavity(NSProblem):
             T=0.5,
             # Physical parameters
             rho=1.0,
-            mu=1.0/1000.0,
+            mu=1.0/10.0,
             )
         params.update(
             # Spatial parameters
@@ -77,19 +77,19 @@ if __name__ == "__main__":
     #exit()
     #scheme = IPCS({"theta": 0.5, "solver_p_neumann": ("gmres", "jacobi")})
     #scheme = IPCS({"theta": 0.5})
-    #scheme = Yosida()
+    scheme = Yosida()
     #scheme = IPCS()
-    scheme = IPCS({"u_degree": 2})
+    #scheme = IPCS({"u_degree": 2})
     #scheme = IPCS_Stable({"theta": 1.0})
     
     #solver_p_neumann=("gmres", "hypre_amg"),
     postprocessor = NSPostProcessor({"casedir": "Results_"+str(scheme.shortname())})
     
-    velocity = Velocity({"save": True})
-    pressure = Pressure({"save": True})
-    cfl = LocalCfl({"save": True})
+    velocity = Velocity({"save": True, "save_as": 'pvd'})
+    pressure = Pressure({"save": True, "save_as": 'pvd'})
+    #cfl = LocalCfl({"save": True})
     
-    postprocessor.add_fields([velocity, pressure,cfl])
+    postprocessor.add_fields([velocity, pressure])
     
     solver = NSSolver(problem, scheme, postprocessor)
     solver.solve()

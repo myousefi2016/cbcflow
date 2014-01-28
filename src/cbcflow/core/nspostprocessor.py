@@ -809,8 +809,6 @@ class NSPostProcessor(Parameterized):
             }
         # Loop over all planned field computations
         fields_to_compute = [name for name in self._sorted_fields_keys if name in self._plan[0]]
-
-        #print fields_to_compute
         for name in fields_to_compute:
             field = self._fields[name]
             # Execute computation through get call
