@@ -225,7 +225,7 @@ def load_tests(loader, standard_tests, none):
 
     # FIXME: Make fast and slow suite
 
-    # FIXME: Add more schemes
+    # FIXME: Add more schemes, use all of official_schemes
     schemes = [
         IPCS,
         IPCS_Stable,

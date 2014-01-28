@@ -198,6 +198,7 @@ def make_suite(loader, testclass, initargs):
     ts = unittest.TestSuite(tests)
     return ts
 
+
 def load_tests(loader, standard_tests, none):
 
     # Make list of scheme classes that should work with default parameters:

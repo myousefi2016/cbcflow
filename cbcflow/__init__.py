@@ -20,7 +20,7 @@ from .core.adaptivetimestepping import AdaptiveTimestepping
 from .core.constanttimestepping import ConstantTimestepping
 
 # Boundary condition utilities
-from .bcs.Poiseuille import Pouseille, make_pouseille_bcs
+from .bcs.Poiseuille import Poiseuille, make_poiseuille_bcs
 from .bcs.Womersley import Womersley, make_womersley_bcs
 from .bcs.Resistance import Resistance
 from .bcs.UniformShear import UniformShear
@@ -30,24 +30,10 @@ from .fields import show_fields, all_fields
 for f in all_fields:
     exec("from .fields import %s" % (f,))
 
-# Import schemes
-from .schemes import IPCS
-from .schemes import SegregatedIPCS
-from .schemes import SegregatedIPCS_Optimized
-from .schemes import IPCS_Stable
-from .schemes import IPCS_Stabilized
-from .schemes import PISO
-from .schemes import Karper
-from .schemes import BottiPietro
-from .schemes import CoupledNonLinear
-from .schemes import PenaltyIPCS
-from .schemes import SegregatedPenaltyIPCS
-from .schemes import CoupledPicard
-from .schemes import Stokes
-from .schemes import CoupledPreconditoned
-from .schemes import Yosida
-
-from .schemes import all_schemes
+# Navier-Stokes solver schemes
+from .schemes import show_schemes, all_schemes, official_schemes, experimental_schemes
+for f in all_schemes:
+    exec("from .schemes import %s" % (f,))
 
 # Import utils
 from .utils.fenicstools import *

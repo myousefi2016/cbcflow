@@ -1,35 +1,23 @@
 """A collection of Navier-Stokes schemes."""
 
-# The simplest ipcs schemes with different optimizations
-from .ipcs import IPCS
-from .ipcs_segregated import SegregatedIPCS
-from .ipcs_opt_seg import SegregatedIPCS_Optimized
+from .official import official_schemes
+for f in official_schemes:
+    exec("from .official import %s" % (f,))
 
-# Schemes with stabilization
-from .ipcs_stabilized import IPCS_Stabilized
-from .ipcs_stable import IPCS_Stable
+from .experimental import experimental_schemes
+for f in experimental_schemes:
+    exec("from .experimental import %s" % (f,))
 
-# Schemes with support for penalty pressure BCs
-from .ipcs_penalty import PenaltyIPCS
-from .ipcs_penalty_segregated import SegregatedPenaltyIPCS
+all_schemes = official_schemes + experimental_schemes
 
-# DG schemes not working in parallell
-from .bottipietro import BottiPietro
-from .piso import PISO
-from .karper import Karper
+def show_schemes():
+    "Lists which schemes are available."
+    print "Official schemes available:"
+    print "\n".join("    " + f for f in official_schemes)
+    print "Experimental schemes available:"
+    print "\n".join("    " + f for f in experimental_schemes)
 
-# Coupled schemes
-from .couplednonlinear import CoupledNonLinear
-from .coupled_picard import CoupledPicard
-from .stokes import Stokes
-from .coupledpreconditioned import CoupledPreconditoned
-from .coupledpreconditioned_kam import CoupledPreconditonedKAM
-from .yosida import Yosida
-
-# Collect all schemes in list automatically
-from ..core.nsscheme import NSScheme
-import types
-all_schemes = [v for v in globals().values()
-               if hasattr(v, 'mro')
-               and issubclass(v, NSScheme)
-               and v is not NSScheme]
+__all__ = (
+    ["show_schemes", "all_schemes", "official_schemes", "experimental_schemes"] +
+    all_schemes
+    )

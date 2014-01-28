@@ -108,5 +108,5 @@ def make_poiseuille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=No
 
 class Poiseuille(list):
     def __init__(self, coeffs, mesh, indicator, scale_to=None, facet_domains=None):
-        print "Deprecation warning: use make_poiseuille_bcs instead of Pouseille class." # FIXME: Remove class
+        print "Deprecation warning: use make_poiseuille_bcs instead of Poiseuille class." # FIXME: Remove class
         self.extend(make_poiseuille_bcs(coeffs, mesh, indicator, scale_to, facet_domains))
