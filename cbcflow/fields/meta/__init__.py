@@ -17,6 +17,8 @@ meta_fields = [
     "DomainAvg",
     "BoundaryAvg",
     "Magnitude",
+    "Minimum",
+    "Maximum",
 
     # Transient analysis of other fields
     "TimeIntegral",
