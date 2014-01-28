@@ -14,6 +14,7 @@ from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMF
 
 import os, re, inspect, pickle, shelve
 from collections import defaultdict
+from hashlib import sha1
 
 # TODO: Extract a Plotter class and a Storage class to separate this logic
 
@@ -480,21 +481,40 @@ class NSPostProcessor(Parameterized):
     def _update_hdf5_file(self, field_name, saveformat, data, save_count, t):
         assert saveformat == "hdf5"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
-
-        if save_count == 0:
+        
+        # Create "good enough" hash. This is done to avoid data corruption when restarted from
+        # different number of processes, different distribution or different function space
+        local_hash= sha1()
+        local_hash.update(str(data.function_space().mesh().num_cells()))
+        local_hash.update(str(data.function_space().ufl_element()))
+        local_hash.update(str(data.function_space().dim()))
+        local_hash.update(str(MPI.num_processes()))
+        
+        # Global hash (same on all processes), 10 digits long
+        hash = str(int(MPI.sum(int(local_hash.hexdigest()[:10], 16))%1e10)).zfill(10)
+        
+        # Open HDF5File
+        if not os.path.isfile(fullname):
             datafile = HDF5File(fullname, 'w')
-            datafile.write(data, field_name+str(save_count))
-            datafile.write(data.function_space().mesh(), "Mesh")
-            del datafile
         else:
             datafile = HDF5File(fullname, 'a')
-            datafile.write(data.vector(), field_name+str(save_count)+"/vector")
-            del datafile
-
-            # Create internal links in hdf5-file
-            hdf5_link(fullname, field_name+"0"+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
-            hdf5_link(fullname, field_name+"0"+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
-            hdf5_link(fullname, field_name+"0"+"/cells", field_name+str(save_count)+"/cells")
+        
+        # Write to hash-dataset if not yet done
+        if not datafile.has_dataset(hash) or not datafile.has_dataset(hash+"/"+field_name):
+            datafile.write(data, str(hash)+"/"+field_name)
+            
+        if not datafile.has_dataset("Mesh"):
+            datafile.write(data.function_space().mesh(), "Mesh")
+        
+        # Write vector to file
+        # TODO: Link vector when function has been written to hash
+        datafile.write(data.vector(), field_name+str(save_count)+"/vector")
+        del datafile
+        
+        # Link information about function space from hash-dataset
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(save_count)+"/cells")
 
         return metadata
 
