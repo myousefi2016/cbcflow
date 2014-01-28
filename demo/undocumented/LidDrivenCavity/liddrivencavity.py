@@ -3,8 +3,6 @@ __author__ = "Anders Logg <logg@simula.no>"
 __date__ = "2008-03-19"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
-import sys
-sys.path.insert(0, '../../../src/')
 from cbcflow import *
 from dolfin import *
 
@@ -37,17 +35,24 @@ class LidDrivenCavity(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            dt=0.001,
-            T=0.5,
+            dt=0.01,
+            T=2.5,
             # Physical parameters
             rho=1.0,
-            mu=1.0/10.0,
+            mu=1.0/1000.0,
             )
         params.update(
             # Spatial parameters
             N=32,
             )
         return params
+    
+    def test_functionals(self):
+        return [Minimum("StreamFunction", {"save": False, "start_time": 2.5-DOLFIN_EPS, "end_time": 2.5+DOLFIN_EPS})]
+        
+    def test_references(self):
+        return [-0.061076605]
+        
 
     def initial_conditions(self, spaces, controls):
         u0 = [Constant(0), Constant(0)]
@@ -63,8 +68,8 @@ class LidDrivenCavity(NSProblem):
 
 
 if __name__ == "__main__":
-    #set_log_level(0)
-    problem = LidDrivenCavity({"N": 16})
+    set_log_level(100)
+    problem = LidDrivenCavity({"N": 256})
     #parameters["krylov_solver"]["relative_tolerance"] = 1e-15
     parameters["linear_algebra_backend"] = "PETSc"
     #print parameters["krylov_solver"].items()
@@ -77,22 +82,37 @@ if __name__ == "__main__":
     #exit()
     #scheme = IPCS({"theta": 0.5, "solver_p_neumann": ("gmres", "jacobi")})
     #scheme = IPCS({"theta": 0.5})
-    scheme = Yosida()
+    scheme = Yosida({"u_degree": 2})
     #scheme = IPCS()
     #scheme = IPCS({"u_degree": 2})
-    #scheme = IPCS_Stable({"theta": 1.0})
+    #scheme = IPCS_Stable({"theta": 0.5})
     
     #solver_p_neumann=("gmres", "hypre_amg"),
     postprocessor = NSPostProcessor({"casedir": "Results_"+str(scheme.shortname())})
     
-    velocity = Velocity({"save": True, "save_as": 'pvd'})
-    pressure = Pressure({"save": True, "save_as": 'pvd'})
+    #velocity = Velocity({"save": True})
+    #pressure = Pressure({"save": True})
+    #psi = StreamFunction({"save": True})
     #cfl = LocalCfl({"save": True})
     
-    postprocessor.add_fields([velocity, pressure])
+    #postprocessor.add_fields([velocity, pressure, psi])
+    test_functionals = problem.test_functionals()
+    postprocessor.add_fields(test_functionals)
     
     solver = NSSolver(problem, scheme, postprocessor)
-    solver.solve()
+    ns = solver.solve()
+    
+    num_dofs = ns["spaces"].V.dim()+ns["spaces"].Q.dim()
+    print num_dofs
+    #print ns
+    
+    for i, tf in enumerate(test_functionals):
+        val = postprocessor.get(tf.name)
+        ref = problem.test_references()[i]
+        err = sqrt((val-ref)**2)
+        rel_err = err/abs(ref)
+        
+        print tf.name, val, ref, err, rel_err
     
     
     
