@@ -31,11 +31,14 @@ class TestQ(DiscretizationSweepTestCase):
         pass
 
 
+# FIXME: Need a better solution for importing demos!
 # Importing problems from cbcflow/demo/
 # NB! Assuming run from the cbcflow/tests/ directory!
-sys.path.insert(0, "../demo")
+sys.path.insert(0, "../demo/undocumented/FlowAroundCylinder")
+sys.path.insert(0, "../demo/undocumented/Beltrami")
 from flow_around_cylinder import FlowAroundCylinder
 from beltrami import Beltrami
+
 
 def load_tests(loader, standard_tests, none):
 
