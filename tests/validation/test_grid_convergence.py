@@ -224,8 +224,8 @@ def load_tests(loader, standard_tests, none):
 
     # FIXME: Add more schemes
     schemes = [
-        lambda: IPCS(),
-        lambda: IPCS_Stable(),
+        IPCS,
+        IPCS_Stable,
         lambda: IPCS_Stabilized({'theta':0.5}),
         ]
 

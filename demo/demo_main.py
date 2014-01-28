@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from cbcflow import ParamDict, NSSolver, NSPostProcessor, all_schemes, show_problem
-from cbcflow.postprocessing import *
+from cbcflow.fields import *
 from dolfin import Point
 import sys
 

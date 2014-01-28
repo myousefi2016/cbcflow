@@ -25,28 +25,10 @@ from .bcs.Womersley import Womersley, make_womersley_bcs
 from .bcs.Resistance import Resistance
 from .bcs.UniformShear import UniformShear
 
-
 # Postprocessing utilities
-from .postprocessing import (PPField, show_fields,
-    Velocity, Pressure, PhysicalPressure,
-    VelocityGradient, VelocityCurl, VelocityDivergence,
-    FlowRate,
-    PressureGradient,
-    Strain, Stress,
-    WSS,
-    SubFunction,
-    LocalCfl,
-    Q, Delta, Lambda2,
-    AnalyticalVelocity, AnalyticalPressure,
-    VelocityError, PressureError,
-    KineticEnergy,
-    TimeIntegral, TimeDerivative, SecondTimeDerivative,
-    DiffL2norm, DiffH1norm, DiffH1seminorm,
-    L2norm, H1norm, H1seminorm, Linfnorm,
-    RunningAvg, RunningMin, RunningMax, RunningL2norm,
-    DomainAvg, BoundaryAvg, Magnitude,
-    PointEval,
-    )
+from .fields import show_fields, all_fields
+for f in all_fields:
+    exec("from .fields import %s" % (f,))
 
 # Import schemes
 from .schemes import IPCS

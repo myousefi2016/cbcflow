@@ -3,20 +3,18 @@ __date__ = "2013-10-18"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
+import pickle
+import os
+import inspect, shelve
 
 from .parameterized import Parameterized
 from .paramdict import ParamDict
 from .nsproblem import NSProblem
 from .nspostprocessor import NSPostProcessor
-from ..postprocessing.PPField import PPField
-from ..postprocessing import field_classes
 from .spaces import NSSpacePoolSplit
-import pickle
-import os
+from .utils import cbcflow_print, cbcflow_warning
+
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
-from .utils import cbcflow_print
-import inspect, shelve
-from .utils import cbcflow_warning
 
 fetchable_formats = ["hdf5", "xml", "shelve"]
 

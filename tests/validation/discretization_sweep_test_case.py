@@ -9,26 +9,46 @@ from math import sqrt
 import dolfin
 dolfin.parameters["allow_extrapolation"] = True
 
-def common_basedir(all_casedirs):
-    all_casedirs = list(all_casedirs)
-    n = len(all_casedirs)
-    j = min(len(a) for a in all_casedirs)
 
-    for k0 in xrange(n):
-        a = all_casedirs[k0]
-        for k1 in xrange(k0+1, n):
-            b = all_casedirs[k1]
+def run_problem(problem, scheme, fields, casedir):
+    "Execute problem with this scheme and return results collected from fields."
 
-            for i in xrange(min(j,len(b))):
-                if a[i] != b[i]:
-                    j = min(j, i)
-                    break
-    basedir = all_casedirs[0][:j]
-    assert all(basedir == cn[:j] for cn in all_casedirs)
-    return basedir
+    # Construct fresh postprocessor
+    pp = NSPostProcessor(ParamDict(casedir=casedir))
+
+    # Add freshly constructed fields
+    pp.add_fields(fields)
+
+    # Construct the solver
+    solver = NSSolver(problem, scheme, pp)
+
+    # We allow just the solve to fail gracefully;
+    # if other parts fail they can crash and burn
+    try:
+        # Execute solver (this may take some time...)
+        ns = solver.solve()
+
+        # Extract results for each field
+        results = { f.name: pp.get(f.name) for f in fields }
+
+        # Also store solver namespace
+        results["namespace"] = ns
+
+    except Exception:
+        # No results, something failed so we just store the exception for the record
+        import sys, traceback
+        ex_type, ex, tb = sys.exc_info()
+        tb = ''.join(traceback.format_tb(tb))
+        results = { "exception": ex, "traceback": tb }
+
+    return results
+
 
 def run_discretization_sweep(scheme_factory, problem_factory, fields_factory, casedirs_factory, keys):
-    "Call _run for each combination of N and dt and return dict with all data."
+    """Call _run for each combination of N and dt and return dict with all data.
+
+    TODO: Document factory methods.
+    """
     all_casedirs = set()
     data = {}
     for key in keys:
@@ -63,38 +83,24 @@ def run_discretization_sweep(scheme_factory, problem_factory, fields_factory, ca
 
     return data
 
-def run_problem(problem, scheme, fields, casedir):
-    "Execute problem with this scheme and return results collected from fields."
 
-    # Construct fresh postprocessor
-    pp = NSPostProcessor(ParamDict(casedir=casedir))
+def common_basedir(all_casedirs):
+    all_casedirs = list(all_casedirs)
+    n = len(all_casedirs)
+    j = min(len(a) for a in all_casedirs)
 
-    # Add freshly constructed fields
-    pp.add_fields(fields)
+    for k0 in xrange(n):
+        a = all_casedirs[k0]
+        for k1 in xrange(k0+1, n):
+            b = all_casedirs[k1]
 
-    # Construct the solver
-    solver = NSSolver(problem, scheme, pp)
-
-    # We allow just the solve to fail gracefully;
-    # if other parts fail they can crash and burn
-    try:
-        # Execute solver (this may take some time...)
-        ns = solver.solve()
-
-        # Extract results for each field
-        results = { f.name: pp.get(f.name) for f in fields }
-
-        # Also store solver namespace
-        results["namespace"] = ns
-
-    except Exception:
-        # No results, something failed so we just store the exception for the record
-        import sys, traceback
-        ex_type, ex, tb = sys.exc_info()
-        tb = ''.join(traceback.format_tb(tb))
-        results = { "exception": ex, "traceback": tb }
-
-    return results
+            for i in xrange(min(j,len(b))):
+                if a[i] != b[i]:
+                    j = min(j, i)
+                    break
+    basedir = all_casedirs[0][:j]
+    assert all(basedir == cn[:j] for cn in all_casedirs)
+    return basedir
 
 
 class DiscretizationSweepTestCase(unittest.TestCase):

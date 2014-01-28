@@ -5,10 +5,10 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from .paramdict import ParamDict
 from .parameterized import Parameterized
-from ..postprocessing import field_classes, PPField
-from ..postprocessing import * # TODO: Remove this, want to know what dependencies we have here to avoid spaghetti...
 from .utils_pyminifier import minify
 from .utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit
+
+from ..fields import field_classes, basic_fields, meta_fields, PPField
 
 from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMFFile, error
 
@@ -206,10 +206,14 @@ class NSPostProcessor(Parameterized):
             elif field in self._fields.keys():
                 # Field of this name already exists, no need to add it again
                 return self._fields[field]
-            else:
+            elif field in basic_fields:
                 # Create a proper field object from known field name with default params
                 #field = field_classes[field](params=None)
                 field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) # ?Why not None?
+            elif field in meta_fields:
+                error("Meta field %s cannot be constructed by name because the field instance requires parameters." % field)
+            else:
+                error("Unknown field name %s" % field)
 
         # Note: If field already exists, replace anyway to overwrite params, this
         # typically happens when a fields has been created implicitly by dependencies.
