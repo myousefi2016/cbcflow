@@ -22,7 +22,6 @@ all_fields = [
     "VelocityError", "PressureError",
     # Not sure exactly what this is for? Used in tests
     "KineticEnergy",
-    "EnergyAnalyzer",
     # Metafields, applied to other fields:
     "TimeIntegral", "TimeDerivative", "SecondTimeDerivative",
     "L2norm", "H1norm", "H1seminorm", "Linfnorm",
