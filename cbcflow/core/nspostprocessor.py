@@ -6,7 +6,7 @@ __license__  = "GNU GPL version 3 or any later version"
 from .paramdict import ParamDict
 from .parameterized import Parameterized
 from .utils_pyminifier import minify
-from .utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit
+from .utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
 from ..fields import field_classes, basic_fields, meta_fields, PPField
 
@@ -19,42 +19,46 @@ from hashlib import sha1
 # TODO: Extract a Plotter class and a Storage class to separate this logic
 
 
-# Need this for safe .txt file storage
-if MPI.num_processes() > 1:
-    on_master_node = MPI.process_number() == 0
-else:
-    on_master_node = 1
+def disable_plotting():
+    "Disable all plotting if we run in parallell."
+    if disable_plotting.value == "init":
+        if in_serial():
+            disable_plotting.value = False
+        else:
+            cbcflow_warning("Unable to plot dolfin plots in paralell. Disabling.")
+            disable_plotting.value = True
+    return disable_plotting.value
+disable_plotting.value = "init"
 
+def import_pylab():
+    "Set up pylab if available."
+    if import_pylab.value == "init":
+        if disable_plotting():
+            import_pylab.value = None
+        else:
+            try:
+                import pylab
+                pylab.ion()
+                import_pylab.value = pylab
+            except:
+                cbcflow_warning("Unable to load pylab. Disabling pylab plotting.")
+                import_pylab.value = None
+    return import_pylab.value
+import_pylab.value = "init"
 
-# Disable all plotting if we run in parallell
-if MPI.num_processes() > 1:
-    cbcflow_warning("Unable to plot dolfin plots in paralell. Disabling.")
-    disable_plotting = True
-else:
-    disable_plotting = False
-
-
-# Set up pylab if available
-if disable_plotting:
-    pylab = None
-else:
-    try:
-        import pylab
-        pylab.ion()
-    except:
-        pylab = None
-        cbcflow_warning("Unable to load pylab. Disabling pylab plotting.")
-
-
-# Enable dolfin plotting if environment variable DISPLAY is set
-if disable_plotting:
-    dolfin_plotting = False
-else:
-    if 'DISPLAY' in os.environ:
-        dolfin_plotting = True
-    else:
-        cbcflow_warning("Did not find display. Disabling dolfin plotting.")
-        dolfin_plotting = False
+def dolfin_plotting():
+    "Enable dolfin plotting if environment variable DISPLAY is set."
+    if dolfin_plotting.value == "init":
+        if disable_plotting():
+            dolfin_plotting.value = False
+        else:
+            if 'DISPLAY' in os.environ:
+                dolfin_plotting.value = True
+            else:
+                cbcflow_warning("Did not find display. Disabling dolfin plotting.")
+                dolfin_plotting.value = False
+    return dolfin_plotting.value
+dolfin_plotting.value = "init"
 
 
 class DependencyException(Exception):
@@ -394,14 +398,14 @@ class NSPostProcessor(Parameterized):
 
     def _init_metadata_file(self, field_name, init_data):
         savedir = self._create_savedir(field_name)
-        if on_master_node:
+        if on_master_process():
             metadata_filename = os.path.join(savedir, 'metadata.db')
             metadata_file = shelve.open(metadata_filename)
             metadata_file["init_data"] = init_data
             metadata_file.close()
 
     def _finalize_metadata_file(self, field_name, finalize_data):
-        if on_master_node:
+        if on_master_process():
             savedir = self._get_savedir(field_name)
             metadata_filename = os.path.join(savedir, 'metadata.db')
             metadata_file = shelve.open(metadata_filename)
@@ -409,7 +413,7 @@ class NSPostProcessor(Parameterized):
             metadata_file.close()
 
     def _update_metadata_file(self, field_name, data, t, timestep, save_as, metadata):
-        if on_master_node:
+        if on_master_process():
             savedir = self._get_savedir(field_name)
             metadata_filename = os.path.join(savedir, 'metadata.db')
             metadata_file = shelve.open(metadata_filename)
@@ -540,7 +544,7 @@ class NSPostProcessor(Parameterized):
         # TODO: Identify which more well defined data formats we need
         assert saveformat == "txt"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
-        if on_master_node:
+        if on_master_process():
             if save_count == 0:
                 datafile = open(fullname, 'w')
             else:
@@ -553,7 +557,7 @@ class NSPostProcessor(Parameterized):
     def _update_shelve_file(self, field_name, saveformat, data, save_count, t):
         assert saveformat == "shelve"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
-        if on_master_node:
+        if on_master_process():
             datafile = shelve.open(fullname)
             datafile[str(save_count)] = data
             datafile.close()
@@ -567,7 +571,7 @@ class NSPostProcessor(Parameterized):
         return play_log
 
     def _update_play_log(self, t, timestep):
-        if on_master_node:
+        if on_master_process():
             play_log = self._fetch_play_log()
             if str(timestep) in play_log:
                 play_log.close()
@@ -576,7 +580,7 @@ class NSPostProcessor(Parameterized):
             play_log.close()
 
     def _fill_play_log(self, field, timestep, save_as):
-        if on_master_node:
+        if on_master_process():
             play_log = self._fetch_play_log()
             timestep_dict = dict(play_log[str(timestep)])
             if "fields" not in timestep_dict:
@@ -663,18 +667,19 @@ class NSPostProcessor(Parameterized):
 
     def _action_plot(self, field, data):
         "Apply the 'plot' action to computed field data."
-        if disable_plotting:
+        if disable_plotting():
             return
         if isinstance(data, Function):
-            if dolfin_plotting:
-                self._plot_dolfin(field.name, data)
+            self._plot_dolfin(field.name, data)
         elif isinstance(data, float):
-            if pylab:
-                self._plot_pylab(field.name, data)
+            self._plot_pylab(field.name, data)
         else:
             cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
 
     def _plot_dolfin(self, field_name, data):
+        if not dolfin_plotting():
+            return
+
         # Get current time
         t = self.get("t")
         timestep = self.get('timestep')
@@ -692,6 +697,10 @@ class NSPostProcessor(Parameterized):
         plot_object.parameters["title"] = title
 
     def _plot_pylab(self, field_name, data):
+        pylab = import_pylab()
+        if not pylab:
+            return
+
         # Hack to access the spaces and problem arguments to update()
         problem = self._problem
 

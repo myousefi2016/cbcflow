@@ -1,23 +1,29 @@
 
 
-# --- Logging ---
-
-from ..dol import MPI, warning, log, compile_extension_module
-master = MPI.process_number() == 0
-
 import os
 from time import time
 
+from ..dol import MPI, warning, log, compile_extension_module
+
+def on_master_process():
+    return MPI.process_number() == 0
+
+def in_serial():
+    return MPI.num_processes() == 1
+
+
+# --- Logging ---
+
 def cbcflow_warning(msg):
-    if master:
+    if on_master_process():
         warning(msg)
 
 def cbcflow_print(msg):
-    if master:
+    if on_master_process():
         print msg
 
 def cbcflow_log(level, msg):
-    if master:
+    if on_master_process():
         log(level, msg)
 
 
@@ -90,7 +96,7 @@ def parallel_eval(func, point, gather=True):
         N = MPI.sum(0) # Failing processors participate in the MPI collective here
         if N == 0:
             raise      # All processors failed
-    if master and N > 1:
+    if on_master_process() and N > 1:
         warning("%d processors returned function value, which is unexpected (but probably ok)"%N)
     if hasattr(M, '__iter__'):
         for i in range(len(M)):
@@ -121,7 +127,7 @@ def retrieve(filename, urlbase='http://simula.no/~jobh/cbcflow'):
         # httpserver serves .gz file without extension, which is then
         # unreadable for dolfin.
         filename += ".gz"
-    if master and not os.path.exists(filename):
+    if on_master_process() and not os.path.exists(filename):
         url = urlbase+'/'+filename
         warning('%s not found, fetching from %s'%(filename,url))
 
