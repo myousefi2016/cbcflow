@@ -16,7 +16,7 @@ class Pipe(NSProblem):
         NSProblem.__init__(self, params)
 
         # Get 3D pipe mesh from file
-        mesh = Mesh("../data/pipe_0.2.xml.gz")
+        mesh = Mesh("../../../data/pipe_0.2.xml.gz")
         self.initialize_geometry(mesh)
 
         # Known properties of the mesh

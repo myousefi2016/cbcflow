@@ -66,7 +66,7 @@ class Womersley3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            mesh_filename="../data/pipe_0.2.xml.gz",
+            mesh_filename="../../../data/pipe_0.2.xml.gz",
             # Analytical solution parameters
             Q=1.0,
             )

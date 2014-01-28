@@ -43,7 +43,7 @@ class PipeAneurysm(NSProblem):
         # Load mesh
         if self.params.refinement_level > 4:
             raise RuntimeError("No mesh available for refinement level %d" % self.params.refinement_level)
-        meshfilename = "../data/aneurysm_%d.xml.gz" % self.params.refinement_level
+        meshfilename = "../../../data/aneurysm_%d.xml.gz" % self.params.refinement_level
         mesh = Mesh(meshfilename)
 
         # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest

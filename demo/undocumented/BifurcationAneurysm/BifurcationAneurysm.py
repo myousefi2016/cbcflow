@@ -39,7 +39,7 @@ class DogAneurysm(NSProblem):
             )
         params.update(
             # Spatial discretization parameters
-            mesh_file="../data/dog_mesh_37k.xml.gz",
+            mesh_file="../../../data/dog_mesh_37k.xml.gz",
             )
         return params
 
