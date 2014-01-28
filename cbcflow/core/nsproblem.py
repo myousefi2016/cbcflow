@@ -11,37 +11,67 @@ from .parameterized import Parameterized
 from ..dol import Constant, MeshFunction
 
 class NSProblem(Parameterized):
-    """Base class for all Navier-Stokes problems.
-
-    TODO: Document new interface.
-    """
+    """Base class for all Navier-Stokes problems."""
 
     def __init__(self, params):
+        """Initialize problem instance.
+
+        Params will be taken from default_params and overridden
+        by the values given to this constructor.
+        """
         Parameterized.__init__(self, params)
 
         # Optionally set end time based on period and number of periods
-        if self.params.T is None and (self.params.num_periods is None or self.params.period is None):
-            raise RuntimeError("You must provide parameter values for either end time T, or period and num_periods.")
         if self.params.T is None:
-            self.params.T = self.params.period * self.params.num_periods
+            if (self.params.num_periods is None or self.params.period is None):
+                raise ValueError("You must provide parameter values for either end time T, or period and num_periods.")
+            self.params.T = self.T0 + self.params.period * self.params.num_periods
         else:
-            assert self.params.num_periods is None, "Cannot set both T and num_periods."
+            if self.params.num_periods is not None:
+                raise ValueError("Ambiguous time period, cannot set both T and num_periods.")
 
     @classmethod
     def default_params(cls):
+        """Returns the default parameters for a problem.
+
+        Explanation of parameters:
+
+        Time parameters:
+
+          - start_timestep: int, initial time step number
+          - dt: float, time discretization value
+          - T0: float, initial time
+          - T: float, end time
+          - period: float, length of period
+          - num_periods: float, number of periods to run
+
+        Either T or period and num_period must be set.
+        If T is not set, T=T0+period*num_periods is used.
+
+        Physical parameters:
+
+          - mu: float, kinematic viscosity
+          - rho: float, mass density
+            
+        Space discretization parameters:
+
+          - mesh_file: str, filename to load mesh from (if any)
+
+        """
         params = ParamDict(
+            # Physical parameters:
+            mu=None,
+            rho=None,
+
             # Time parameters:
             start_timestep = 0,
-            dt=None, # Timestep
-            T0=0.0, # Initial time (default 0 is the usual choice)
-            T=None, # End time
+            dt=None,
+            T0=0.0,
+            T=None,
             period=None, 
             num_periods=None,
 
-            # Physical parameters:
-            mu=None,    # Kinematic viscosity
-            rho=None,    # Density
-            
+            # Spatial discretization parameters:
             mesh_file=None,
             )
         return params
@@ -81,8 +111,8 @@ class NSProblem(Parameterized):
     def observations(self, spaces, t):
         """Return observations of velocity for optimization problem.
 
+        Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
-
         TODO: Document expected observations behaviour here.
         """
         return []
@@ -90,27 +120,18 @@ class NSProblem(Parameterized):
     def controls(self, spaces):
         """Return controls for optimization problem.
 
+        Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
-
         TODO: Document expected controls behaviour here.
         """
         return []
-
-    def analytical_solution(self, spaces, t):
-        """Return analytical solution.
-
-        Can be ignored when no such solution exists,
-        this is only used in the validation frameworks to
-        validate schemes and test grid convergence etc.
-
-        TODO: Document expected analytical_solution behaviour here.
-        """
-        raise NotImplementedError("analytical_solution must be overridden in subclass")
 
     def initial_conditions(self, spaces, controls):
         """Return initial conditions.
 
         TODO: Document expected initial_conditions behaviour here.
+
+        Returns: u, p
         """
         raise NotImplementedError("initial_conditions must be overridden in subclass")
 
@@ -124,14 +145,54 @@ class NSProblem(Parameterized):
     def body_force(self, spaces, t):
         """"Return body force, defaults to 0.
 
-        TODO: Document expected body_force behaviour here."""
-        d = self.mesh.topology().dim()
+        TODO: Document expected body_force behaviour here.
+        """
+        d = self.mesh.geometry().dim()
         c0 = Constant(0.0)
         return [c0]*d
 
-    def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
+    def update(self, spaces, u, p, t, timestep, boundary_conditions, observations, controls): # TODO: Add body_force here
         """Update functions previously returned to new timestep.
 
         TODO: Document expected update behaviour here.
+
+        The arguments bcs, observations, controls should be the
+        exact lists of objects returned by boundary_conditions, observations, controls
         """
         pass
+
+    def analytical_solution(self, spaces, t):
+        """Return analytical solution.
+
+        Can be ignored when no such solution exists,
+        this is only used in the validation frameworks to
+        validate schemes and test grid convergence etc.
+
+        TODO: Document expected analytical_solution behaviour here.
+
+        Returns: u, p
+        """
+        raise NotImplementedError("analytical_solution must be overridden in problem subclass to use analytical solution fields")
+
+    def test_functionals(self, spaces):
+        """Return fields to be used by regression tests.
+
+        Can be ignored when no such solution exists,
+        this is only used in the validation frameworks to
+        validate schemes and test grid convergence etc.
+
+        Returns: list of fields.
+        """
+        return []
+
+    def test_references(self):
+        """Return reference values corresponding to test_functionals to be used by regression tests.
+
+        Can be ignored when no such solution exists,
+        this is only used in the validation frameworks to
+        validate schemes and test grid convergence etc.
+
+        Returns: list of reference values.
+        """
+        return []
+    
