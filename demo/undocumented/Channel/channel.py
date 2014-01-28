@@ -78,8 +78,8 @@ class Channel(NSProblem):
 
         return (bcu, bcp)
 
-    # Old code: TODO: Use these to validate
     """
+    # FIXME: Change this to use the new test_functionals, test_references interface:
     def functional(self, t, u, p):
         if t < self.T:
             return 0
@@ -104,6 +104,21 @@ class Channel(NSProblem):
         return 1e-11
     """
 
+def main():
+    problem = Channel()
+    scheme = IPCS_Stable()
+
+    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    plot_and_save = dict(plot=True, save=True)
+    fields = [
+        Pressure(plot_and_save),
+        Velocity(plot_and_save),
+        ]
+    postproc = NSPostProcessor({"casedir": casedir})
+    postproc.add_fields(fields)
+
+    solver = NSSolver(problem, scheme, postproc)
+    solver.solve()
+
 if __name__ == "__main__":
-    from demo_main import demo_main
-    demo_main(Channel)
+    main()

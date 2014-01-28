@@ -1,4 +1,3 @@
 #!/bin/bash
-rm -rf results_demo_*
-rm -rf *.pyc *.py~
-rm -rf *.vtu *.pvd
+rm -rf `find -name results_demo_\*`
+rm -rf `find -name \*.pyc \*.py~ \*.vtu \*.pvd`

@@ -7,8 +7,6 @@ __license__  = "GNU GPL version 3 or any later version"
 from cbcflow import *
 from cbcflow.dol import *
 
-#parameters["reorder_dofs_serial"] = False
-
 c0 = Constant(0)
 
 class DogAneurysm(NSProblem):
@@ -76,6 +74,22 @@ class DogAneurysm(NSProblem):
         inflow = bcu[0][0]
         for e in inflow: e.set_t(float(t))
 
+
+def main():
+    problem = DogAneurysm()
+    scheme = IPCS_Stable()
+
+    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    plot_and_save = dict(plot=True, save=True)
+    fields = [
+        Pressure(plot_and_save),
+        Velocity(plot_and_save),
+        ]
+    postproc = NSPostProcessor({"casedir": casedir})
+    postproc.add_fields(fields)
+
+    solver = NSSolver(problem, scheme, postproc)
+    solver.solve()
+
 if __name__ == "__main__":
-    from demo_main import demo_main
-    demo_main(DogAneurysm)
+    main()

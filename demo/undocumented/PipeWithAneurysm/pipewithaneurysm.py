@@ -107,8 +107,8 @@ class PipeAneurysm(NSProblem):
         inflow = bcu[1][0]
         for ue in inflow: ue.t = float(t)
 
-# Old code:
-'''
+    '''
+    # FIXME: Change this to use the new test_functionals, test_references interface:
     def functional(self, t, u, p):
          if t < self.T:
              return 0.0
@@ -139,8 +139,23 @@ class PipeAneurysm(NSProblem):
             return 0.0
 
         return -0.0355
-'''
+    '''
+
+def main():
+    problem = PipeAneurysm()
+    scheme = IPCS_Stable()
+
+    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    plot_and_save = dict(plot=True, save=True)
+    fields = [
+        Pressure(plot_and_save),
+        Velocity(plot_and_save),
+        ]
+    postproc = NSPostProcessor({"casedir": casedir})
+    postproc.add_fields(fields)
+
+    solver = NSSolver(problem, scheme, postproc)
+    solver.solve()
 
 if __name__ == "__main__":
-    from demo_main import demo_main
-    demo_main(PipeAneurysm)
+    main()

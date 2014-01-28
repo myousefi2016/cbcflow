@@ -86,9 +86,7 @@ class FlowAroundCylinder(NSProblem):
         return (bcu, bcp)
 
     '''
-    OLD FUNCTIONALITY
-    '''
-    '''
+    # FIXME: Change this to use the new test_functionals, test_references interface:
     def functional(self, t, u, p):
         # Only check final time
         if t < self.T:
@@ -110,40 +108,21 @@ class FlowAroundCylinder(NSProblem):
         return -0.061076605
     '''
 
-'''
-def StreamFunction(u):
-    "Stream function for a given 2D velocity field."
+def main():
+    problem = FlowAroundCylinder()
+    scheme = IPCS_Stable()
 
-    # Fetch a scalar function (sub-)space
-    try:
-        V = u.function_space()
-        V = V.sub(0).collapse()
-    except AttributeError:
-        V = u[0].function_space()
+    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    plot_and_save = dict(plot=True, save=True)
+    fields = [
+        Pressure(plot_and_save),
+        Velocity(plot_and_save),
+        ]
+    postproc = NSPostProcessor({"casedir": casedir})
+    postproc.add_fields(fields)
 
-    # Check dimension
-    mesh = V.mesh()
-    if not mesh.topology().dim() == 2:
-        error("Stream-function can only be computed in 2D.")
-
-    # Define variational problem
-    q   = TestFunction(V)
-    psi = TrialFunction(V)
-    a   = dot(grad(q), grad(psi))*dx()
-    L   = dot(q, (u[1].dx(0) - u[0].dx(1)))*dx()
-
-    # Define boundary condition
-    g  = Constant(0)
-    bc = DirichletBC(V, g, DomainBoundary())
-
-    # Compute solution
-    psi = Function(V)
-    solve(a == L, psi, bc)
-
-    return psi
-
-'''
+    solver = NSSolver(problem, scheme, postproc)
+    solver.solve()
 
 if __name__ == "__main__":
-    from demo_main import demo_main
-    demo_main(FlowAroundCylinder)
+    main()

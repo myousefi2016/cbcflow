@@ -67,7 +67,7 @@ class LidDrivenCavity(NSProblem):
         return (bcu, bcp)
 
 
-if __name__ == "__main__":
+def main():
     set_log_level(100)
     problem = LidDrivenCavity({"N": 256})
     #parameters["krylov_solver"]["relative_tolerance"] = 1e-15
@@ -113,8 +113,6 @@ if __name__ == "__main__":
         rel_err = err/abs(ref)
         
         print tf.name, val, ref, err, rel_err
-    
-    
-    
-    #from demo_main import demo_main
-    #demo_main(LidDrivenCavity)
+
+if __name__ == "__main__":
+    main()

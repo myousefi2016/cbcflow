@@ -138,6 +138,22 @@ class Pouseille2D(NSProblem):
         for ucomp in uin:
             ucomp.set_t(t)
 
+
+def main():
+    problem = Pouseille2D()
+    scheme = IPCS_Stable()
+
+    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    plot_and_save = dict(plot=True, save=True)
+    fields = [
+        Pressure(plot_and_save),
+        Velocity(plot_and_save),
+        ]
+    postproc = NSPostProcessor({"casedir": casedir})
+    postproc.add_fields(fields)
+
+    solver = NSSolver(problem, scheme, postproc)
+    solver.solve()
+
 if __name__ == "__main__":
-    from demo_main import demo_main
-    demo_main(Pouseille2D)
+    main()

@@ -1,13 +1,13 @@
-import sys
-sys.path.insert(0, "../../src/")
-
+import sys; sys.path.insert(0, "../../..")
 
 from cbcflow import *
 from cbcflow.dol import *
 
 from cbcflow.core.spaces import NSSpacePool
+
 set_log_level(100)
 parameters["allow_extrapolation"] = True
+
 class Scheme(NSScheme):
     def solve(self, problem, update):
         mesh = problem.mesh
@@ -22,7 +22,6 @@ class Scheme(NSScheme):
             update(u, p, i*0.1, i, spaces)
             
         return {"spaces": spaces}
-
 
 
 mesh = Mesh("dog_mesh_37k.xml.gz")
