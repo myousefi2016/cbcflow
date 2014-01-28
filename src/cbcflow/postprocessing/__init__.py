@@ -20,7 +20,6 @@ all_fields = [
     # Errors w.r.t. analytical solutions, used for testing:
     "AnalyticalVelocity", "AnalyticalPressure",
     "VelocityError", "PressureError",
-    "AnalyticalSolutionAnalyzer",
     # Not sure exactly what this is for? Used in tests
     "KineticEnergy",
     "EnergyAnalyzer",
