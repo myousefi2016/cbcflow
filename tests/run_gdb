@@ -1,5 +1,5 @@
 #!/bin/bash
-export PYTHONPATH=../src:${PYTHONPATH}
+export PYTHONPATH=..:${PYTHONPATH}
 export PYTHONPATH=../demo:${PYTHONPATH}
 export CBCFLOW_DATA=../data
 echo
