@@ -20,7 +20,7 @@ from .core.adaptivetimestepping import AdaptiveTimestepping
 from .core.constanttimestepping import ConstantTimestepping
 
 # Boundary condition utilities
-from .bcs.Pouseille import Pouseille, make_pouseille_bcs
+from .bcs.Poiseuille import Pouseille, make_pouseille_bcs
 from .bcs.Womersley import Womersley, make_womersley_bcs
 from .bcs.Resistance import Resistance
 from .bcs.UniformShear import UniformShear

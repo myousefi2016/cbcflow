@@ -12,7 +12,7 @@ import numpy as np
 LENGTH = 10.0
 RADIUS = 0.5
 
-class Pouseille3D(NSProblem):
+class Poiseuille3D(NSProblem):
     "3D pipe test problem with known stationary analytical solution."
 
     def __init__(self, params=None):
@@ -32,7 +32,7 @@ class Pouseille3D(NSProblem):
         self.alpha = Q / (0.5 * pi * RADIUS**4)
         self.beta = 2.0 * nu * self.alpha
 
-        # Toggle to test using Pouseille-shaped bcs with transient flow rate
+        # Toggle to test using Poiseuille-shaped bcs with transient flow rate
         if 1:
             print "Using stationary bcs. Analytical solution should hold."
             print "Expected peak velocity:", self.alpha * RADIUS**2
@@ -92,9 +92,9 @@ class Pouseille3D(NSProblem):
         u0 = [Constant(0.0)] * d
         noslip = (u0, self.wall_boundary_id)
 
-        # Create Pouseille inflow bcs
-        uin = make_pouseille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
-        #uin = pouseille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
+        # Create Poiseuille inflow bcs
+        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
+        #uin = poiseuille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id)
@@ -116,7 +116,7 @@ class Pouseille3D(NSProblem):
 
 
 def main():
-    problem = Pouseille3D()
+    problem = Poiseuille3D()
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

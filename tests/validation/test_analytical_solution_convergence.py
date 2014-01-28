@@ -99,13 +99,13 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
 # FIXME: Need a better solution for importing demos
 # Importing problems from cbcflow/demo/
 # NB! Assuming run from the cbcflow/tests/ directory!
-sys.path.insert(0, "../demo/undocumented/Pouseille2D")
-sys.path.insert(0, "../demo/undocumented/Pouseille3D")
+sys.path.insert(0, "../demo/undocumented/Poiseuille2D")
+sys.path.insert(0, "../demo/undocumented/Poiseuille3D")
 sys.path.insert(0, "../demo/undocumented/Womersley2D")
 sys.path.insert(0, "../demo/undocumented/Womersley3D")
 sys.path.insert(0, "../demo/undocumented/Beltrami")
-from pouseille2d import Pouseille2D
-from pouseille3d import Pouseille3D
+from poiseuille2d import Pouseille2D
+from poiseuille3d import Pouseille3D
 from womersley2d import Womersley2D
 from womersley3d import Womersley3D
 from beltrami import Beltrami
@@ -139,8 +139,8 @@ def load_tests(loader, standard_tests, none):
     T = lambda dt: dt*5
     num_periods = None
     problems = [
-        lambda N,dt: Pouseille2D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
-    #    lambda N,dt: Pouseille3D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
+        lambda N,dt: Poiseuille2D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
+    #    lambda N,dt: Poiseuille3D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
         lambda N,dt: Womersley2D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)),
     #    lambda N,dt: Womersley3D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)), # FIXME: Parameterize by N
         lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=1.0)),

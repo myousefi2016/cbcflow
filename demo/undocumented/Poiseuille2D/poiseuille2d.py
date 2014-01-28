@@ -20,7 +20,7 @@ class Right(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] > LENGTH*(1.0 - DOLFIN_EPS)
 
-class Pouseille2D(NSProblem):
+class Poiseuille2D(NSProblem):
     "2D pipe test problem with known stationary analytical solution."
 
     def __init__(self, params=None):
@@ -56,7 +56,7 @@ class Pouseille2D(NSProblem):
         self.alpha = 2.0 * Q / (pi * RADIUS**4)
         self.beta = 2.0 * nu * self.alpha
 
-        # Toggle to test using Pouseille-shaped bcs with transient flow rate
+        # Toggle to test using Poiseuille-shaped bcs with transient flow rate
         if 1:
             print "Using stationary bcs. Analytical solution should hold."
             print "Expected peak velocity:", self.alpha * RADIUS**2
@@ -115,9 +115,9 @@ class Pouseille2D(NSProblem):
         u0 = [Constant(0.0)] * d
         noslip = (u0, self.wall_boundary_id)
 
-        # Create Pouseille inflow bcs
-        uin = make_pouseille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
-        #uin = pouseille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
+        # Create Poiseuille inflow bcs
+        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
+        #uin = poiseuille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id)
@@ -140,7 +140,7 @@ class Pouseille2D(NSProblem):
 
 
 def main():
-    problem = Pouseille2D()
+    problem = Poiseuille2D()
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

@@ -6,7 +6,7 @@ from scipy.interpolate import UnivariateSpline
 from itertools import izip
 from .bcutils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
-class PouseilleComponent(Expression):
+class PoiseuilleComponent(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
     def __init__(self, args): # TODO: Document args properly
         Expression.__init__(self)
@@ -55,8 +55,8 @@ class PouseilleComponent(Expression):
         value[0] = val
 
 
-def make_pouseille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=None):
-    """Generate a list of expressions for the components of a Pouseille profile."""
+def make_poiseuille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=None):
+    """Generate a list of expressions for the components of a Poiseuille profile."""
     assert(isinstance(mesh, Mesh))
 
     # TODO: Always require facet_domains
@@ -75,7 +75,7 @@ def make_pouseille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=Non
 
     if 0:
         print "*"*80
-        print "In pouseille:"
+        print "In poiseuille:"
         print 'r', radius
         print 'c', center
         print 'n', normal
@@ -94,7 +94,7 @@ def make_pouseille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=Non
             "period": period,
             "transient_profile": transient_profile,
             }
-        expressions.append(PouseilleComponent(args))
+        expressions.append(PoiseuilleComponent(args))
 
     # Apply scaling w.r.t. peak transient profile (FIXME: This is unclear!)
     if scale_to is not None:
@@ -106,7 +106,7 @@ def make_pouseille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=Non
 
     return expressions
 
-class Pouseille(list):
+class Poiseuille(list):
     def __init__(self, coeffs, mesh, indicator, scale_to=None, facet_domains=None):
-        print "Deprecation warning: use make_pouseille_bcs instead of Pouseille class." # FIXME: Remove class
-        self.extend(make_pouseille_bcs(coeffs, mesh, indicator, scale_to, facet_domains))
+        print "Deprecation warning: use make_poiseuille_bcs instead of Pouseille class." # FIXME: Remove class
+        self.extend(make_poiseuille_bcs(coeffs, mesh, indicator, scale_to, facet_domains))

@@ -8,7 +8,7 @@ FIXME: This is a prime candidate for better unit tests!!!
 import unittest
 
 import numpy as np
-from cbcflow import make_pouseille_bcs, make_womersley_bcs
+from cbcflow import make_poiseuille_bcs, make_womersley_bcs
 from cbcflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds
 
 class TestBoundaryConditions(unittest.TestCase):
@@ -51,8 +51,8 @@ class TestBoundaryConditions(unittest.TestCase):
 
         # FIXME: Now test that the values are correct!
 
-    def test_pouseille(self):
-        expressions = make_pouseille_bcs(self.coeffs, self.mesh, self.indicator, None, self.facet_domains)
+    def test_poiseuille(self):
+        expressions = make_poiseuille_bcs(self.coeffs, self.mesh, self.indicator, None, self.facet_domains)
 
         # Test that expressions are Expressions
         for bc in expressions:
@@ -73,7 +73,7 @@ class TestBoundaryConditions(unittest.TestCase):
 
         # FIXME: Now test that the values are correct!
 
-    def test_womersley_is_pouseille_with_stationary_coefficients(self):
+    def test_womersley_is_poiseuille_with_stationary_coefficients(self):
         ts = [0.0, 0.2, 0.3, 0.4, 0.8]
         Qs = [1.0, 1.0, 1.0, 1.0, 1.0]
         coeffs = zip(ts, Qs)
@@ -81,7 +81,7 @@ class TestBoundaryConditions(unittest.TestCase):
 
         nu = 1.0
         wexpressions = make_womersley_bcs(coeffs, self.mesh, self.indicator, nu, None, self.facet_domains)
-        pexpressions = make_pouseille_bcs(coeffs, self.mesh, self.indicator, None, self.facet_domains)
+        pexpressions = make_poiseuille_bcs(coeffs, self.mesh, self.indicator, None, self.facet_domains)
 
         dsi = ds[self.facet_domains](self.indicator)
 
@@ -103,7 +103,7 @@ class TestBoundaryConditions(unittest.TestCase):
                 self.assertAlmostEqual(diff, 0.0)
                 self.assertAlmostEqual(wnorm, pnorm)
 
-    def test_pouseille_flow_rates_are_correct(self):
+    def test_poiseuille_flow_rates_are_correct(self):
         pass # FIXME
 
     def test_womersley_flow_rates_are_correct(self):

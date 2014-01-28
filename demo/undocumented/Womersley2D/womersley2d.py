@@ -54,7 +54,7 @@ class Womersley2D(NSProblem):
         Q = self.params.Q
         self.nu = self.params.mu / self.params.rho
 
-        # Beta is the Pouseille pressure drop if the flow rate is stationary Q
+        # Beta is the Poiseuille pressure drop if the flow rate is stationary Q
         self.beta = 4.0 * self.nu * Q / (pi * RADIUS**4)
 
         # Setup transient flow rate coefficients

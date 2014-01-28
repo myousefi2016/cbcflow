@@ -58,9 +58,9 @@ class DogAneurysm(NSProblem):
         time = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
         #inflow = Womersley(zip(time, profile), self.mesh, 1, self.mu/self.rho, scale_to=1000)
-        #inflow = Pouseille(zip(time, profile), self.mesh, 1, scale_to=1000)
+        #inflow = Poiseuille(zip(time, profile), self.mesh, 1, scale_to=1000)
 
-        inflow = Pouseille(zip(time, profile), self.mesh, 1)
+        inflow = Poiseuille(zip(time, profile), self.mesh, 1)
         for e in inflow: e.set_t(float(t))
 
         bcu = [(inflow, 1),
