@@ -7,6 +7,7 @@ all_fields = [
     "VelocityGradient", "VelocityCurl", "VelocityDivergence",
     "FlowRate",
     "PressureGradient",
+    "StreamFunction",
     # Material model specific fields:
     "Strain", "Stress",
     # Derived fields on boundary:
