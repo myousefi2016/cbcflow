@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, "../../site-packages/")
+sys.path.insert(0, "../../src/")
 
 
 from cbcflow import *
@@ -33,6 +33,14 @@ problem.params.mu = 1.0
     
 V = FunctionSpace(mesh, "CG", 1)
 
+# "Random" points
+indices = [125,8674,2416, 127, 12762, 28062]
+points = [Cell(mesh, idx).midpoint() for idx in indices]
+
+
+#points = [(55,44,29), (54,43,27), (55,44,30), (50,39,24), (60,49,34)]
+pt_eval = PointEval("Velocity", points, {"save": True})
+
 # Create slice (basemesh, origin, normal)
 slicemesh1 = Slice(problem.mesh, [55, 44, 29], [0,0,1])
 slicemesh2 = Slice(problem.mesh, [50, 44, 20], [0,0,1])
@@ -54,7 +62,7 @@ davg4 = DomainAvg(subfunc4, {"save": True})
 
 
 pp = NSPostProcessor()
-pp.add_fields([subfunc1, subfunc2, subfunc3, subfunc4, davg1, davg2, davg3, davg4])
+pp.add_fields([pt_eval, subfunc1, subfunc2, subfunc3, subfunc4, davg1, davg2, davg3, davg4])
 
 scheme = Scheme()
 
