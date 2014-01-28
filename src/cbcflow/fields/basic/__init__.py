@@ -16,6 +16,7 @@ basic_fields = [
     "VelocityGradient",
     "VelocityCurl",
     "VelocityDivergence",
+    "StreamFunction",
     "PressureGradient",
     "Strain",
     "Stress",

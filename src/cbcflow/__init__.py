@@ -25,7 +25,7 @@ from .bcs.Womersley import Womersley, make_womersley_bcs
 from .bcs.Resistance import Resistance
 from .bcs.UniformShear import UniformShear
 
-# Postprocessing utilities
+# Postprocessing utilities and fields
 from .fields import show_fields, all_fields
 for f in all_fields:
     exec("from .fields import %s" % (f,))

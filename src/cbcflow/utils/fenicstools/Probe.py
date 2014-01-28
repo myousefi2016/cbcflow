@@ -13,9 +13,23 @@ try:
     from scitools.basics import meshgrid
 except:
     pass
-import pyvtk, os, copy, cPickle, h5py, inspect
-from mpi4py import MPI as nMPI
-comm = nMPI.COMM_WORLD
+import os, copy, cPickle, inspect
+
+try:
+    import h5py
+except:
+    h5py = None
+    
+try:
+    import pyvtk
+except:
+    pass
+
+try:
+    from mpi4py import MPI as nMPI
+    comm = nMPI.COMM_WORLD
+except:
+    comm = None
 
 # Compile Probe C++ code
 def strip_essential_code(filenames):
