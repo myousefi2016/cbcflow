@@ -24,6 +24,21 @@ def print_replay_plan(plan):
     for timestep in sorted(plan.keys()):
         print timestep, plan[timestep].keys()
 
+
+def have_necessary_deps(solution, pp, field):   
+    if field in solution:
+        return True
+    
+    deps = pp._dependencies[field]
+    if len(deps) == 0:
+        return False
+    
+    all_deps = []
+    for dep in deps:
+        all_deps.append(have_necessary_deps(solution, pp, dep[0]))
+    return all(all_deps)
+        
+
 class NSReplay(Parameterized):
     """ Replay class for postprocessing exisiting solution data. """
     def __init__(self, postprocessor, params=None):
@@ -117,7 +132,7 @@ class NSReplay(Parameterized):
 
         return self._mesh
     
-    def _get_boundary_mesh(self):
+    def _get_boundarymesh(self):
         if not hasattr(self, "_boundarymesh"):
             self._boundarymesh = BoundaryMesh(self._get_mesh(), 'exterior')
 
@@ -152,7 +167,7 @@ class NSReplay(Parameterized):
             del mesh
             space = self._get_spaces().get_space(degree, len(shape), family)
         else:
-            if mesh.hash() == self._get_boundarymesh.hash():
+            if mesh.hash() == self._get_boundarymesh().hash():
                 mesh = self._get_boundarymesh()
             rank = len(shape)
             if rank == 0:
@@ -180,6 +195,7 @@ class NSReplay(Parameterized):
         params = self._get_all_params()
         
         problem = NSProblem(params.problem)
+        problem.mesh = self._get_mesh()
 
         # Set up for replay
         replay_plan = self._fetch_history()
@@ -234,10 +250,8 @@ class NSReplay(Parameterized):
                     # the fields to be computed at this timestep can be computed from stored
                     # solutions.
                     for field in pp._fields:
-                        for dep in pp._dependencies[field]:
-                            if dep[0] == "t" or dep[1] != 0:
-                                continue
-                            if dep[0] not in solution.keys():
+                        for dep in reversed(pp._dependencies[field]):
+                            if not have_necessary_deps(solution, pp, dep[0]):
                                 solution[dep[0]] = None
 
                     pp.update_all(solution, t, timestep, self._get_spaces(), problem)
