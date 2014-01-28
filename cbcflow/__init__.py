@@ -26,14 +26,10 @@ from .bcs.Resistance import Resistance
 from .bcs.UniformShear import UniformShear
 
 # Postprocessing utilities and fields
-from .fields import show_fields, all_fields
-for f in all_fields:
-    exec("from .fields import %s" % (f,))
+from .fields import *
 
 # Navier-Stokes solver schemes
-from .schemes import show_schemes, all_schemes, official_schemes, experimental_schemes
-for f in all_schemes:
-    exec("from .schemes import %s" % (f,))
+from .schemes import *
 
 # Import utils
 from .utils.fenicstools import *
