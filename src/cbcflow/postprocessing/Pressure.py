@@ -1,5 +1,5 @@
 from .PPField import PPField
-from dolfin import Function
+from dolfin import Function, FunctionAssigner
 from ..core.spaces import NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
 
 class Pressure(PPField):

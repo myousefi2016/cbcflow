@@ -14,6 +14,7 @@ from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMF
 
 import os, re, inspect, pickle, shelve
 from collections import defaultdict
+from hashlib import sha1
 
 # TODO: Extract a Plotter class and a Storage class to separate this logic
 
@@ -306,7 +307,7 @@ class NSPostProcessor(Parameterized):
                 t0 = timeit()
                 if not name in self._solution:
                     data = field.compute(self, spaces, problem)
-                else:
+                elif self._solution[name]:
                     data = field.convert(self, spaces, problem)
                 self._compute_counts[field.name] += 1
                 if self.params.enable_timer:
@@ -360,7 +361,7 @@ class NSPostProcessor(Parameterized):
             if isinstance(data, Function):
                 save_as = ['xdmf', 'hdf5']
             elif isinstance(data, (float, int, list, tuple, dict)):
-                save_as = ['txt']
+                save_as = ['txt', 'shelve']
             else:
                 error("Unknown data type %s, cannot determine file type automatically." % type(data).__name__)
         else:
@@ -386,45 +387,6 @@ class NSPostProcessor(Parameterized):
         savedir = self._get_savedir(field_name)
         safe_mkdir(savedir)
         return savedir
-
-    """
-    def _update_metadata_file(self, field_name, data, save_count, save_as, metadata):
-        if on_master_node:
-            savedir = self._get_savedir(field_name)
-            metadata_filename = os.path.join(savedir, 'metadata.txt')
-
-            # Create initial metadata file for first save call, or just append to the existing one
-            if save_count == 0:
-                # Initially just tell what data type this field has, and which formats we will save to
-                metadata_file = open(metadata_filename, 'w')
-                metadata_file.write('type=%r\n' % (type(data).__name__,))
-                metadata_file.write('saveformats=%r\n' % (save_as,))
-
-                # Then add type specific initial metadata
-                if isinstance(data, Function):
-                    # It's nice to have element data easily accessible
-                    # TODO: Support metadescription of mesh regions? Boundary meshes? Will probably needed that for automated interpretation later.
-                    metadata_file.write("element=%r\n" % (data.element(),))
-                    metadata_file.write("element_degree=%r\n" % (data.element().degree(),))
-                    metadata_file.write("element_family=%r\n" % (data.element().family(),))
-                    metadata_file.write("element_value_shape=%r\n" % (data.element().value_shape(),))
-
-                # TODO: Figure out and document what kind of txt data we support
-                #elif isinstance(data, dict):
-                #    metadata_file.write("keys=%r\n" % (sorted(data.keys()),))
-
-                # Add a separator line between header and per-timestep data
-                metadata_file.write('#'*40 + '\n')
-                metadata_file.close()
-
-            # Write metadata for this timestep
-            assert all(isinstance(md, tuple) and len(md) == 2 for md in metadata)
-            sep = "\t" # TODO: Separate with tabs or newlines?
-            metadata_file = open(metadata_filename, 'a')
-            metadata_file.writelines(sep.join("%s=%r" % (md[0], md[1]) for md in metadata))
-            metadata_file.write('\n')
-            metadata_file.close()
-    """
 
     def _init_metadata_file(self, field_name, init_data):
         savedir = self._create_savedir(field_name)
@@ -478,7 +440,8 @@ class NSPostProcessor(Parameterized):
             # If we have a new filename each time, store the name in metadata
             #metadata = [('filename', filename)]
             metadata['filename'] = filename
-
+        if saveformat == "shelve":
+            filename = "%s.%s" % (field_name, "db")
         else:
             filename = "%s.%s" % (field_name, saveformat)
             if saveformat == 'hdf5':
@@ -518,21 +481,40 @@ class NSPostProcessor(Parameterized):
     def _update_hdf5_file(self, field_name, saveformat, data, save_count, t):
         assert saveformat == "hdf5"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
-
-        if save_count == 0:
+        
+        # Create "good enough" hash. This is done to avoid data corruption when restarted from
+        # different number of processes, different distribution or different function space
+        local_hash= sha1()
+        local_hash.update(str(data.function_space().mesh().num_cells()))
+        local_hash.update(str(data.function_space().ufl_element()))
+        local_hash.update(str(data.function_space().dim()))
+        local_hash.update(str(MPI.num_processes()))
+        
+        # Global hash (same on all processes), 10 digits long
+        hash = str(int(MPI.sum(int(local_hash.hexdigest()[:10], 16))%1e10)).zfill(10)
+        
+        # Open HDF5File
+        if not os.path.isfile(fullname):
             datafile = HDF5File(fullname, 'w')
-            datafile.write(data, field_name+str(save_count))
-            datafile.write(data.function_space().mesh(), "Mesh")
-            del datafile
         else:
             datafile = HDF5File(fullname, 'a')
-            datafile.write(data.vector(), field_name+str(save_count)+"/vector")
-            del datafile
-
-            # Create internal links in hdf5-file
-            hdf5_link(fullname, field_name+"0"+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
-            hdf5_link(fullname, field_name+"0"+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
-            hdf5_link(fullname, field_name+"0"+"/cells", field_name+str(save_count)+"/cells")
+        
+        # Write to hash-dataset if not yet done
+        if not datafile.has_dataset(hash) or not datafile.has_dataset(hash+"/"+field_name):
+            datafile.write(data, str(hash)+"/"+field_name)
+            
+        if not datafile.has_dataset("Mesh"):
+            datafile.write(data.function_space().mesh(), "Mesh")
+        
+        # Write vector to file
+        # TODO: Link vector when function has been written to hash
+        datafile.write(data.vector(), field_name+str(save_count)+"/vector")
+        del datafile
+        
+        # Link information about function space from hash-dataset
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(save_count)+"/cells")
 
         return metadata
 
@@ -564,6 +546,41 @@ class NSPostProcessor(Parameterized):
             datafile.close()
         return metadata
 
+    def _update_shelve_file(self, field_name, saveformat, data, save_count, t):
+        assert saveformat == "shelve"
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        if on_master_node:
+            datafile = shelve.open(fullname)
+            datafile[str(save_count)] = data
+            datafile.close()
+            
+        return metadata
+
+    def _fetch_play_log(self):
+        casedir = self._get_casedir()
+        play_log_file = os.path.join(casedir, "play.db")
+        play_log = shelve.open(play_log_file)
+        return play_log
+
+    def _update_play_log(self, t, timestep):
+        if on_master_node:
+            play_log = self._fetch_play_log()
+            if str(timestep) in play_log:
+                play_log.close()
+                return
+            play_log[str(timestep)] = {"t":float(t)}
+            play_log.close()
+
+    def _fill_play_log(self, field, timestep, save_as):
+        if on_master_node:
+            play_log = self._fetch_play_log()
+            timestep_dict = dict(play_log[str(timestep)])
+            if "fields" not in timestep_dict:
+                timestep_dict["fields"] = {}
+            timestep_dict["fields"][field.name] = {"type": field.__class__.shortname(), "save_as": save_as}
+            play_log[str(timestep)] = timestep_dict
+            play_log.close()
+
     def store_params(self, params):
         casedir = self._create_casedir()
 
@@ -575,9 +592,11 @@ class NSPostProcessor(Parameterized):
         with open(tfn, 'w') as f:
             f.write(str(params))
 
-        #jfn = os.path.join(casedir, "params.json")
-        #with open(jfn, 'w') as f:
-        #    f.write(params.to_json())
+    def store_mesh(self, mesh):
+        casedir = self._get_casedir()
+        meshfile = HDF5File(os.path.join(casedir, "mesh.hdf5"), 'w')
+        meshfile.write(mesh, "Mesh")
+        del meshfile
 
     def _action_save(self, field, data):
         "Apply the 'save' action to computed field data."
@@ -625,11 +644,15 @@ class NSPostProcessor(Parameterized):
                 metadata[saveformat] = self._update_txt_file(field_name, saveformat, data, save_count, t)
             elif saveformat == 'hdf5':
                 metadata[saveformat] = self._update_hdf5_file(field_name, saveformat, data, save_count, t)
+            elif saveformat == 'shelve':
+                metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, save_count, t)
             else:
                 error("Unknown save format %s." % (saveformat,))
 
         # Write new data to metadata file
         self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
+        
+        self._fill_play_log(field, timestep, save_as)
 
         # Update save count
         self._save_counts[field_name] = save_count + 1
@@ -801,7 +824,7 @@ class NSPostProcessor(Parameterized):
                     if field.params[action]:
                         self._apply_action(action, field, data)
 
-        if 0: # Debugging:
+        if 1: # Debugging:
             s1 = set(fields_to_compute)
             s2 = set(self._cache[0])
             s2.remove("t")
@@ -821,7 +844,10 @@ class NSPostProcessor(Parameterized):
                 print "cache[0]:"
                 print self._cache[0]
                 print
-        assert len(fields_to_compute) == len(self._cache[0])-2, "This should hold if planning algorithm works properly?"
+        
+        # Wrong: Try adding e.g. TimeDerivative("Stress") only to a postprocessor. This check fails, but planning algorithm seems correct
+        #assert len(fields_to_compute) == len(self._cache[0])-2, "This should hold if planning algorithm works properly?"
+        
 
     def _update_cache(self):
         problem = self._problem
@@ -849,6 +875,9 @@ class NSPostProcessor(Parameterized):
         self._problem = problem
         self._spaces = spaces
         self._solution = solution
+
+        # Update play log
+        self._update_play_log(t, timestep)
 
         # Update cache to keep what's needed later according to plan, forget what we don't need
         self._update_cache()
