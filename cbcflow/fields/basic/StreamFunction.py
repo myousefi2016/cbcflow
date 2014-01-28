@@ -1,4 +1,4 @@
-from .PPField import PPField
+from ..bases.PPField import PPField
 from dolfin import TrialFunction, TestFunction, dot, grad, DirichletBC, DomainBoundary, dx, Constant, assemble, KrylovSolver, Vector, Function
 
 class StreamFunction(PPField):
