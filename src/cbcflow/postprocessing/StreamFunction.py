@@ -15,7 +15,7 @@ class StreamFunction(PPField):
         A = assemble(a)
         self.L = Vector()
         self.bc.apply(A)
-        self.solver = KrylovSolver(A, "cg", "ilu")
+        self.solver = KrylovSolver(A, "cg")
         self.psi = Function(V)
         
 
