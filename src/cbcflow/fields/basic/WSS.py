@@ -97,7 +97,6 @@ class WSS(PPField):
         n = self._n
 
         u = pp.get("Velocity")
-        p = pp.get("Pressure")
         mu = Constant(problem.params.mu)
 
         T = -mu*dot((grad(u) + grad(u).T), n)
