@@ -45,6 +45,6 @@ from .fields import *
 from .schemes import *
 
 # Import utils
-from .utils.fenicstools import *
+#from .utils.fenicstools import *
 #from .utils.create_slicemesh import create_slicemesh
-from .utils.Slice import Slice
+#from .utils.Slice import Slice

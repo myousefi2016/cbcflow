@@ -15,10 +15,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from ..bases.MetaPPField import MetaPPField
-from ...utils import *
+#from ...utils import *
 import numpy as np
 from dolfin import Point
 from itertools import chain
+
+def import_fenicstools():
+    import cbcflow.utils.fenicstools
+    return cbcflow.utils.fenicstools
 
 def points_in_square(center, radius, resolution):
     points = []
@@ -68,6 +72,7 @@ class PointEval(MetaPPField):
     def __init__(self, value, points, params=None, label=None):
         MetaPPField.__init__(self, value, params, label)
         self.points = points
+        self._ft = import_fenicstools()
 
     @property
     def name(self):
@@ -92,7 +97,7 @@ class PointEval(MetaPPField):
         # Create Probes object (from fenicsutils)
         flattened_points = np.array(list(chain(*self.coords)), dtype=np.float)
         V = u.function_space()
-        self.probes = Probes(flattened_points, V)
+        self.probes = self._ft.Probes(flattened_points, V)
         self._probetimestep = 0
 
         # This data is currently stored in the metadata file under 'init_data'
