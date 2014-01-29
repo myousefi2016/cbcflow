@@ -217,7 +217,7 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 # NB! Assuming run from the cbcflow/tests/ directory!
 sys.path.insert(0, "../demo/undocumented/FlowAroundCylinder")
 sys.path.insert(0, "../demo/undocumented/Beltrami")
-from flow_around_cylinder import FlowAroundCylinder
+from flowaroundcylinder import FlowAroundCylinder
 from beltrami import Beltrami
 
 
