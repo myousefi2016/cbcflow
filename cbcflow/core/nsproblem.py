@@ -41,7 +41,7 @@ class NSProblem(Parameterized):
         if self.params.T is None:
             if (self.params.num_periods is None or self.params.period is None):
                 raise ValueError("You must provide parameter values for either end time T, or period and num_periods.")
-            self.params.T = self.T0 + self.params.period * self.params.num_periods
+            self.params.T = self.params.T0 + self.params.period * self.params.num_periods
         else:
             if self.params.num_periods is not None:
                 raise ValueError("Ambiguous time period, cannot set both T and num_periods.")
