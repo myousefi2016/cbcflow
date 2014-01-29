@@ -216,11 +216,11 @@ def load_tests(loader, standard_tests, none):
         ]
 
     # Print list of scheme classes that are not in the above list:
-    missing_schemes = set(all_schemes) - set(working_schemes)
+    missing_schemes = set(all_schemes) - set(scheme.__name__ for scheme in working_schemes)
     if missing_schemes:
         print
         print "Not testing schemes:"
-        print '\n'.join(sorted('    '+scheme.__name__ for scheme in missing_schemes))
+        print '\n'.join(sorted('    '+scheme for scheme in missing_schemes))
         print
 
     # Make list of factory functions for schemes with default parameters:
