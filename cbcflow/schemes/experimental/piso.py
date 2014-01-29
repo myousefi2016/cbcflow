@@ -23,14 +23,14 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Anders Logg, 2008-2010.
 
-from ..core.nsscheme import *
-from ..core.utils import Timer, epsilon, sigma, is_periodic
-from ..core.timesteps import compute_regular_timesteps
-from ..core.schemeutils import (assign_ics_split,
+from ...core.nsscheme import *
+from ...core.utils import Timer, epsilon, sigma, is_periodic
+from ...core.timesteps import compute_regular_timesteps
+from ...core.schemeutils import (assign_ics_split,
                                 make_velocity_bcs,
                                 make_pressure_bcs,
                                 make_penalty_pressure_bcs)
-from ..core.spaces import NSSpacePoolSplit
+from ...core.spaces import NSSpacePoolSplit
 
 
 class PISO(NSScheme):

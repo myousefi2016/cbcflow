@@ -21,10 +21,10 @@ __date__ = "2013-08-13"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..core.nsscheme import *
-from ..core.timesteps import compute_regular_timesteps
-from ..core.schemeutils import assign_ics_mixed, make_velocity_bcs, make_rhs_pressure_bcs
-from ..core.spaces import NSSpacePoolMixed
+from ...core.nsscheme import *
+from ...core.timesteps import compute_regular_timesteps
+from ...core.schemeutils import assign_ics_mixed, make_velocity_bcs, make_rhs_pressure_bcs
+from ...core.spaces import NSSpacePoolMixed
 
 
 class Karper(NSScheme):

@@ -21,14 +21,14 @@ __date__ = "2013-08-13"
 __copyright__ = "Copyright (C) 2008-2010 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..core.nsscheme import *
-from ..core.utils import Timer, is_periodic
-from ..core.timesteps import compute_regular_timesteps
-from ..core.schemeutils import (assign_ics_split,
+from ...core.nsscheme import *
+from ...core.utils import Timer, is_periodic
+from ...core.timesteps import compute_regular_timesteps
+from ...core.schemeutils import (assign_ics_split,
                                 make_velocity_bcs,
                                 make_pressure_bcs,
                                 make_penalty_pressure_bcs)
-from ..core.spaces import NSSpacePoolSplit
+from ...core.spaces import NSSpacePoolSplit
 
 
 class BottiPietro(NSScheme):

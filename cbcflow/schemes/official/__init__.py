@@ -29,9 +29,9 @@ from .ipcs_stable import IPCS_Stable
 from .yosida import Yosida
 
 # Collect all schemes in list automatically
-from ..core.nsscheme import NSScheme
+from ...core.nsscheme import NSScheme
 import types
-official_schemes = [v for v in globals().values()
+official_schemes = [k for k,v in globals().items()
                     if hasattr(v, 'mro')
                     and issubclass(v, NSScheme)
                     and v is not NSScheme]
