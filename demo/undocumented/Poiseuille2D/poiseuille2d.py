@@ -27,7 +27,8 @@ class Poiseuille2D(NSProblem):
         NSProblem.__init__(self, params)
 
         # Create mesh
-        N = self.params.N
+        refinements = [4,8,16,32,64]
+        N = refinements[self.params.refinement_level]
         M = int(N*LENGTH/(2*RADIUS) + 0.5)
         mesh = UnitSquareMesh(M, N)
         x = mesh.coordinates()[:,0]
@@ -58,9 +59,9 @@ class Poiseuille2D(NSProblem):
 
         # Toggle to test using Poiseuille-shaped bcs with transient flow rate
         if 1:
-            print "Using stationary bcs. Analytical solution should hold."
-            print "Expected peak velocity:", self.alpha * RADIUS**2
-            print "Expected total pressure drop:", self.beta * LENGTH
+            #print "Using stationary bcs. Analytical solution should hold."
+            #print "Expected peak velocity:", self.alpha * RADIUS**2
+            #print "Expected total pressure drop:", self.beta * LENGTH
             self.Q_coeffs = [(0.0, Q), (1.0, Q)]
         else:
             print "Using transient bcs. Analytical solution will not hold."
@@ -88,7 +89,8 @@ class Poiseuille2D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            N=16,
+            #N=16,
+            refinement_level=0,
             # Analytical solution parameters
             Q=1.0,
             )
@@ -105,6 +107,13 @@ class Poiseuille2D(NSProblem):
         p.beta = self.beta
 
         return (u, p)
+    
+    def test_references(self, spaces, t):
+        return self.analytical_solution(spaces, t)
+    
+    def test_fields(self):
+        return [Velocity(), Pressure()]
+
 
     def initial_conditions(self, spaces, controls):
         return self.analytical_solution(spaces, 0.0)

@@ -6,8 +6,25 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow import *
 from cbcflow.dol import *
+from os import path
 
 import numpy as np
+
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_0.5k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_3k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_24k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_203k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1611k.xml.gz"),
+        ]
+
+class Inflow(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] < 1e-6 and on_boundary
+
+class Outflow(SubDomain):
+    def inside(self, x, on_boundary):
+        return x[0] > 10.0-1e-6 and on_boundary
+
 
 LENGTH = 10.0
 RADIUS = 0.5
@@ -19,13 +36,19 @@ class Poiseuille3D(NSProblem):
         NSProblem.__init__(self, params)
 
         # Load mesh
-        mesh = Mesh(self.params.mesh_filename)
+        mesh = Mesh(files[self.params.refinement_level])
 
         # We know that the mesh contains markers with these id values
         self.wall_boundary_id = 0
-        self.left_boundary_id = 2
-        self.right_boundary_id = 1
-
+        self.left_boundary_id = 1
+        self.right_boundary_id = 2
+        
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(3)
+        DomainBoundary().mark(facet_domains, self.wall_boundary_id)
+        Inflow().mark(facet_domains, self.left_boundary_id)
+        Outflow().mark(facet_domains, self.right_boundary_id)
+        
         # Setup analytical solution constants
         Q = self.params.Q
         nu = self.params.mu / self.params.rho
@@ -34,9 +57,9 @@ class Poiseuille3D(NSProblem):
 
         # Toggle to test using Poiseuille-shaped bcs with transient flow rate
         if 1:
-            print "Using stationary bcs. Analytical solution should hold."
-            print "Expected peak velocity:", self.alpha * RADIUS**2
-            print "Expected total pressure drop:", self.beta * LENGTH
+            #print "Using stationary bcs. Analytical solution should hold."
+            #print "Expected peak velocity:", self.alpha * RADIUS**2
+            #print "Expected total pressure drop:", self.beta * LENGTH
             self.Q_coeffs = [(0.0, Q), (1.0, Q)]
         else:
             print "Using transient bcs. Analytical solution will not hold."
@@ -47,7 +70,7 @@ class Poiseuille3D(NSProblem):
             self.Q_coeffs = zip(tvalues, Qvalues)
 
         # Store mesh and markers
-        self.initialize_geometry(mesh)
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     @classmethod
     def default_params(cls):
@@ -64,7 +87,8 @@ class Poiseuille3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            mesh_filename="../../../data/pipe_0.2.xml.gz",
+            #mesh_filename="../../../data/pipe_0.2.xml.gz",
+            refinement_level=0,
             # Analytical solution parameters
             Q=1.0,
             )
@@ -82,6 +106,12 @@ class Poiseuille3D(NSProblem):
         p.beta = self.beta
 
         return (u, p)
+
+    def test_references(self, spaces, t):
+        return self.analytical_solution(spaces, t)
+    
+    def test_fields(self):
+        return [Velocity(), Pressure()]
 
     def initial_conditions(self, spaces, controls):
         return self.analytical_solution(spaces, 0.0)
@@ -120,7 +150,7 @@ def main():
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=True, save=True)
+    plot_and_save = dict(plot=False, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),

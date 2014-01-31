@@ -20,7 +20,8 @@ class Beltrami(NSProblem):
         NSProblem.__init__(self, params)
 
         # Create mesh of box (-1, 1) x (-1, 1) x (-1, 1)
-        N = self.params.N
+        refinement_levels = [4,8,16,32,64]
+        N = refinement_levels[self.params.refinement_level]
         mesh = UnitCubeMesh(N, N, N)
         scaled = 2*(mesh.coordinates() - 0.5)
         mesh.coordinates()[:, :] = scaled
@@ -44,7 +45,7 @@ class Beltrami(NSProblem):
             )
         params.update(
             # Spatial parameters
-            N=20,
+            refinement_level=0,
             )
         return params
 
@@ -61,33 +62,29 @@ class Beltrami(NSProblem):
             ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*nu))')
 
         # Common parameters pertinent to the functional forms above
-        u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,             'nu': 1.0, 't': 0.0}
-        p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': 1.0, 'nu': 1.0, 't': 0.0}
+        u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,                         'nu': self.params.mu/self.params.rho, 't': t}
+        p_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e, 'rho': self.params.rho, 'nu': self.params.mu/self.params.rho, 't': t}
 
         # Compile expressions
         exact_u = [Expression(analytical_u[d], **u_params) for d in xrange(3)]
         exact_p = Expression(analytical_p, **p_params)
-
-        # Set configured physical parameters
-        nu = self.params.mu / self.params.rho
-        for u in exact_u:
-            u.nu = nu
-        exact_p.nu = nu
-        exact_p.rho = self.params.rho
-
-        # Set time
-        for u in exact_u:
-            u.t = t
-        exact_p.t = t
-
-        return (exact_u, exact_p)
+        
+        return [as_vector(exact_u), exact_p]
+    
+    def test_references(self, spaces, t):
+        return self.analytical_solution(spaces, t)
+    
+    def test_fields(self):
+        return [Velocity(), Pressure()]
+    
 
     def initial_conditions(self, spaces, controls):
-        exact_u, exact_p = self.analytical_solution(spaces, t=0.0)
+        #exact_u, exact_p = self.analytical_solution(spaces, t=0.0)
+        exact_u, exact_p = self.test_references(spaces, 0.0)
         return (exact_u, exact_p)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        exact_u, exact_p = self.analytical_solution(spaces, t=float(t))
+        exact_u, exact_p = self.test_references(spaces, float(t))
         bcu = [(exact_u, 0)]
         bcp = []
         return bcu, bcp
@@ -120,7 +117,7 @@ def main():
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=True, save=True)
+    plot_and_save = dict(plot=False, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
