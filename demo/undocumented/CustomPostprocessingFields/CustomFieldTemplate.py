@@ -1,4 +1,7 @@
-"Make a demo of this with full usage example."
+#!/usr/bin/env python
+"""
+TODO: Make a demo of this with full usage example.
+"""
 
 from cbcflow import PPField
 import dolfin
