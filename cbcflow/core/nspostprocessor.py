@@ -515,7 +515,7 @@ class NSPostProcessor(Parameterized):
         local_hash.update(str(MPI.num_processes()))
         
         # Global hash (same on all processes), 10 digits long
-        hash = str(int(MPI.sum(int(local_hash.hexdigest()[:10], 16))%1e10)).zfill(10)
+        hash = str(int(MPI.sum(int(local_hash.hexdigest(), 16))%1e10)).zfill(10)
         
         # Open HDF5File
         if not os.path.isfile(fullname):
@@ -534,7 +534,7 @@ class NSPostProcessor(Parameterized):
         # TODO: Link vector when function has been written to hash
         datafile.write(data.vector(), field_name+str(save_count)+"/vector")
         del datafile
-        
+
         # Link information about function space from hash-dataset
         hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
