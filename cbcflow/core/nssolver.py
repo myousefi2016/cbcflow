@@ -167,7 +167,7 @@ class NSSolver(Parameterized):
 
     def update(self, u, p, t, timestep, spaces):
         # Do not run this if restarted from this timestep
-        if self.params.restart and timestep==problem.params.start_timestep:
+        if self.params.restart and timestep==self.problem.params.start_timestep:
             return
 
         # Make a record of when update was called
@@ -180,7 +180,7 @@ class NSSolver(Parameterized):
         # Run postprocessor
         if self.postprocessor:
             self.postprocessor.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, self.problem)
-
+        
         # Plot solution
         self._update_plot(u, p)
 

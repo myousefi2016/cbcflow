@@ -14,57 +14,43 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-__author__ = "Joachim B Haga <jobh@simula.no>"
-__date__ = "2012-02-17"
-__copyright__ = "Copyright (C) 2012 " + __author__
+__author__ = "Oeyvind Evju <oyvinev@simula.no>"
+__date__ = "2014-02-03"
+__copyright__ = "Copyright (C) 2014 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 from ..dol import *
 
 from numpy import linspace
 
+import shelve
 import os
-from glob import glob
-import re
 import subprocess
 
 from ..core.utils import cbcflow_warning, cbcflow_print
 
+fetchable_formats = ["hdf5", "xml"]
 
-def clean_hdf5_file(filename, datasets):
-    delete_from_hdf5_file = '''
-    namespace dolfin {
-        #include <hdf5.h>  
-        void delete_from_hdf5_file(std::string filename, std::string dataset)
-        {
-            const hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-            // Open file existing file for append
-            hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDWR, plist_id);
-            
-            H5Ldelete(file_id, dataset.c_str(), H5P_DEFAULT);
-            
-            herr_t status = H5Fclose(file_id);
-        }
-    }
-    '''
-
-    cpp_module = compile_extension_module(delete_from_hdf5_file)
-    
-    hdf5_file = "%s/%s/%s.hdf5" %(self.casedir, fieldname, fieldname)
-    if not os.path.isfile(hdf5_file):
-        cbcflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
-        return
-    
-    if len(datasets) > 0:
-        for dataset in datasets:
-            cpp_module.delete_from_hdf5_file(filename, dataset)
+def find_common_savetimesteps(play_log, fields):
+    common_keys = []
+    for ts, data in play_log.items():
+        if "fields" not in data:
+            continue
         
-        tmp_hdf5_file = "%s/%s/%s_tmp.hdf5" %(self.casedir, fieldname, fieldname)
-            
-        subprocess.call("h5repack %s %s" %(hdf5_file, tmp_hdf5_file), shell=True)
-        os.remove(hdf5_file)
-        os.rename(tmp_hdf5_file, hdf5_file)
+        
+        present = {}
+        for f in fields:
+            present[f] = False
+            for v in data["fields"].values():
+                if f == v['type'] and any([saveformat in fetchable_formats for saveformat in v["save_as"]]):
+                    present[f] = True
+
+
+        if all(present.values()):
+            common_keys.append(int(ts))
     
+    return list(sorted(common_keys))
+
 
 class Restart(object):
     def __init__(self, problem, postprocessor, restart_time, restart_timestep):
@@ -78,69 +64,80 @@ class Restart(object):
         if restart_timestep < 0:
             restart_timestep = 1e8
                
-        self.casedir = self.postprocessor.params.casedir
+        self.casedir = self.postprocessor._get_casedir()
         
-        u_metadata = self._read_metadata("Velocity")
-        assert u_metadata != None, "Unable to find Velocity metadata."
-        p_metadata = self._read_metadata("Pressure")
+        play_log = shelve.open(os.path.join(self.casedir, "play.db"), 'c')
+        timesteps = find_common_savetimesteps(play_log, ["Velocity", "Pressure"])
         
+        assert len(timesteps) > 0, "Unable to find any timesteps to start from."
         
-        u_time, u_timestep, u_datatype, u_name = self._find_restart_data(u_metadata, restart_time, restart_timestep)
-        
-        
-        if u_datatype == "dataset":
-            u_filepath = self.casedir + "/Velocity/Velocity.hdf5"
-        elif u_datatype == "filename":
-            u_filepath = self.casedir + "/Velocity/" + u_name
-        
-        try:
-            p_time, p_timestep, p_datatype, p_name = self._find_restart_data(p_metadata, u_time, u_timestep)
-        except:
-            p_time, p_timestep, p_datatype, p_name, p_filepath = None, None, None, None, None
-        
-        if p_datatype == "dataset":
-            p_filepath = self.casedir + "/Pressure/Pressure.hdf5"
-        elif p_datatype == "filename":
-            p_filepath = self.casedir + "/Pressure/" + p_name
-            
-        if u_timestep != p_timestep or not os.path.isfile(p_filepath):
-            cbcflow_warning("Unable to find matching restart info for pressure. Using Constant(0).")
+        times = [play_log[str(ts)]["t"] for ts in timesteps]
+
+        if restart_time > 0:
+            timediffs = [abs(t-restart_time) for t in times]
+            i = timediffs.index(min(timediffs))
+        else:
+            timestepdiffs = [abs(ts-restart_timestep) for ts in timesteps]
+            i = timestepdiffs.index(min(timestepdiffs))
         
         # Replace problems initial_condition function    
-        self._replace_ic(problem, u_datatype, u_name, u_filepath, p_datatype, p_name, p_filepath)
-
+        self._replace_ic(problem, timesteps[i], play_log[str(timesteps[i])])
+        
+        
         # Replace update problem parameters
-        problem.params.start_timestep = u_timestep
-        problem.params.T0 = u_time
+        problem.params.start_timestep = timesteps[i]
+        problem.params.T0 = times[i]
         
         # Correct postprocessing fields
-        self._correct_postprocessing(postprocessor, u_time, u_timestep)
+        self._correct_postprocessing(play_log, timesteps[i])
     
-    def _replace_ic(self, problem, u_datatype, u_name, u_filepath, p_datatype, p_name, p_filepath):
+    def _replace_ic(self, problem, timestep, play_log_item):
+        
+        # Find velocity metadata
+        keys = {}
+        for k,v in play_log_item['fields'].items():
+            keys[v['type']] = k
+        
+        u_metadata = shelve.open(os.path.join(self.casedir, keys["Velocity"], "metadata.db"), 'r')[str(timestep)]
+        p_metadata = shelve.open(os.path.join(self.casedir, keys["Pressure"], "metadata.db"), 'r')[str(timestep)]
+        
         def initial_conditions(spaces, controls):
             """ Function to replace existing problem.initial_conditions """
             # Velocity initial conditions
-            V = spaces.V            
-            if u_datatype == "filename":
-                u = Function(V, u_filepath)
-            elif u_datatype == "dataset":
+            V = spaces.V
+            if 'hdf5' in u_metadata.keys():
+                hdf5filename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+".hdf5")
+                hdf5file = HDF5File(hdf5filename, 'r')
                 u = Function(V)
-                f = HDF5File(u_filepath, 'r')
-                f.read(u, u_name)
-            
-            # TODO: Expand icu to contain two timesteps (required for some solvers)
-            icu = [u[0], u[1], u[2]]
+                hdf5file.read(u, u_metadata['hdf5']['dataset'])
+                del hdf5file
+            elif "xml" in u_metadata.keys():
+                save_count = u_metadata["save_count"]
+                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(save_count)+".xml")
+                u = Function(V, xmlfilename)
+            elif "xml.gz" in u_metadata.keys():
+                save_count = u_metadata["save_count"]
+                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(save_count)+".xml.gz")
+                u = Function(V, xmlfilename)
+
+            # TODO: Allow for two initial conditions
+            icu = [ui for ui in u]
             
             # Pressure initial conditions
             Q = spaces.Q
-            if p_datatype == "filename":
-                p = Function(Q, p_filepath)
-            elif p_datatype == "dataset":
+            if 'hdf5' in p_metadata.keys():
+                hdf5filename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+".hdf5")
+                hdf5file = HDF5File(hdf5filename, 'r')
                 p = Function(Q)
-                f = HDF5File(p_filepath, 'r')
-                f.read(p, p_name)
-            else:
-                p = Constant(0)
+                hdf5file.read(p, p_metadata['hdf5']['dataset'])
+            elif "xml" in p_metadata.keys():
+                save_count = p_metadata["save_count"]
+                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(save_count)+".xml")
+                u = Function(Q, xmlfilename)
+            elif "xml.gz" in p_metadata.keys():
+                save_count = p_metadata["save_count"]
+                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(save_count)+".xml.gz")
+                u = Function(Q, xmlfilename)
             
             icp = p
             
@@ -148,112 +145,52 @@ class Restart(object):
         
         # Replace problem.initial_conditions, and update parameters
         problem.initial_conditions = initial_conditions
-        
-    def _read_metadata(self, fieldname):
-        filepath = self.casedir+"/"+fieldname+"/metadata.txt"
-        if not os.path.isfile(filepath):
-            return None
-        
-        metadata_f = open(filepath, 'r')
-        metadata_lines = metadata_f.readlines()
-        metadata_f.close()
-        return metadata_lines
-    
-    def _find_restart_data(self, metadata, restart_time, restart_timestep):
-        metadata_split = [line.split('\t') for line in metadata if "save_count" in line]
-        if len(metadata_split) == 0:
-            return None, None, None, None, None
-        
-        save_counts = []
-        timesteps = []
-        times = []
-        saved_data = []
-        for line in metadata_split:
-            save_counts.append(int(line[0].split('=')[1]))
-            timesteps.append(int(line[1].split('=')[1]))
-            times.append(float(line[2].split('=')[1]))
-        
-            saved_data.append(line[3:])
-            
-            
-        if restart_time > 0:
-            timediffs = [abs(t-restart_time) for t in times]
-            i = timediffs.index(min(timediffs))
-        else:
-            timestepdiffs = [abs(ts-restart_timestep) for ts in timesteps]
-            i = timestepdiffs.index(min(timestepdiffs))
-            
-        restart_time = times[i]
-        restart_timestep = timesteps[i]
-        
-        j = ["dataset" in sd or "filename" in sd for sd in saved_data[i]].index(True)
-        datatype, name = saved_data[i][j].replace("'", '').replace('"', '').replace('\n', '').split('=')
-        
-        return restart_time, restart_timestep, datatype, name
-        
-    def _correct_postprocessing(self, postprocessor, restart_time, restart_timestep):
-        for fieldname in postprocessor._fields:
-            metadata = self._read_metadata(fieldname)
-            del_metadata = []
-            new_metadata = []
-            if metadata == None:
-                break
-            
-            for line in metadata:
-                if "save_count" in line:
-                    spl_line = line.split('\t')
-                    t = float(spl_line[2].split('=')[1])
-                    if t > restart_time:
-                        del_metadata.append(line)
-                        continue
-                    else:
-                        save_count = int(spl_line[0].split('=')[1])
-                
-                new_metadata.append(line)
-            
-            postprocessor._save_counts[fieldname] = save_count + 1
-            
-            self._rewrite_metadata(fieldname, new_metadata)
-            self._clean_data(fieldname, del_metadata)
-            self._rewrite_metadata(fieldname, new_metadata)
 
-    def _clean_metadata(self, metadata, restart_timestep):
+    def _correct_postprocessing(self, play_log, restart_timestep):
+        play_log_to_remove = {}
         
+        for k,v in play_log.items():
+            if int(k) > restart_timestep:
+                play_log_to_remove[k] = play_log.pop(k)
         
-        del_metadata = []
-        return del_metadata
+        all_fields_to_clean = []
+        
+                
+        for k,v in play_log_to_remove.items():
+            if not "fields" in v:
+                continue
+            else:
+                all_fields_to_clean += v["fields"].keys()
+        all_fields_to_clean = list(set(all_fields_to_clean))
+        for fieldname in all_fields_to_clean:
+            save_count = self._clean_field(fieldname, restart_timestep)
+            self.postprocessor._save_counts[fieldname] = save_count+1
     
-    def _clean_data(self, fieldname, del_metadata):
-        try:
-            self._clean_hdf5(fieldname, del_metadata)
-        except:
-            cbcflow_warning("Cleaning hdf5-file for restart failed. hdf5-file might be corrupted.")
+    def _clean_field(self, fieldname, restart_timestep):
+        metadata = shelve.open(os.path.join(self.postprocessor._get_savedir(fieldname), 'metadata.db'), 'w')
+
+        save_count = 0
+        metadata_to_remove = {}
+        for k in metadata.keys():
+            try:
+                k = int(k)
+            except:
+                continue
+            if k > restart_timestep:
+                metadata_to_remove[str(k)] = metadata.pop(str(k))
+            elif metadata[str(k)]["save_count"] > save_count:
+                save_count = metadata[str(k)]["save_count"]
         
-        try:
-            self._clean_xml(fieldname, del_metadata)
-        except:
-            cbcflow_warning("Cleaning xml-files for restart failed. xml-files might be corrupted.")
-        
-        try:
-            self._clean_xmlgz(fieldname, del_metadata)
-        except:
-            cbcflow_warning("Cleaning xml.gz-files for restart failed. xml-files might be corrupted.")
-        
-        try:
-            self._clean_xdmf(fieldname, del_metadata)
-        except:
-            cbcflow_warning("Cleaning xdmf-file for restart failed. xdmf-file might be corrupted.")
-        
-        self._clean_pvd(fieldname, del_metadata)
+        # Remove files and data for all save formats
+        self._clean_hdf5(fieldname, metadata_to_remove)
+        self._clean_files(fieldname, metadata_to_remove)
+        self._clean_txt(fieldname, metadata_to_remove)
+        self._clean_shelve(fieldname, metadata_to_remove)
+        self._clean_xdmf(fieldname, metadata_to_remove)
+        self._clean_pvd(fieldname, metadata_to_remove)
+        return save_count
     
     def _clean_hdf5(self, fieldname, del_metadata):
-        del_datasets = []
-        for line in del_metadata:
-            if "dataset=" in line:
-                del_datasets.append(re.search("dataset='(.\S+)'", line).group(1))
-                       
-        if len(del_datasets) == 0:
-            return
         
         delete_from_hdf5_file = '''
         namespace dolfin {
@@ -273,46 +210,64 @@ class Restart(object):
     
         cpp_module = compile_extension_module(delete_from_hdf5_file)
         
-        hdf5_file = "%s/%s/%s.hdf5" %(self.casedir, fieldname, fieldname)
-        if not os.path.isfile(hdf5_file):
-            cbcflow_warning("Unable to find file %s. Likely discrepancy between metadata.txt and data." %hdf5_file)
+        hdf5filename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+'.hdf5')
+        if not os.path.isfile(hdf5filename):
+            return
+        for k, v in del_metadata.items():
+            if not 'hdf5' in v:
+                continue
+            else:
+                cpp_module.delete_from_hdf5_file(hdf5filename, v['hdf5']['dataset'])
+        hdf5tmpfilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+'_tmp.hdf5')
+            
+        subprocess.call("h5repack %s %s" %(hdf5filename, hdf5tmpfilename), shell=True)
+        os.remove(hdf5filename)
+        os.rename(hdf5tmpfilename, hdf5filename)
+        
+        
+    def _clean_files(self, fieldname, del_metadata):
+        for k, v in del_metadata.items():
+            if not 'filename' in v:
+                continue
+            else:
+                fullpath = os.path.join(self.postprocesor._get_savedir(fieldname), v['filename'])
+                os.remove(fullpath)
+
+    def _clean_txt(self, fieldname, del_metadata):
+        txtfilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+".txt")
+        if not os.path.isfile(txtfilename):
             return
         
-        for dataset in del_datasets:
-            cpp_module.delete_from_hdf5_file(hdf5_file, dataset)
-
-        tmp_hdf5_file = "%s/%s/%s_tmp.hdf5" %(self.casedir, fieldname, fieldname)
-            
-        subprocess.call("h5repack %s %s" %(hdf5_file, tmp_hdf5_file), shell=True)
-        os.remove(hdf5_file)
-        os.rename(tmp_hdf5_file, hdf5_file)
+        txtfile = open(txtfilename, 'r')
+        txtfilelines = txtfile.readlines()
+        txtfile.close()
         
-    def _clean_xml(self, fieldname, del_metadata):
-        del_files = []
-        for line in del_metadata:
-            p = re.compile("filename='(.\S+.xml)'")
-            if re.search(p, line):
-                del_files.append(re.search(p, line).group(1))
-
-        for fil in del_files:
-            path = "%s/%s/%s" %(self.casedir, fieldname, fil)
-            if os.path.isfile(path):
-                os.remove(path)
-    
-    def _clean_xmlgz(self, fieldname, del_metadata):
-        del_files = []
-        for line in del_metadata:
-            p = re.compile("filename='(.\S+.xml.gz)'")
-            if re.search(p, line):
-                del_files.append(re.search(p, line).group(1))
-
-        for fil in del_files:
-            path = "%s/%s/%s" %(self.casedir, fieldname, fil)
-            if os.path.isfile(path):
-                os.remove(path)
+        lines_to_remove = []
+        for k,v in del_metadata.items():
+            if 'txt' in v:
+                lines_to_remove.append(v["save_count"])
+        lines_to_keep = list(set(range(len(txtfilelines)))-set(lines_to_remove))
+        
+        txtfile = open(txtfilename, 'w')
+        [txtfile.write(txtfilelines[i]) for i in lines_to_keep]
+        txtfile.close()
+        
+    def _clean_shelve(self, fieldname, del_metadata):
+        shelvefilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+".db")
+        if not os.path.isfile(shelvefilename):
+            return
+        
+        shelvefile = shelve.open(shelvefilename, 'c')
+        for k,v in del_metadata.items():
+            if 'shelve' in v:
+                shelvefile.pop(str(v["save_count"]))
+        shelvefile.close()
     
     def _clean_xdmf(self, fieldname, del_metadata):
-        basename = "%s/%s/%s" %(self.casedir, fieldname, fieldname)
+        #basename = "%s/%s/%s" %(self.casedir, fieldname, fieldname)
+        basename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname)
+        if not os.path.isfile(basename+".xdmf"):
+            return
         i = 0
         while True:
             h5_filename = basename+"_RS"+str(i)+".h5"
@@ -334,12 +289,4 @@ class Restart(object):
     def _clean_pvd(self, fieldname, del_metadata):
         if os.path.isfile(self.casedir+"/"+fieldname+"/"+fieldname+".pvd"):
             cbcflow_warning("No functionality for cleaning pvd-files for restart. Will overwrite.")
-    
-    def _rewrite_metadata(self, fieldname, metadata):
-        f = open(self.casedir+"/"+fieldname+"/metadata.txt", 'w')
-        for line in metadata:
-            f.write(line)
-        f.write("### RESTART ###\n")
-        f.close()
-
     
