@@ -65,11 +65,13 @@ class NSSolver(Parameterized):
         self.postprocessor.store_params(params)
         assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
         self.postprocessor.store_mesh(self.problem.mesh)
-
+        
         if self.params.restart:
             Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
+        else:
+            # If no restart, remove any existing data coming from CBCFlow
+            self.postprocessor._clean_casedir()
 
-        # FIXME: Handle restart stuff, get from old ns script (see scratch/oldscripts/ns)
         # FIXME: Pick other details to reuse from old ns script, here or other places
 
         scheme_namespace = self.scheme.solve(self.problem, self.update)
@@ -142,28 +144,7 @@ class NSSolver(Parameterized):
         fr = self.params.check_mem_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            cbcflow_print('Memory usage is: %s' % get_memory_usage())
-
-    def _update_plot(self, u, p):
-        if self.params.plot_solution:
-            if MPI.num_processes() > 1:
-                cbcflow_print("Unable to plot in parallel.")
-                return
-
-            if self.scheme._segregated:
-                # TODO: If postprocessor makes a vector-valued u, we can use that here instead
-                # TODO: Fix such that as_vector works for segregated schemes
-                # TODO: Keep velocity plot in single window for segregated schemes (u not Variable, update not working)
-                plot(u, title="Velocity")
-            else:
-                if not hasattr(self, 'uplot'):
-                    self.uplot = plot(u, title="Velocity")
-                else:
-                    self.uplot.plot(u)
-            if not hasattr(self, 'pplot'):
-                self.pplot = plot(p, title="Pressure")
-            else:
-                self.pplot.plot(p)
+            cbcflow_print('Memory usage is: %s' % get_memory_usage())       
 
     def update(self, u, p, t, timestep, spaces):
         # Do not run this if restarted from this timestep
@@ -180,9 +161,6 @@ class NSSolver(Parameterized):
         # Run postprocessor
         if self.postprocessor:
             self.postprocessor.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, self.problem)
-        
-        # Plot solution
-        self._update_plot(u, p)
 
         # Check memory usage
         self._update_memory(timestep)
