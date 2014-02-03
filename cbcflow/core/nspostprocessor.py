@@ -464,7 +464,7 @@ class NSPostProcessor(Parameterized):
             # If we have a new filename each time, store the name in metadata
             #metadata = [('filename', filename)]
             metadata['filename'] = filename
-        if saveformat == "shelve":
+        elif saveformat == "shelve":
             filename = "%s.%s" % (field_name, "db")
         else:
             filename = "%s.%s" % (field_name, saveformat)
