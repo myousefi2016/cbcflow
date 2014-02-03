@@ -57,7 +57,13 @@ class NSSolver(Parameterized):
 
     def solve(self):
         self._reset()
-
+        
+        if self.params.restart:
+            Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
+        else:
+            # If no restart, remove any existing data coming from CBCFlow
+            self.postprocessor._clean_casedir()
+        
         params = ParamDict(solver=self.params,
                            problem=self.problem.params,
                            scheme=self.scheme.params,
@@ -66,12 +72,6 @@ class NSSolver(Parameterized):
         assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
         self.postprocessor.store_mesh(self.problem.mesh)
         
-        if self.params.restart:
-            Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
-        else:
-            # If no restart, remove any existing data coming from CBCFlow
-            self.postprocessor._clean_casedir()
-
         # FIXME: Pick other details to reuse from old ns script, here or other places
 
         scheme_namespace = self.scheme.solve(self.problem, self.update)

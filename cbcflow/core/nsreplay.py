@@ -89,15 +89,13 @@ class NSReplay(Parameterized):
                 if fieldname not in metadata_files:
                     metadata_files[fieldname] = shelve.open(os.path.join(casedir, fieldname, "metadata.db"))
                 
-                save_count = metadata_files[fieldname][str(timestep)]["save_count"]
-                
                 if 'hdf5' in fieldnamedata["save_as"]:
                     function = self._get_function(fieldname, metadata_files[fieldname], 'hdf5')
-                    replay_solutions[timestep][fieldname] = {'format': 'hdf5', 'save_count': save_count, 'function': function}
+                    replay_solutions[timestep][fieldname] = {'format': 'hdf5', 'function': function}
                 elif 'xml' in fieldnamedata["save_as"]:
-                    replay_solutions[timestep][fieldname] = {'format': 'xml', 'save_count': save_count, 'function': function}
+                    replay_solutions[timestep][fieldname] = {'format': 'xml', 'function': function}
                 elif 'shelve' in fieldnamedata["save_as"]:
-                    replay_solutions[timestep][fieldname] = {'format': 'shelve', 'save_count': save_count}
+                    replay_solutions[timestep][fieldname] = {'format': 'shelve'}
                 else:
                     continue
         return replay_solutions    

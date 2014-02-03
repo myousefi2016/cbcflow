@@ -112,12 +112,10 @@ class Restart(object):
                 hdf5file.read(u, u_metadata['hdf5']['dataset'])
                 del hdf5file
             elif "xml" in u_metadata.keys():
-                save_count = u_metadata["save_count"]
-                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(save_count)+".xml")
+                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(timestep)+".xml")
                 u = Function(V, xmlfilename)
             elif "xml.gz" in u_metadata.keys():
-                save_count = u_metadata["save_count"]
-                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(save_count)+".xml.gz")
+                xmlfilename = os.path.join(self.casedir, keys["Velocity"], keys["Velocity"]+str(timestep)+".xml.gz")
                 u = Function(V, xmlfilename)
 
             # TODO: Allow for two initial conditions
@@ -131,12 +129,10 @@ class Restart(object):
                 p = Function(Q)
                 hdf5file.read(p, p_metadata['hdf5']['dataset'])
             elif "xml" in p_metadata.keys():
-                save_count = p_metadata["save_count"]
-                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(save_count)+".xml")
+                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(timestep)+".xml")
                 u = Function(Q, xmlfilename)
             elif "xml.gz" in p_metadata.keys():
-                save_count = p_metadata["save_count"]
-                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(save_count)+".xml.gz")
+                xmlfilename = os.path.join(self.casedir, keys["Pressure"], keys["Pressure"]+str(timestep)+".xml.gz")
                 u = Function(Q, xmlfilename)
             
             icp = p
@@ -163,13 +159,11 @@ class Restart(object):
                 all_fields_to_clean += v["fields"].keys()
         all_fields_to_clean = list(set(all_fields_to_clean))
         for fieldname in all_fields_to_clean:
-            save_count = self._clean_field(fieldname, restart_timestep)
-            self.postprocessor._save_counts[fieldname] = save_count+1
+            self._clean_field(fieldname, restart_timestep)
     
     def _clean_field(self, fieldname, restart_timestep):
         metadata = shelve.open(os.path.join(self.postprocessor._get_savedir(fieldname), 'metadata.db'), 'w')
 
-        save_count = 0
         metadata_to_remove = {}
         for k in metadata.keys():
             try:
@@ -178,8 +172,6 @@ class Restart(object):
                 continue
             if k > restart_timestep:
                 metadata_to_remove[str(k)] = metadata.pop(str(k))
-            elif metadata[str(k)]["save_count"] > save_count:
-                save_count = metadata[str(k)]["save_count"]
         
         # Remove files and data for all save formats
         self._clean_hdf5(fieldname, metadata_to_remove)
@@ -188,7 +180,6 @@ class Restart(object):
         self._clean_shelve(fieldname, metadata_to_remove)
         self._clean_xdmf(fieldname, metadata_to_remove)
         self._clean_pvd(fieldname, metadata_to_remove)
-        return save_count
     
     def _clean_hdf5(self, fieldname, del_metadata):
         
@@ -242,14 +233,10 @@ class Restart(object):
         txtfilelines = txtfile.readlines()
         txtfile.close()
         
-        lines_to_remove = []
-        for k,v in del_metadata.items():
-            if 'txt' in v:
-                lines_to_remove.append(v["save_count"])
-        lines_to_keep = list(set(range(len(txtfilelines)))-set(lines_to_remove))
+        num_lines_to_strp = ['txt' in v for v in del_metadata.values()].count(True)
         
         txtfile = open(txtfilename, 'w')
-        [txtfile.write(txtfilelines[i]) for i in lines_to_keep]
+        [txtfile.write(l) for l in txtfilelines[:-num_lines_to_strp]]
         txtfile.close()
         
     def _clean_shelve(self, fieldname, del_metadata):
@@ -260,11 +247,10 @@ class Restart(object):
         shelvefile = shelve.open(shelvefilename, 'c')
         for k,v in del_metadata.items():
             if 'shelve' in v:
-                shelvefile.pop(str(v["save_count"]))
+                shelvefile.pop(str(k))
         shelvefile.close()
     
     def _clean_xdmf(self, fieldname, del_metadata):
-        #basename = "%s/%s/%s" %(self.casedir, fieldname, fieldname)
         basename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname)
         if not os.path.isfile(basename+".xdmf"):
             return
