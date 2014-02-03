@@ -124,7 +124,6 @@ class NSPostProcessor(Parameterized):
         self._last_trigger_time = defaultdict(lambda: (-1e16,-1e16))
 
         # Caches for file storage
-        self._save_counts = defaultdict(int)
         self._datafile_cache = {}
 
         # Cache for plotting
@@ -418,7 +417,6 @@ class NSPostProcessor(Parameterized):
                 for f in ["mesh.hdf5", "play.db", "params.txt", "params.pickle"]:
                     os.remove(os.path.join(self._get_casedir(), f))
 
-
     def _create_casedir(self):
         casedir = self.params.casedir
         safe_mkdir(casedir)
@@ -473,7 +471,7 @@ class NSPostProcessor(Parameterized):
             # Flush file between timesteps
             metadata_file.close()
 
-    def _get_datafile_name(self, field_name, saveformat, save_count):
+    def _get_datafile_name(self, field_name, saveformat, timestep):
         # These formats produce a new file each time
         counted_formats = ('xml', 'xml.gz')
 
@@ -481,7 +479,7 @@ class NSPostProcessor(Parameterized):
 
         # Make filename, with or without save count in name
         if saveformat in counted_formats:
-            filename = "%s%d.%s" % (field_name, save_count, saveformat)
+            filename = "%s%d.%s" % (field_name, timestep, saveformat)
             # If we have a new filename each time, store the name in metadata
             #metadata = [('filename', filename)]
             metadata['filename'] = filename
@@ -490,17 +488,16 @@ class NSPostProcessor(Parameterized):
         else:
             filename = "%s.%s" % (field_name, saveformat)
             if saveformat == 'hdf5':
-                #metadata = [('dataset', field_name+str(save_count))]
-                metadata['dataset'] = field_name+str(save_count)
+                metadata['dataset'] = field_name+str(timestep)
 
         savedir = self._get_savedir(field_name)
         fullname = os.path.join(savedir, filename)
         return fullname, metadata
 
-    def _update_pvd_file(self, field_name, saveformat, data, save_count, t):
+    def _update_pvd_file(self, field_name, saveformat, data, timestep, t):
         assert isinstance(data, Function)
         assert saveformat == "pvd"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         key = (field_name, saveformat)
         datafile = self._datafile_cache.get(key)
         if datafile is None:
@@ -509,10 +506,10 @@ class NSPostProcessor(Parameterized):
         datafile << data
         return metadata
 
-    def _update_xdmf_file(self, field_name, saveformat, data, save_count, t):
+    def _update_xdmf_file(self, field_name, saveformat, data, timestep, t):
         assert isinstance(data, Function)
         assert saveformat == "xdmf"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         key = (field_name, saveformat)
         datafile = self._datafile_cache.get(key)
         if datafile is None:
@@ -523,9 +520,9 @@ class NSPostProcessor(Parameterized):
         datafile << (data, t)
         return metadata
 
-    def _update_hdf5_file(self, field_name, saveformat, data, save_count, t):
+    def _update_hdf5_file(self, field_name, saveformat, data, timestep, t):
         assert saveformat == "hdf5"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         
         # Create "good enough" hash. This is done to avoid data corruption when restarted from
         # different number of processes, different distribution or different function space
@@ -553,50 +550,47 @@ class NSPostProcessor(Parameterized):
         
         # Write vector to file
         # TODO: Link vector when function has been written to hash
-        datafile.write(data.vector(), field_name+str(save_count)+"/vector")
+        datafile.write(data.vector(), field_name+str(timestep)+"/vector")
         del datafile
 
         # Link information about function space from hash-dataset
-        hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(save_count)+"/x_cell_dofs")
-        hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(save_count)+"/cell_dofs")
-        hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(save_count)+"/cells")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(timestep)+"/x_cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(timestep)+"/cell_dofs")
+        hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(timestep)+"/cells")
 
         return metadata
 
-    def _update_xml_file(self, field_name, saveformat, data, save_count, t):
+    def _update_xml_file(self, field_name, saveformat, data, timestep, t):
         assert saveformat == "xml"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         datafile = File(fullname)
         datafile << data
         return metadata
 
-    def _update_xml_gz_file(self, field_name, saveformat, data, save_count, t):
+    def _update_xml_gz_file(self, field_name, saveformat, data, timestep, t):
         assert saveformat == "xml.gz"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         datafile = File(fullname)
         datafile << data
         return metadata
 
-    def _update_txt_file(self, field_name, saveformat, data, save_count, t):
+    def _update_txt_file(self, field_name, saveformat, data, timestep, t):
         # TODO: Identify which more well defined data formats we need
         assert saveformat == "txt"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         if on_master_process():
-            if save_count == 0:
-                datafile = open(fullname, 'w')
-            else:
-                datafile = open(fullname, 'a')
+            datafile = open(fullname, 'a')
             datafile.write(str(data))
             datafile.write("\n")
             datafile.close()
         return metadata
 
-    def _update_shelve_file(self, field_name, saveformat, data, save_count, t):
+    def _update_shelve_file(self, field_name, saveformat, data, timestep, t):
         assert saveformat == "shelve"
-        fullname, metadata = self._get_datafile_name(field_name, saveformat, save_count)
+        fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         if on_master_process():
             datafile = shelve.open(fullname)
-            datafile[str(save_count)] = data
+            datafile[str(timestep)] = data
             datafile.close()
             
         return metadata
@@ -648,9 +642,7 @@ class NSPostProcessor(Parameterized):
         field_name = field.name
 
         # Create save folder first time
-        save_count = self._save_counts[field_name]
-        if save_count == 0:
-            self._create_savedir(field_name)
+        self._create_savedir(field_name)
 
         # Get current time (assuming the cache contains
         # valid 't' and 'timestep' at each step)
@@ -662,7 +654,6 @@ class NSPostProcessor(Parameterized):
 
         # Collect metadata shared between data types
         metadata = {
-            'save_count': save_count,
             'timestep': timestep,
             'time': t,
             }
@@ -678,19 +669,19 @@ class NSPostProcessor(Parameterized):
         for saveformat in save_as:
             # Write data to file depending on type
             if saveformat == 'pvd':
-                metadata[saveformat] = self._update_pvd_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_pvd_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'xdmf':
-                metadata[saveformat] = self._update_xdmf_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_xdmf_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'xml':
-                metadata[saveformat] = self._update_xml_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_xml_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'xml.gz':
-                metadata[saveformat] = self._update_xml_gz_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_xml_gz_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'txt':
-                metadata[saveformat] = self._update_txt_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_txt_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'hdf5':
-                metadata[saveformat] = self._update_hdf5_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_hdf5_file(field_name, saveformat, data, timestep, t)
             elif saveformat == 'shelve':
-                metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, save_count, t)
+                metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, timestep, t)
             else:
                 error("Unknown save format %s." % (saveformat,))
 
@@ -699,8 +690,6 @@ class NSPostProcessor(Parameterized):
         
         self._fill_play_log(field, timestep, save_as)
 
-        # Update save count
-        self._save_counts[field_name] = save_count + 1
 
     def _action_plot(self, field, data):
         "Apply the 'plot' action to computed field data."
@@ -874,7 +863,7 @@ class NSPostProcessor(Parameterized):
                     if field.params[action]:
                         self._apply_action(action, field, data)
 
-        if 1: # Debugging:
+        if 0: # Debugging:
             s1 = set(fields_to_compute)
             s2 = set(self._cache[0])
             s2.remove("t")
