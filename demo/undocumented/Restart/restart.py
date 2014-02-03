@@ -14,7 +14,7 @@ def play():
     
     # Need to save velocity and pressure for restart to work
     fields = [
-        Velocity(dict(save=True, save_as="xml",stride_timestep=5)),
+        Velocity(dict(save=True, stride_timestep=5)),
         Pressure(dict(save=True, stride_timestep=10)),
         L2norm("Velocity", dict(save=True, stride_timestep=2))
     ]
@@ -31,16 +31,18 @@ def restart():
     # Load params, to reuse
     params = pickle.load(open('results/params.pickle', 'r'))
     
+    # Create new problem and scheme instances
+    # Note: New scheme, and new end time
     problem = Beltrami(params.problem)
     problem.params.T = 2.0
     scheme = IPCS_Stable(params.scheme)
     
+    # Set up postprocessor with new fields
     fields = [
         Velocity(dict(save=True)),
         Pressure(dict(save=True)),
         WSS(dict(save=True)),
     ]
-    
     postprocessor = NSPostProcessor(dict(casedir='results'))
     postprocessor.add_fields(fields)
     
