@@ -9,7 +9,7 @@ from cbcflow.dol import *
 
 c0 = Constant(0)
 
-class DogAneurysm(NSProblem):
+class BifurcationAneurysm(NSProblem):
     "Template of a typical implementation of a NSProblem subclass"
 
     def __init__(self, params=None):
@@ -76,7 +76,7 @@ class DogAneurysm(NSProblem):
 
 
 def main():
-    problem = DogAneurysm()
+    problem = BifurcationAneurysm()
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

@@ -7,7 +7,7 @@ from cbcflow import PPField
 import dolfin
 import numpy
 
-class CustomFieldTemplate(PPField):
+class CustomPostprocessingField(PPField):
     def before_first_compute(self, pp, spaces, problem):
         # Initialize internal variables once in this optional function
         self._my_private_variable = 0
