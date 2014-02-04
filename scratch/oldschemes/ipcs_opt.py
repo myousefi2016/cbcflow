@@ -6,10 +6,10 @@ __copyright__ = "Copyright (C) 2011 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 # TODO: Import only what's needed here and elsewhere:
-from ..core.nsscheme import *
-from ..core.rhsgenerator import *
-from ..core.utils import Timer, is_periodic, epsilon
-from ..core.timesteps import compute_regular_timesteps
+from cbcflow.core.nsscheme import *
+from cbcflow.core.rhsgenerator import *
+from cbcflow.core.utils import Timer, is_periodic, epsilon
+from cbcflow.core.timesteps import compute_regular_timesteps
 
 class IPCS_opt(NSScheme):
     "Incremental pressure-correction scheme, optimized version."

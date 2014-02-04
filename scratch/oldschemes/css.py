@@ -9,9 +9,9 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Harish Narayanan, 2009.
 # Modified by Martin Alnaes, 2013.
 
-from ..core.nsscheme import *
-from ..core.timesteps import compute_regular_timesteps
-from ..core.utils import Timer
+from cbcflow.core.nsscheme import *
+from cbcflow.core.timesteps import compute_regular_timesteps
+from cbcflow.core.utils import Timer
 
 class CSS(NSScheme):
     "Consistent splitting scheme by Guermond and Shen."

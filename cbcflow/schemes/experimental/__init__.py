@@ -17,23 +17,23 @@
 
 ### Experimental schemes (i.e. work in progress, not tested well, not documented)
 # The simplest ipcs schemes with different optimizations
-from .ipcs_opt_seg import SegregatedIPCS_Optimized
+from cbcflow.schemes.experimental.ipcs_opt_seg import SegregatedIPCS_Optimized
 
 # Schemes with support for penalty pressure BCs
-from .ipcs_penalty import PenaltyIPCS
-from .ipcs_penalty_segregated import SegregatedPenaltyIPCS
+from cbcflow.schemes.experimental.ipcs_penalty import PenaltyIPCS
+from cbcflow.schemes.experimental.ipcs_penalty_segregated import SegregatedPenaltyIPCS
 
 # DG schemes not working in parallell
-from .bottipietro import BottiPietro
-from .piso import PISO
-from .karper import Karper
+from cbcflow.schemes.experimental.bottipietro import BottiPietro
+from cbcflow.schemes.experimental.piso import PISO
+from cbcflow.schemes.experimental.karper import Karper
 
 # Coupled schemes
-from .couplednonlinear import CoupledNonLinear
-from .coupled_picard import CoupledPicard
-from .stokes import Stokes
-from .coupledpreconditioned import CoupledPreconditoned
-from .coupledpreconditioned_kam import CoupledPreconditonedKAM
+from cbcflow.schemes.experimental.couplednonlinear import CoupledNonLinear
+from cbcflow.schemes.experimental.coupled_picard import CoupledPicard
+from cbcflow.schemes.experimental.stokes import Stokes
+from cbcflow.schemes.experimental.coupledpreconditioned import CoupledPreconditoned
+from cbcflow.schemes.experimental.coupledpreconditioned_kam import CoupledPreconditonedKAM
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme
