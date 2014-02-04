@@ -93,7 +93,7 @@ class TestConvergence():
                 errors[tf.name] = l2norm(val, ref, spaces)
 
         except RuntimeError as re:
-            print re.msg
+            print re.message
             pass
         
         # Enable printing again, and print errors
