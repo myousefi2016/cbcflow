@@ -3,6 +3,7 @@ import sys
 import pytest
 import itertools
 from collections import defaultdict
+import argparse
 
 sys.path.insert(0, "../../demo/undocumented/Poiseuille2D")
 sys.path.insert(0, "../../demo/undocumented/Poiseuille3D")
@@ -20,35 +21,38 @@ from LidDrivenCavity import LidDrivenCavity
 
 
 # TODO: Move to utils, this could be useful elsewhere
-def parse_parameterized(option, opt_str, value, parser):
-    parameterized = {}
-    nargs = 0
-    # Start parsing arguments
-    for arg in parser.rargs:
-        # Stop parsing if we've reached a new option
-        if arg[0] == '-':
-            break
-        nargs += 1
-        
-        # Create new key if this is not recognized as a parameter
-        if "=" not in arg:
-            key = arg
-            parameterized[key] = ParamDict()
-            continue
-        
-        # Add parameters
-        param, value = arg.split('=')
-        if value.isdigit():
-            parameterized[key][param] = int(value)
-        else:
-            try:
-                parameterized[key][param] = float(value)
-            except ValueError:
-                parameterized[key][param] = value
-    
-    # Removed parsed args from parser
-    del parser.rargs[:nargs]
-    setattr(parser.values, option.dest, parameterized)
+#def parse_parameterized(option, opt_str, value, parser):
+#def parse_parameterized(parser, dest=None, option_strings=None):
+
+class ParseParameterized(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        parameterized = {}
+        # Start parsing arguments
+        for arg in values:
+            # Stop parsing if we've reached a new option
+            #if arg[0] == '-':
+            #    break
+            #nargs += 1
+            
+            # Create new key if this is not recognized as a parameter
+            if "=" not in arg:
+                key = arg
+                parameterized[key] = ParamDict()
+                continue
+            
+            # Add parameters
+            param, value = arg.split('=')
+            if value.isdigit():
+                parameterized[key][param] = int(value)
+            else:
+                try:
+                    parameterized[key][param] = float(value)
+                except ValueError:
+                    parameterized[key][param] = value
+
+        # Removed parsed args from parser
+        setattr(namespace, self.dest, parameterized)
+
 
 def pytest_addoption(parser):
     parser.addoption("--type", action="store", default="changed", 
@@ -60,8 +64,8 @@ def pytest_addoption(parser):
     #parser.addoption("--mode", action="store", default="regression", choices=["regression", "validation"],
     #                 dest="mode", help="Run regression test or generate validation figures")
     
-    parser.addoption("--schemes", action="callback", callback=parse_parameterized, dest="schemes")
-    parser.addoption("--problems", action="callback", callback=parse_parameterized, dest="problems")
+    parser.addoption("--schemes", nargs="*",action=ParseParameterized, dest="schemes")
+    parser.addoption("--problems", nargs="*",action=ParseParameterized, dest="problems")
     
 def updated_paramdict(params, add_dict):
     params.update(add_dict)
