@@ -16,20 +16,20 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 # Base classes for fields
-from .bases.PPField import PPField
-from .bases.MetaPPField import MetaPPField
-from .bases.MetaPPField2 import MetaPPField2
+from cbcflow.fields.bases.PPField import PPField
+from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaPPField2 import MetaPPField2
 
 # Lists of available field names
-from .basic import basic_fields
-from .meta import meta_fields
+from cbcflow.fields.basic import basic_fields
+from cbcflow.fields.meta import meta_fields
 all_fields = basic_fields + meta_fields
 
 # Import field classes from modules with same name
 for f in basic_fields:
-    exec("from .basic.%s import %s" % (f, f))
+    exec("from cbcflow.fields.basic.%s import %s" % (f, f))
 for f in meta_fields:
-    exec("from .meta.%s import %s" % (f, f))
+    exec("from cbcflow.fields.meta.%s import %s" % (f, f))
 
 # Make a mapping from name to type, for use in NSPostProcessor
 field_classes = { f: eval(f) for f in basic_fields }

@@ -16,13 +16,13 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 """A collection of Navier-Stokes schemes."""
 
-from .official import official_schemes
+from cbcflow.schemes.official import official_schemes
 for f in official_schemes:
-    exec("from .official import %s" % (f,))
+    exec("from cbcflow.schemes.official import %s" % (f,))
 
-from .experimental import experimental_schemes
+from cbcflow.schemes.experimental import experimental_schemes
 for f in experimental_schemes:
-    exec("from .experimental import %s" % (f,))
+    exec("from cbcflow.schemes.experimental import %s" % (f,))
 
 all_schemes = official_schemes + experimental_schemes
 

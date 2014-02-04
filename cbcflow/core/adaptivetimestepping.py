@@ -20,8 +20,8 @@ __date__ = "2013-05-23"
 __copyright__ = "Copyright (C) 2013-2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from .parameterized import Parameterized
-from .paramdict import ParamDict
+from cbcflow.core.parameterized import Parameterized
+from cbcflow.core.paramdict import ParamDict
 from cbcflow.dol import Constant
 
 # TODO: Make base class, there's a bit of shared code here

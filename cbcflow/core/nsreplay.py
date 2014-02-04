@@ -23,12 +23,12 @@ import pickle
 import os
 import inspect, shelve
 
-from .parameterized import Parameterized
-from .paramdict import ParamDict
-from .nsproblem import NSProblem
-from .nspostprocessor import NSPostProcessor
-from .spaces import NSSpacePoolSplit
-from .utils import cbcflow_print, cbcflow_warning
+from cbcflow.core.parameterized import Parameterized
+from cbcflow.core.paramdict import ParamDict
+from cbcflow.core.nsproblem import NSProblem
+from cbcflow.core.nspostprocessor import NSPostProcessor
+from cbcflow.core.spaces import NSSpacePoolSplit
+from cbcflow.core.utils import cbcflow_print, cbcflow_warning
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 

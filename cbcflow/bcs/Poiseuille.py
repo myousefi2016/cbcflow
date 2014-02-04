@@ -20,7 +20,7 @@ from cbcflow.dol import *
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from itertools import izip
-from .bcutils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
+from cbcflow.bcs.bcutils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
 class PoiseuilleComponent(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.

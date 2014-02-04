@@ -22,8 +22,8 @@ __license__  = "GNU GPL version 3 or any later version"
 
 import ufl
 
-from .paramdict import ParamDict
-from .parameterized import Parameterized
+from cbcflow.core.paramdict import ParamDict
+from cbcflow.core.parameterized import Parameterized
 from cbcflow.dol import Constant, MeshFunction
 
 class NSProblem(Parameterized):
