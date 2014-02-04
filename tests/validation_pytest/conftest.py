@@ -3,18 +3,20 @@ import sys
 import pytest
 import itertools
 from collections import defaultdict
+
 sys.path.insert(0, "../../demo/undocumented/Poiseuille2D")
 sys.path.insert(0, "../../demo/undocumented/Poiseuille3D")
 sys.path.insert(0, "../../demo/undocumented/Womersley2D")
 sys.path.insert(0, "../../demo/undocumented/Womersley3D")
 sys.path.insert(0, "../../demo/undocumented/Beltrami")
 sys.path.insert(0, "../../demo/undocumented/LidDrivenCavity")
-from poiseuille2d import Poiseuille2D
-from poiseuille3d import Poiseuille3D
-from womersley2d import Womersley2D
-from womersley3d import Womersley3D
-from beltrami import Beltrami
-from liddrivencavity import LidDrivenCavity
+
+from Poiseuille2D import Poiseuille2D
+from Poiseuille3D import Poiseuille3D
+from Womersley2D import Womersley2D
+from Womersley3D import Womersley3D
+from Beltrami import Beltrami
+from LidDrivenCavity import LidDrivenCavity
 
 
 # TODO: Move to utils, this could be useful elsewhere
