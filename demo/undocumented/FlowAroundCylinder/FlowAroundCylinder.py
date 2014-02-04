@@ -24,11 +24,14 @@ class FlowAroundCylinder(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-
+        
+        refinement_levels=[32,64,128,256,512]
+        N = refinement_levels[self.params.refinement_level]
+        
         # Create mesh
         r = Rectangle(0,0, 10, 1)
         c = Circle(2.0, 0.5, 0.12)
-        mesh = Mesh(r-c, self.params.N)
+        mesh = Mesh(r-c, N)
 
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
@@ -54,7 +57,7 @@ class FlowAroundCylinder(NSProblem):
             )
         params.update(
             # Spatial parameters
-            N=64,
+            refinement_level=0,
             )
         return params
 

@@ -109,13 +109,14 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         # These are callables to produce fresh NSScheme/NSProblem instances
         self._scheme_factory = scheme_factory
         self._problem_factory = problem_factory
-        self.__Ns = config.get("Ns") if config else None
+        self.__refinement_levels = config.get("refinement_levels") if config else None
         self.__dts = config.get("dts") if config else None
 
     def shortDescription(self):
         "Returns a description of this test case for better reporting of failures in the unittest framework."
         sc = self._scheme_factory.func_code
         pc = self._problem_factory.func_code
+
         assert sc.co_filename == pc.co_filename
         loc = "%s:%d,%d" % (sc.co_filename, sc.co_firstlineno, pc.co_firstlineno)
         scode = inspect.getsource(self._scheme_factory)
@@ -123,11 +124,11 @@ class DiscretizationSweepTestCase(unittest.TestCase):
         strings = (self.__class__.__name__, scode.lstrip(), pcode.lstrip(), loc)
         return "%s with params:\n    sf = %s    pf = %s    @ %s" % strings
 
-    def _Ns(self):
+    def _refinement_levels(self):
         "Return range of spatial discretization parameters."
-        if self.__Ns:
-            return self.__Ns
-        raise NotImplementedError("Missing implementation of _Ns in test class!")
+        if self.__refinement_levels:
+            return self.__refinement_levels
+        raise NotImplementedError("Missing implementation of _refinement_levels in test class!")
 
     def _dts(self):
         "Return range of temporal discretization parameters."
@@ -168,17 +169,17 @@ class DiscretizationSweepTestCase(unittest.TestCase):
     def runTest(self):
         "Run sweep over discretization parameters and delegate analysis to subclass"
 
-        keys = [(N, dt) for N in self._Ns() for dt in self._dts()]
+        keys = [(refinement_level, dt) for refinement_level in self._refinement_levels() for dt in self._dts()]
 
         scheme_factory = self._scheme_factory
         problem_factory = self._problem_factory
         fields_factory = self._make_fields
 
-        casedirs_factory = lambda p, s, N, dt: [
+        casedirs_factory = lambda p, s, refinement_level, dt: [
             self.__class__.__name__,
             s.shortname(),
             p.shortname(),
-            "N_%s" % str(N),
+            "ref_%s" % str(refinement_level),
             "dt_%g" % dt,
             ]
 

@@ -16,9 +16,9 @@ _logfile = open("testlog.log","w")
 
 class TestGridConvergence(DiscretizationSweepTestCase):
 
-    def _Ns(self):
+    def _refinement_levels(self):
         "Return range of spatial discretization parameters."
-        return [8, 16]
+        return [0,1]
 
     def _dts(self):
         "Return range of temporal discretization parameters."
@@ -47,16 +47,16 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 
         eps = 1e-14
 
-        Ns = self._Ns()
+        refinement_levels = self._refinement_levels()
         dts = self._dts()
 
         analysis = {}
         for dt in dts:
             analysis[dt] = []
-            for N0, N1 in zip(Ns[:-1], Ns[1:]):
+            for refinement_level0, refinement_level1 in zip(refinement_levels[:-1], refinement_levels[1:]):
                 # Fetch data at two refinements
-                key0 = (N0, dt)
-                key1 = (N1, dt)
+                key0 = (refinement_level0, dt)
+                key1 = (refinement_level1, dt)
                 data0 = data[key0]
                 data1 = data[key1]
 
@@ -65,14 +65,14 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 if ex is not None:
                     key = key0
                     tb = data0.get("traceback")
-                    msg = "At N={N}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(N=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
+                    msg = "At refinement_level={refinement_level}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(refinement_level=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
                     self._print(msg)
                     continue
                 ex = data1.get("exception")
                 if ex is not None:
                     key = key1
                     tb = data1.get("traceback")
-                    msg = "At N={N}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(N=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
+                    msg = "At refinement_level={refinement_level}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(refinement_level=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
                     self._print(msg)
                     continue
 
@@ -87,8 +87,8 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 
                 # Package nicely
                 a = {
-                    "N0": key0[0],
-                    "N1": key1[1],
+                    "refinement_level0": key0[0],
+                    "refinement_level1": key1[1],
                     "dt0": key0[1],
                     "dt1": key1[1],
                     "u_coarse_norm": u_coarse_norm,
@@ -101,7 +101,7 @@ class TestGridConvergence(DiscretizationSweepTestCase):
         # Slight modification of the prints that Kent did before:
         for key in sorted(analysis.keys()):
             for a in analysis[key]:
-                msg = "At N0,dt0={N0},{dt0}; N1,dt1={N1},{dt1}; abs diff = {udn}; fine norm = {ufn}; relative norm = {urn}.".format(N0=a["N0"], N1=a["N1"],
+                msg = "At refinement_level0,dt0={refinement_level0},{dt0}; refinement_level1,dt1={refinement_level1},{dt1}; abs diff = {udn}; fine norm = {ufn}; relative norm = {urn}.".format(refinement_level0=a["refinement_level0"], refinement_level1=a["refinement_level1"],
                                                                                                                                     dt0=a["dt0"], dt1=a["dt1"],
                                                                                                                                     udn=a["u_diff_norm"],
                                                                                                                                     ufn=a["u_fine_norm"],
@@ -132,16 +132,16 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 
         eps = 1e-14
 
-        Ns = self._Ns()
+        refinement_levels = self._refinement_levels()
         dts = self._dts()
 
         analysis = {}
-        for N in Ns:
-            analysis[N] = []
+        for refinement_level in refinement_levels:
+            analysis[refinement_level] = []
             for dt0, dt1 in zip(dts[:-1], dts[1:]):
                 # Fetch data at two refinements
-                key0 = (N, dt0)
-                key1 = (N, dt1)
+                key0 = (refinement_level, dt0)
+                key1 = (refinement_level, dt1)
                 data0 = data[key0]
                 data1 = data[key1]
 
@@ -150,14 +150,14 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 if ex is not None:
                     key = key0
                     tb = data0.get("traceback")
-                    msg = "At N={N}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(N=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
+                    msg = "At refinement_level={refinement_level}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(refinement_level=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
                     self._print(msg)
                     continue
                 ex = data1.get("exception")
                 if ex is not None:
                     key = key1
                     tb = data1.get("traceback")
-                    msg = "At N={N}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(N=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
+                    msg = "At refinement_level={refinement_level}; dt={dt}; got exception {ext}:\n{exs}\nTraceback:\n{tb}".format(refinement_level=key[0], dt=key[1], ext=type(ex), exs=str(ex), tb=tb)
                     self._print(msg)
                     continue
 
@@ -172,8 +172,8 @@ class TestGridConvergence(DiscretizationSweepTestCase):
 
                 # Package nicely
                 a = {
-                    "N0": key0[0],
-                    "N1": key1[1],
+                    "refinement_level0": key0[0],
+                    "refinement_level1": key1[1],
                     "dt0": key0[1],
                     "dt1": key1[1],
                     "u_coarse_norm": u_coarse_norm,
@@ -181,12 +181,12 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                     "u_diff_norm": u_diff_norm,
                     "u_rel_norm": u_rel_norm,
                     }
-                analysis[N].append(a)
+                analysis[refinement_level].append(a)
 
         # Slight modification of the prints that Kent did before:
         for key in sorted(analysis.keys()):
             for a in analysis[key]:
-                msg = "At N0,dt0={N0},{dt0}; N1,dt1={N1},{dt1}; abs diff = {udn}; fine norm = {ufn}; relative norm = {urn}.".format(N0=a["N0"], N1=a["N1"],
+                msg = "At refinement_level0,dt0={refinement_level0},{dt0}; refinement_level1,dt1={refinement_level1},{dt1}; abs diff = {udn}; fine norm = {ufn}; relative norm = {urn}.".format(refinement_level0=a["refinement_level0"], refinement_level1=a["refinement_level1"],
                                                                                                                                     dt0=a["dt0"], dt1=a["dt1"],
                                                                                                                                     udn=a["u_diff_norm"],
                                                                                                                                     ufn=a["u_fine_norm"],
@@ -194,9 +194,9 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 self._print(msg)
 
         # FIXME: Add assertions to validate convergence rate from analysis[N][:]
-        for N in Ns:
+        for refinement_level in refinement_levels:
             rates = []
-            for a0, a1 in zip(analysis[N][:-1], analysis[N][1:]):
+            for a0, a1 in zip(analysis[refinement_level][:-1], analysis[refinement_level][1:]):
                 try:
                     # FIXME: Better rate estimation formula!
                     # Hack to avoid division by zero
@@ -206,7 +206,7 @@ class TestGridConvergence(DiscretizationSweepTestCase):
                 except:
                     rate = None
                 rates.append(rate)
-            msg = "Convergence rates w.r.t dt  at N=%g: %s" % (N, rates)
+            msg = "Convergence rates w.r.t dt  at refinement_level=%g: %s" % (refinement_level, rates)
             self._print(msg)
 
         self._print("END _analyze_temporal_convergence")
@@ -234,8 +234,8 @@ def load_tests(loader, standard_tests, none):
 
     # FIXME: Add more problems
     problems = [
-        lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
-        lambda N,dt: FlowAroundCylinder(ParamDict(N=N, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
+        lambda refinement_level,dt: Beltrami(ParamDict(refinement_level=refinement_level, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
+        lambda refinement_level,dt: FlowAroundCylinder(ParamDict(refinement_level=refinement_level, dt=dt, T=dt*2)), # FIXME: Limiting T for debugging
         ]
 
     return make_suite(TestGridConvergence, [schemes, problems])
