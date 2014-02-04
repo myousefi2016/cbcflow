@@ -36,7 +36,7 @@ from .coupledpreconditioned import CoupledPreconditoned
 from .coupledpreconditioned_kam import CoupledPreconditonedKAM
 
 # Collect all schemes in list automatically
-from ...core.nsscheme import NSScheme
+from cbcflow.core.nsscheme import NSScheme
 experimental_schemes = [k for k,v in globals().items()
                         if hasattr(v, 'mro')
                         and issubclass(v, NSScheme)

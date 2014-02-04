@@ -17,7 +17,7 @@
 
 import dolfin
 from .spaces import NSSpacePoolSplit
-from ..dol import *
+from cbcflow.dol import *
 
 def animate_expression(f, name, V, t, timesteps):
     f0 = Function(V)

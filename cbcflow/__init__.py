@@ -19,32 +19,32 @@ __date__ = "2013-11-26"
 __license__  = "GNU GPL version 3 or any later version"
 
 # Basic utilities
-from .core.paramdict import ParamDict
+from cbcflow.core.paramdict import ParamDict
 
 # Core component interfaces
-from .core.nsproblem import NSProblem
-from .core.nspostprocessor import NSPostProcessor
-from .core.nsscheme import NSScheme
-from .core.nssolver import NSSolver
-from .core.nsreplay import NSReplay
+from cbcflow.core.nsproblem import NSProblem
+from cbcflow.core.nspostprocessor import NSPostProcessor
+from cbcflow.core.nsscheme import NSScheme
+from cbcflow.core.nssolver import NSSolver
+from cbcflow.core.nsreplay import NSReplay
 
 # Problem inspection utilities
-from .core.show import show_problem
+from cbcflow.core.show import show_problem
 
 # Timestepping utilities
-from .core.adaptivetimestepping import AdaptiveTimestepping
-from .core.constanttimestepping import ConstantTimestepping
+from cbcflow.core.adaptivetimestepping import AdaptiveTimestepping
+from cbcflow.core.constanttimestepping import ConstantTimestepping
 
 # Boundary condition utilities
-from .bcs import *
+from cbcflow.bcs import *
 
 # Postprocessing utilities and fields
-from .fields import *
+from cbcflow.fields import *
 
 # Navier-Stokes solver schemes
-from .schemes import *
+from cbcflow.schemes import *
 
 # Import utils
-#from .utils.fenicstools import *
-#from .utils.create_slicemesh import create_slicemesh
-#from .utils.Slice import Slice
+#from cbcflow.utils.fenicstools import *
+#from cbcflow.utils.create_slicemesh import create_slicemesh
+#from cbcflow.utils.Slice import Slice

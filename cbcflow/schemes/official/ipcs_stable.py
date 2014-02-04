@@ -21,17 +21,17 @@ __date__ = "2013-05-13"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ...core.nsscheme import *
-from ...core.rhsgenerator import *
-from ...core.timesteps import compute_regular_timesteps
-from ...core.utils import Timer, is_periodic, cbcflow_log
-#from ...core.adaptivetimestepping import AdaptiveTimestepping
-#from ...core.constanttimestepping import ConstantTimestepping
-from ...core.schemeutils import (assign_ics_segregated,
+from cbcflow.core.nsscheme import *
+from cbcflow.core.rhsgenerator import *
+from cbcflow.core.timesteps import compute_regular_timesteps
+from cbcflow.core.utils import Timer, is_periodic, cbcflow_log
+#from cbcflow.core.adaptivetimestepping import AdaptiveTimestepping
+#from cbcflow.core.constanttimestepping import ConstantTimestepping
+from cbcflow.core.schemeutils import (assign_ics_segregated,
                                 make_segregated_velocity_bcs,
                                 make_pressure_bcs,
                                 make_penalty_pressure_bcs)
-from ...core.spaces import NSSpacePoolSegregated
+from cbcflow.core.spaces import NSSpacePoolSegregated
 
 
 class IPCS_Stable(NSScheme):

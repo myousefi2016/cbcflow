@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from ..bases.PPField import PPField
-#from ...utils import *
+#from cbcflow.utils import *
 from dolfin import *
 
 def import_fenicstools():

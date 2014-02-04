@@ -19,7 +19,7 @@
 import os
 from time import time
 
-from ..dol import MPI, warning, log, compile_extension_module
+from cbcflow.dol import MPI, warning, log, compile_extension_module
 
 def on_master_process():
     return MPI.process_number() == 0

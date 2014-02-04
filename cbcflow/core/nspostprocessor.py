@@ -24,7 +24,7 @@ from .parameterized import Parameterized
 from .utils_pyminifier import minify
 from .utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
-from ..fields import field_classes, basic_fields, meta_fields, PPField
+from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
 from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMFFile, error
 

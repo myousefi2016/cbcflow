@@ -20,7 +20,7 @@ __date__ = "2013-07-01"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, Function
+from cbcflow.dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, Function
 
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"

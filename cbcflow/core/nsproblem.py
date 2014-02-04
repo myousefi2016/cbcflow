@@ -24,7 +24,7 @@ import ufl
 
 from .paramdict import ParamDict
 from .parameterized import Parameterized
-from ..dol import Constant, MeshFunction
+from cbcflow.dol import Constant, MeshFunction
 
 class NSProblem(Parameterized):
     """Base class for all Navier-Stokes problems."""

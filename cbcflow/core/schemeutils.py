@@ -21,7 +21,7 @@ __date__ = "2013-06-06"
 __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import *
+from cbcflow.dol import *
 
 # --- Initial condition helper functions for schemes
 

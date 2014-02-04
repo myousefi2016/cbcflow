@@ -22,7 +22,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from .parameterized import Parameterized
 from .paramdict import ParamDict
-from ..dol import Constant
+from cbcflow.dol import Constant
 
 class TimeStepper(Parameterized): # TODO: Use this as base class for AdaptiveTimeStepper, see fixmes in that class
     def __init__(self, params):

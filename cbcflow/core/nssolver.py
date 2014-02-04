@@ -20,7 +20,7 @@ __date__ = "2013-04-26"
 __copyright__ = "Copyright (C) 2013-2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import plot, parameters, as_vector, MPI, Mesh
+from cbcflow.dol import plot, parameters, as_vector, MPI, Mesh
 
 from time import time
 import os
