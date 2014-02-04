@@ -14,8 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from ..bases.MetaPPField import MetaPPField
-#from ...utils import *
+from cbcflow.fields.bases.MetaPPField import MetaPPField
+#from cbcflow.utils import *
 import numpy as np
 from dolfin import Point
 from itertools import chain

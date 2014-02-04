@@ -14,9 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from ..bases.PPField import PPField
+from cbcflow.fields.bases.PPField import PPField
 from dolfin import Function
-from ...core.spaces import NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
+from cbcflow.core.spaces import NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
 
 class PhysicalPressure(PPField):
     "The physical pressure is the solver pressure scaled by density."

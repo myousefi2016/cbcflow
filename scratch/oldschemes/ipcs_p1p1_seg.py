@@ -7,9 +7,9 @@ __license__  = "GNU GPL version 3 or any later version"
 
 # Modified by Anders Logg, 2008-2010.
 
-from ..core.nsscheme import *
-from ..core.timesteps import compute_regular_timesteps
-from ..core.utils import Timer
+from cbcflow.core.nsscheme import *
+from cbcflow.core.timesteps import compute_regular_timesteps
+from cbcflow.core.utils import Timer
 
 class IPCS_p1p1_seg(NSScheme):
     "Incremental pressure-correction scheme, using P1-P1 elements, segregated version."

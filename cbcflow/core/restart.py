@@ -19,7 +19,7 @@ __date__ = "2014-02-03"
 __copyright__ = "Copyright (C) 2014 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import *
+from cbcflow.dol import *
 
 from numpy import linspace
 
@@ -27,7 +27,7 @@ import shelve
 import os
 import subprocess
 
-from ..core.utils import cbcflow_warning, cbcflow_print
+from cbcflow.core.utils import cbcflow_warning, cbcflow_print
 
 fetchable_formats = ["hdf5", "xml"]
 

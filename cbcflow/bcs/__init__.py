@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from .Poiseuille import Poiseuille, make_poiseuille_bcs
-from .Womersley import Womersley, make_womersley_bcs
-from .Resistance import Resistance
-from .UniformShear import UniformShear
+from cbcflow.bcs.Poiseuille import Poiseuille, make_poiseuille_bcs
+from cbcflow.bcs.Womersley import Womersley, make_womersley_bcs
+from cbcflow.bcs.Resistance import Resistance
+from cbcflow.bcs.UniformShear import UniformShear
 

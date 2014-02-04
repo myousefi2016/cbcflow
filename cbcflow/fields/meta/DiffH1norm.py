@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from ..bases.MetaPPField2 import MetaPPField2
+from cbcflow.fields.bases.MetaPPField2 import MetaPPField2
 from dolfin import *
 
 class DiffH1norm(MetaPPField2):

@@ -14,8 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from ..bases.PPField import PPField
-from ...core.utils import sigma
+from cbcflow.fields.bases.PPField import PPField
+from cbcflow.core.utils import sigma
 from dolfin import *
 
 class Stress(PPField):

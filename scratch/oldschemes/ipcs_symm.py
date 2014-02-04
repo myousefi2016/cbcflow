@@ -5,10 +5,10 @@ __date__ = "2012-02-01"
 __copyright__ = "Copyright (C) 2012 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..core.nsscheme import *
-from ..core.rhsgenerator import *
-from ..core.timesteps import compute_regular_timesteps
-from ..core.utils import Timer
+from cbcflow.core.nsscheme import *
+from cbcflow.core.rhsgenerator import *
+from cbcflow.core.timesteps import compute_regular_timesteps
+from cbcflow.core.utils import Timer
 
 class IPCS_symm(NSScheme):
     "Incremental pressure-correction scheme, using symmetric assemble."

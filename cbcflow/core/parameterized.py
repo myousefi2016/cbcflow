@@ -20,7 +20,7 @@ __date__ = "2013-04-26"
 __copyright__ = "Copyright (C) 2013-2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from .paramdict import ParamDict
+from cbcflow.core.paramdict import ParamDict
 
 class Parameterized(object):
     "Core functionality for parameterized subclassable components."

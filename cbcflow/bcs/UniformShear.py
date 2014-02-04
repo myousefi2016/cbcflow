@@ -14,9 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from ..dol import *
+from cbcflow.dol import *
 
-from .bcutils import compute_area
+from cbcflow.bcs.bcutils import compute_area
 
 def compute_uniform_shear_value(u, ind, facet_domains, C=10000):
     mesh = facet_domains.mesh()

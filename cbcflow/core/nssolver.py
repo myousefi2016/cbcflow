@@ -20,17 +20,17 @@ __date__ = "2013-04-26"
 __copyright__ = "Copyright (C) 2013-2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
-from ..dol import plot, parameters, as_vector, MPI, Mesh
+from cbcflow.dol import plot, parameters, as_vector, MPI, Mesh
 
 from time import time
 import os
 import glob
 import re
 
-from .paramdict import ParamDict
-from .parameterized import Parameterized
-from .utils import get_memory_usage, time_to_string, cbcflow_print, cbcflow_warning
-from .restart import Restart
+from cbcflow.core.paramdict import ParamDict
+from cbcflow.core.parameterized import Parameterized
+from cbcflow.core.utils import get_memory_usage, time_to_string, cbcflow_print, cbcflow_warning
+from cbcflow.core.restart import Restart
 
 class NSSolver(Parameterized):
     "High level Navier-Stokes solver."
