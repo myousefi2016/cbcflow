@@ -150,7 +150,7 @@ def main():
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=False, save=True)
+    plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
