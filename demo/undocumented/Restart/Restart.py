@@ -1,12 +1,15 @@
+from os import path
 import sys
-sys.path.insert(0, '../../../demo/undocumented/Beltrami')
+
+# Add Beltrami problem as example problem
+sys.path.insert(0, path.join(path.dirname(path.realpath(__file__)), '../../../demo/undocumented/Beltrami'))
 
 import pickle
 
 from cbcflow import *
 from dolfin import *
 
-from beltrami import Beltrami
+from Beltrami import Beltrami
 
 def play():
     problem = Beltrami(dict(dt=1e-2, T=1.0))

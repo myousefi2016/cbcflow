@@ -27,7 +27,7 @@ import shelve
 import os
 import subprocess
 
-from cbcflow.core.utils import cbcflow_warning, cbcflow_print
+from cbcflow.utils.common import cbcflow_warning, cbcflow_print
 
 fetchable_formats = ["hdf5", "xml"]
 

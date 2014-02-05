@@ -26,13 +26,13 @@ def multi_level_get(top, *keys):
         d = d.get(k, em)
     return d.get(keys[-1])
 
-def extract_table(data, Ns, dts, fieldname):
+def extract_table(data, refinement_levels, dts, fieldname):
     em = {}
-    return { (N,dt): data.get((N,dt),em).get(fieldname)
-             for N in Ns for dt in dts }
+    return { (refinement_level,dt): data.get((refinement_level,dt),em).get(fieldname)
+             for refinement_level in refinement_levels for dt in dts }
 
 # TODO: Find some better table formatting utils I have lying around somewhere
-def print_table(caption, table, Ns, dts):
+def print_table(caption, table, refinement_levels, dts):
     maxchars = max(len(v) for v in table.values())
     widthfmt = "%%%ds" % maxchars
     dtfmt = "%.4e"
@@ -41,9 +41,9 @@ def print_table(caption, table, Ns, dts):
     colheader = "dt       " + sep.join(widthfmt % (dtfmt % dt) for dt in dts)
     lines = ["", caption, colheader]
 
-    for N in Ns:
-        row = "N %5d  " % N
-        row += sep.join(widthfmt % table[(N, dt)] for dt in dts)
+    for refinement_level in refinement_levels:
+        row = "ref %5d  " % refinement_level
+        row += sep.join(widthfmt % table[(refinement_level, dt)] for dt in dts)
         lines.append(row)
 
     table = "\n".join(lines)
@@ -81,12 +81,12 @@ class TestAnalyticalSolutionConvergence(DiscretizationSweepTestCase):
         "Analyse the data provided by the discretization parameter sweep."
         # FIXME: Compare with reference data, and use assertions for values with known properties.
         #print data
-        Ns = self._Ns()
+        refinement_levels = self._refinement_levels()
         dts = self._dts()
         for fieldname in self._norm_field_names:
-            table = extract_table(data, Ns, dts, fieldname)
+            table = extract_table(data, refinement_levels, dts, fieldname)
             table = map_dict_values(table, lambda v: "--" if v is None else ("%2.2e" % v))
-            formatted = print_table(fieldname, table, Ns, dts)
+            formatted = print_table(fieldname, table, refinement_levels, dts)
 
             # Store formatted table as a reference TODO: Store floats so we can use a precision argument for comparing
             self._write_reference(data["basedir"], fieldname, formatted)
@@ -139,27 +139,27 @@ def load_tests(loader, standard_tests, none):
     T = lambda dt: dt*5
     num_periods = None
     problems = [
-        lambda N,dt: Poiseuille2D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
-    #    lambda N,dt: Poiseuille3D(ParamDict(N=N, dt=dt, T=None, num_periods=0.2)),
-        lambda N,dt: Womersley2D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)),
-    #    lambda N,dt: Womersley3D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)), # FIXME: Parameterize by N
-        lambda N,dt: Beltrami(ParamDict(N=N, dt=dt, T=1.0)),
+        lambda refinement_level,dt: Poiseuille2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
+    #    lambda refinement_level,dt: Poiseuille3D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
+        lambda refinement_level,dt: Womersley2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=1.0)),
+    #    lambda refinement_level,dt: Womersley3D(ParamDict(N=N, dt=dt, T=None, num_periods=1.0)), # FIXME: Parameterize by N
+        lambda refinement_level,dt: Beltrami(ParamDict(refinement_level=refinement_level, dt=dt, T=1.0)),
         ]
 
     fast = True
     if fast:
         params = [dict(
-            Ns  = [2, 4],
+            refinement_levels=[0,1],
             dts = [0.1, 0.05],
             )]
     elif 1:
         params = [dict(
-            Ns  = [8, 16],
+            refinement_levels=[2,3],
             dts = [0.1, 0.05],
             )]
     else:
         params = [dict(
-            Ns  = [16, 32],
+            refinement_levels=[3,4],
             dts = [0.01, 0.005, 0.0025, 0.00125],
             )]
 

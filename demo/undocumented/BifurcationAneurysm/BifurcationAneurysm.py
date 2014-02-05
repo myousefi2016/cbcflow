@@ -6,6 +6,11 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow import *
 from cbcflow.dol import *
+from os import path
+
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/dog_mesh_37k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/dog_mesh_97k.xml.gz"),
+        ]
 
 c0 = Constant(0)
 
@@ -19,9 +24,7 @@ class BifurcationAneurysm(NSProblem):
         """
         NSProblem.__init__(self, params)
 
-        #print parameters["reorder_dofs_serial"]
-
-        mesh = Mesh(self.params.mesh_file)
+        mesh = Mesh(files[self.params.refinement_level])
         self.initialize_geometry(mesh)
 
     @classmethod
@@ -39,7 +42,7 @@ class BifurcationAneurysm(NSProblem):
             )
         params.update(
             # Spatial discretization parameters
-            mesh_file="../../../data/dog_mesh_37k.xml.gz",
+            refinement_level=0,
             )
         return params
 

@@ -4,6 +4,7 @@ import os.path
 from os.path import split, join, abspath
 from glob import glob
 from cbcflow import NSProblem
+import subprocess
 
 parents = ("documented", "undocumented")
 
@@ -67,9 +68,10 @@ def run_demos():
             demoroot = abspath(join(root, path))
             os.chdir(demoroot)
             try:
-                cmd = "./%s > demo.log" % pyname
+                cmd = "python %s > demo.log" % pyname
                 print "In '%s', running '%s':" % (demoroot, cmd)
                 #status, output = get_status_output(cmd) # FIXME: Execute demos! Maybe move this code to the tests directory.
+                subprocess.call(cmd, shell=True)
             except:
                 print "Executing %s failed!" % fullname
             os.chdir(root)

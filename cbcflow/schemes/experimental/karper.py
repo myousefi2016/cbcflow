@@ -22,9 +22,11 @@ __copyright__ = "Copyright (C) 2013 " + __author__
 __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.nsscheme import *
-from cbcflow.core.timesteps import compute_regular_timesteps
-from cbcflow.core.schemeutils import assign_ics_mixed, make_velocity_bcs, make_rhs_pressure_bcs
-from cbcflow.core.spaces import NSSpacePoolMixed
+from cbcflow.utils.schemes import (compute_regular_timesteps,
+                                      assign_ics_mixed,
+                                      make_velocity_bcs,
+                                      make_rhs_pressure_bcs)
+from cbcflow.utils.core import NSSpacePoolMixed
 
 
 class Karper(NSScheme):

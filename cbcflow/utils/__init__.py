@@ -15,4 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.utils.fenicstools import *
-from cbcflow.utils.Slice import Slice
+from cbcflow.utils.bcs import *
+from cbcflow.utils.core import *
+from cbcflow.utils.fields import *
+from cbcflow.utils.schemes import *

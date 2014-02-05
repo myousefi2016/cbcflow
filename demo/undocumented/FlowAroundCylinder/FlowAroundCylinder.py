@@ -7,6 +7,17 @@ __license__  = "GNU GPL version 3 or any later version"
 from cbcflow import *
 from cbcflow.dol import *
 
+from os import path
+
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_0.6k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_2k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_8k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_32k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_129k.xml.gz"),
+        ]
+
+
+
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and near(x[0], 0.0)
@@ -24,11 +35,9 @@ class FlowAroundCylinder(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-
-        # Create mesh
-        r = Rectangle(0,0, 10, 1)
-        c = Circle(2.0, 0.5, 0.12)
-        mesh = Mesh(r-c, self.params.N)
+        
+        # Load mesh
+        mesh = Mesh(files[self.params.refinement_level])
 
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
@@ -54,7 +63,7 @@ class FlowAroundCylinder(NSProblem):
             )
         params.update(
             # Spatial parameters
-            N=64,
+            refinement_level=0,
             )
         return params
 
@@ -113,7 +122,7 @@ def main():
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=True, save=True)
+    plot_and_save = dict(plot=False, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),

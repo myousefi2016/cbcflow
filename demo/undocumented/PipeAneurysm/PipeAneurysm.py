@@ -12,6 +12,17 @@ __license__  = "GNU GPL version 3 or any later version"
 from cbcflow import *
 from cbcflow.dol import *
 
+from os import path
+
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_0.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_1.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_2.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_3.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_4.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_5.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_6.xml.gz"),
+        ]
+
 # Inflow boundary
 class Inflow(SubDomain):
     def inside(self, x, on_boundary):
@@ -41,10 +52,7 @@ class PipeAneurysm(NSProblem):
         NSProblem.__init__(self, params)
 
         # Load mesh
-        if self.params.refinement_level > 4:
-            raise RuntimeError("No mesh available for refinement level %d" % self.params.refinement_level)
-        meshfilename = "../../../data/aneurysm_%d.xml.gz" % self.params.refinement_level
-        mesh = Mesh(meshfilename)
+        mesh = Mesh(files[self.params.refinement_level])
 
         # Mark domains, 0 = noslip, 1 = inflow, 2 = outflow, 3 = rest
         facet_domains = FacetFunction("size_t", mesh)

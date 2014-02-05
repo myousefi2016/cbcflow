@@ -24,13 +24,14 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Anders Logg, 2008-2010.
 
 from cbcflow.core.nsscheme import *
-from cbcflow.core.utils import Timer, epsilon, sigma, is_periodic
-from cbcflow.core.timesteps import compute_regular_timesteps
-from cbcflow.core.schemeutils import (assign_ics_split,
-                                make_velocity_bcs,
-                                make_pressure_bcs,
-                                make_penalty_pressure_bcs)
-from cbcflow.core.spaces import NSSpacePoolSplit
+
+from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
+from cbcflow.utils.schemes import (compute_regular_timesteps,
+                                         assign_ics_split,
+                                         make_velocity_bcs,
+                                         make_pressure_bcs,
+                                         make_penalty_pressure_bcs)
+from cbcflow.utils.core import NSSpacePoolSplit
 
 
 class IPCS_Stabilized(NSScheme):
@@ -152,8 +153,10 @@ class IPCS_Stabilized(NSScheme):
 
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
-
+        print Timer
         timer = Timer(self.params.enable_timer)
+        print timer
+        print dir(timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):

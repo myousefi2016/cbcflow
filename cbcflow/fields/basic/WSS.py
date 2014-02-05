@@ -16,8 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
-from cbcflow.core.utils import cbcflow_print, cbcflow_warning
-from cbcflow.core.utils import sigma
+from cbcflow.utils.common import cbcflow_print, cbcflow_warning, sigma
 
 from dolfin import *
 

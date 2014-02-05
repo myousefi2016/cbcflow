@@ -24,13 +24,13 @@ __license__  = "GNU GPL version 3 or any later version"
 # Modified by Martin Alnaes, 2013. (added penalty bcs)
 
 from cbcflow.core.nsscheme import *
-from cbcflow.core.utils import Timer
-from cbcflow.core.timesteps import compute_regular_timesteps
-from cbcflow.core.schemeutils import (assign_ics_segregated,
-                                make_segregated_velocity_bcs,
-                                make_pressure_bcs,
-                                make_penalty_pressure_bcs)
-from cbcflow.core.spaces import NSSpacePoolSegregated
+from cbcflow.utils.common import Timer
+from cbcflow.utils.schemes import (compute_regular_timesteps,
+                                         assign_ics_segregated,
+                                         make_segregated_velocity_bcs,
+                                         make_pressure_bcs,
+                                         make_penalty_pressure_bcs)
+from cbcflow.utils.core import NSSpacePoolSegregated
 
 
 class SegregatedPenaltyIPCS(NSScheme):

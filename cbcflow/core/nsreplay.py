@@ -27,8 +27,8 @@ from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor
-from cbcflow.core.spaces import NSSpacePoolSplit
-from cbcflow.core.utils import cbcflow_print, cbcflow_warning
+from cbcflow.utils.core import NSSpacePoolSplit
+from cbcflow.utils.common import cbcflow_print, cbcflow_warning
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 
@@ -206,7 +206,8 @@ class NSReplay(Parameterized):
         # Initiate problem
         params = self._get_all_params()
         
-        problem = NSProblem(params.problem)
+        problem = NSProblem({"T": 0})
+        problem.params.update_recursive(params.problem)
         problem.mesh = self._get_mesh()
 
         # Set up for replay
