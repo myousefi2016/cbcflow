@@ -29,7 +29,7 @@ from cbcflow.core.nssolver import NSSolver
 from cbcflow.core.nsreplay import NSReplay
 
 # Problem inspection utilities
-from cbcflow.core.show import show_problem
+from cbcflow.utils.core.show import show_problem
 
 # Boundary condition utilities
 from cbcflow.bcs import *

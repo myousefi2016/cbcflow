@@ -27,8 +27,8 @@ from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor
-from cbcflow.core.spaces import NSSpacePoolSplit
-from cbcflow.core.utils import cbcflow_print, cbcflow_warning
+from cbcflow.utils.core import NSSpacePoolSplit
+from cbcflow.utils.common import cbcflow_print, cbcflow_warning
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 

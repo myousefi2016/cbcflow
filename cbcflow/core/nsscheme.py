@@ -55,7 +55,8 @@ class NSScheme(Parameterized):
             solver_u_corr=("bicgstab", "hypre_euclid"),
 
             # Timestepping method
-            #adaptive_timestepping=False,
+            # FIXME: Adaptive timestepping still unsupported
+            adaptive_timestepping=False,
             )
         return params
 

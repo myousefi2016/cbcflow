@@ -24,7 +24,7 @@ import shelve
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 
-from cbcflow.core.utils import cbcflow_warning
+from cbcflow.utils.common import cbcflow_warning
 
 class PPField(Parameterized):
     def __init__(self, params=None, label=None):

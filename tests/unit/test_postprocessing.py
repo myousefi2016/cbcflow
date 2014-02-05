@@ -10,7 +10,7 @@ from collections import defaultdict
 from cbcflow import (ParamDict, NSProblem, NSPostProcessor,
     PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
     TimeDerivative, SecondTimeDerivative, TimeIntegral, L2norm)
-from cbcflow.core.spaces import NSSpacePoolSplit
+from cbcflow.utils.core import NSSpacePoolSplit
 
 import dolfin
 from dolfin import UnitSquareMesh, Function, Expression, norm, errornorm, assemble, dx

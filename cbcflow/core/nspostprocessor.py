@@ -21,8 +21,8 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-from cbcflow.core.utils_pyminifier import minify
-from cbcflow.core.utils import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
+from cbcflow.utils.core.pyminifier import minify
+from cbcflow.utils.common import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 

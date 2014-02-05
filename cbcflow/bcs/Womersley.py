@@ -24,7 +24,7 @@ from scipy.integrate import simps
 from scipy.special import jn
 
 from itertools import izip
-from cbcflow.bcs.bcutils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
+from cbcflow.utils.bcs import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
 def fourier_coefficients(x, y, T, N=25):
     '''From x-array and y-spline and period T, calculate N complex Fourier coefficients.'''
