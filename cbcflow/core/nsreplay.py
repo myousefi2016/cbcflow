@@ -206,7 +206,8 @@ class NSReplay(Parameterized):
         # Initiate problem
         params = self._get_all_params()
         
-        problem = NSProblem(params.problem)
+        problem = NSProblem({"T": 0})
+        problem.params.update_recursive(params.problem)
         problem.mesh = self._get_mesh()
 
         # Set up for replay
