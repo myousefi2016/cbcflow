@@ -99,7 +99,7 @@ def create_problem_factories(cmdline_problem_args):
     else:
         return create_default_problem_factories()
 
-def create_default_scheme_factories(cmdline_scheme_args):
+def create_default_scheme_factories():
     scheme_factories = [
         lambda: IPCS(),
         lambda: Yosida(),

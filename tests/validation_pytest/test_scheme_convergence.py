@@ -1,13 +1,15 @@
+
 from cbcflow import *
-import logging
-from numpy import sqrt
-import sys
-import os
-import shelve
-from hashlib import sha1
-import time
-from ufl.tensors import ListTensor
 from dolfin import *
+
+from numpy import sqrt
+
+import logging
+import os, sys, shelve, time
+from hashlib import sha1
+
+from ufl.classes import ListTensor
+
 import pytest
 
 set_log_level(100)
@@ -19,7 +21,8 @@ class NoOutput():
 def l2norm(val, ref, spaces):
     if isinstance(val, (float, int)):
         err = (val-ref)**2
-        ref = abs(ref)**2
+        ref = ref**2
+
     elif isinstance(val, Function):
         degree = val.ufl_element().degree()
 
@@ -27,19 +30,17 @@ def l2norm(val, ref, spaces):
         if isinstance(ref, Expression):
             if not hasattr(ref, "degree"):
                 ref.degree = degree+3
+
         elif isinstance(ref, list) or isinstance(ref, ListTensor):
             for ref_i in ref:
                 if not hasattr(ref, "degree"):
                     ref_i.degree = degree+3
             ref = as_vector(ref)
 
-        err = assemble(inner(val-ref,val-ref)*dx())
-        ref = assemble(inner(ref, ref)*dx(), mesh=val.function_space().mesh())
+        err = assemble((val-ref)**2*dx())
+        ref = assemble(ref**2*dx(), mesh=val.function_space().mesh())
 
-    if ref > 1e-14:
-        return sqrt(err/ref)
-    else:
-        return sqrt(err)
+    return sqrt(err/ref) if ref > 1e-14 else sqrt(err)
 
 
 class TestConvergence():
@@ -101,7 +102,7 @@ class TestConvergence():
             for tfname, err in errors.items():
                 print "**** Fieldname: %20s ** Error: %.8e" %(tfname, err)
         else:
-            print "**** No errors calculated. Solver most likely failed
+            print "**** No errors calculated. Solver most likely failed"
 
 
         # Store solve metadata
