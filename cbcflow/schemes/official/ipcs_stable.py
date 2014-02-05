@@ -25,8 +25,7 @@ from cbcflow.core.nsscheme import *
 from cbcflow.core.rhsgenerator import *
 from cbcflow.core.timesteps import compute_regular_timesteps
 from cbcflow.core.utils import Timer, is_periodic, cbcflow_log
-#from cbcflow.core.adaptivetimestepping import AdaptiveTimestepping
-#from cbcflow.core.constanttimestepping import ConstantTimestepping
+
 from cbcflow.core.schemeutils import (assign_ics_segregated,
                                 make_segregated_velocity_bcs,
                                 make_pressure_bcs,
@@ -257,45 +256,13 @@ class IPCS_Stable(NSScheme):
                 iter = solver_u_corr.solve(u2[d].vector(), b)
                 timer.completed("u_corr solve (%s, %d dofs, %d iter)"%(', '.join(self.params.solver_u_corr), b.size(), iter))
 
-            # TODO: Reimplement this in some way
-            '''
-            # Check and adapt timestepping
-            if self.params.adaptive_timestepping:
-                avg_num_iterations = sum(tentative_vel_iterations) / len(dims)
-                timestep_modified, dt = timestepper.adjusted_timestep(avg_num_iterations)
-
-                if not timestep_modified:
-                    cbcflow_log(INFO, "Timestep not modified. (dt=%.3e)" %dt)
-
-                if timestep_modified:
-                    old_dt = float(k)
-                    k.assign(dt)
-
-                    cbcflow_log(INFO, "Modified timestep: %.3e -> %.3e" % (old_dt, dt))
-
-                    # Reassemble dt-dependent matrices
-                    assemble(a1+a2, tensor=A_u_tent)
-                    assemble(a1-a2, tensor=B)
-
-                    # Reset Kconv to avoid subtraction from new A_u_tent
-                    Kconv.assign(Matrix()) # TODO: Better to zero, to avoid resetting sparsity?
-
-                    for d in dims:
-                        assemble(-(1/k)*q*u.dx(d)*dx(), tensor=Ku[d]) # TODO: Store forms in list, this is copied from above
-                        assemble(-k*inner(v, grad(p)[d])*dx(), tensor=Kp[d])
-
-                    # Restart timestep if dt has decreased
-                    if dt < old_dt:
-                        continue
-            '''
-            # Rotate functions for next timestep
+             # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
             for d in dims: u1[d].assign(u2[d])
             p1.assign(p2)
 
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
-            #timesteps.append(float(t))
 
         # Return some quantities from the local namespace
         states = (u1, p1)
