@@ -21,7 +21,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-#from cbcflow.utils.core.pyminifier import minify
+from cbcflow.utils.core.pyminifier import minify
 from cbcflow.utils.common import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
@@ -176,7 +176,7 @@ class NSPostProcessor(Parameterized):
         s = s[0::2]
         s = ''.join(s)
 
-        #s = minify(s)
+        s = minify(s)
 
         # Get argument names for the compute function
         args = inspect.getargspec(field.compute)[0]
@@ -185,7 +185,11 @@ class NSPostProcessor(Parameterized):
 
         # Read the code for dependencies
         deps = []
-        deps_raw = re.findall("^[^\#'\"]*" + "pp" + ".get\(([^)]+)\)", s, flags=re.M)
+
+        # This didn't work out so well but I'm sure we can make do without minify:
+        #deps_raw = re.findall("^[^\#'\"]*" + pp_arg + ".get\(([^)]+)\)", s, flags=re.M)
+
+        deps_raw = re.findall(pp_arg + ".get\(([^)]+)\)", s, flags=re.M)
         for dep in deps_raw:
             # Split into arguments (name, timestep)
             dep = dep.split(',')
