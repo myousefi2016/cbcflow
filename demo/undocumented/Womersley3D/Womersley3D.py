@@ -12,7 +12,7 @@ import numpy as np
 LENGTH = 10.0
 RADIUS = 0.5
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_0.5k.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1k.xml.gz"),
          path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_3k.xml.gz"),
          path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_24k.xml.gz"),
          path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_203k.xml.gz"),
