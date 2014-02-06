@@ -64,6 +64,8 @@ class ParamDict(dict):
                 self[k] = v
         if kwparams:
             self.replace_shallow(kwparams)
+        # Allow use as 'foo(params.replace_shallow(foo,bar))'
+        return self
 
     def replace_recursive(self, params=None, **kwparams):
         "Perform a recursive update where no new keys are allowed."
@@ -81,6 +83,8 @@ class ParamDict(dict):
                 handle(k, v)
         for k, v in kwparams.iteritems():
             handle(k, v)
+        # Allow use as 'foo(params.replace_recursive(foo,bar))'
+        return self
 
     def update_shallow(self, params=None, **kwparams):
         "Perform a shallow update, allowing new keys to be introduced."
@@ -89,6 +93,8 @@ class ParamDict(dict):
                 self[k] = v
         if kwparams:
             self.update_shallow(kwparams)
+        # Allow use as 'foo(params.update_shallow(foo,bar))'
+        return self
 
     def update_recursive(self, params=None, **kwparams):
         "Perform a recursive update, allowing new keys to be introduced."
@@ -106,7 +112,10 @@ class ParamDict(dict):
                 handle(k, v)
         for k, v in kwparams.iteritems():
             handle(k, v)
+        # Allow use as 'foo(params.update_recursive(foo,bar))'
+        return self
 
+    # Default update and replace behaviour is recursive
     update = update_recursive
     replace = replace_recursive
 
