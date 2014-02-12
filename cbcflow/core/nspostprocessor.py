@@ -21,7 +21,7 @@ __license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-from cbcflow.utils.core.pyminifier import minify
+from cbcflow.utils.core.strip_code import strip_code
 from cbcflow.utils.common import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
@@ -165,7 +165,7 @@ class NSPostProcessor(Parameterized):
 
         # Get source
         s = inspect.getsource(field.compute)
-        s = minify(s) # Removes all comments, empty lines etc.
+        s = strip_code(s) # Removes all comments, empty lines etc.
 
         # Remove comment blocks
         s = s.split("'''")
@@ -174,7 +174,7 @@ class NSPostProcessor(Parameterized):
         s = s.split('"""')
         s = s[0::2]
         s = ''.join(s)
-        s = minify(s)
+        s = strip_code(s)
 
         # Get argument names for the compute function
         args = inspect.getargspec(field.compute)[0]
