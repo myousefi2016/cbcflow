@@ -399,23 +399,26 @@ class NSPostProcessor(Parameterized):
         return self.params.casedir
 
     def _clean_casedir(self):
-        
-        if os.path.isdir(self._get_casedir()):
-            playlogfilename = os.path.join(self._get_casedir(), "play.db")
-            if os.path.isfile(playlogfilename):
-                playlog = shelve.open(playlogfilename, 'r')
-                all_fields = []
-                for k,v in playlog.items():
-                    all_fields += v.get("fields", {}).keys()
+        if on_master_process():
+            if os.path.isdir(self._get_casedir()):
+                playlogfilename = os.path.join(self._get_casedir(), "play.db")
+                if os.path.isfile(playlogfilename):
+                    playlog = shelve.open(playlogfilename, 'r')
 
-                all_fields = list(set(all_fields))
-                playlog.close()
-                
-                for field in all_fields:
-                    rmtree(os.path.join(self._get_casedir(), field))
-                
-                for f in ["mesh.hdf5", "play.db", "params.txt", "params.pickle"]:
-                    os.remove(os.path.join(self._get_casedir(), f))
+                    all_fields = []
+                    for k,v in playlog.items():
+                        all_fields += v.get("fields", {}).keys()
+    
+                    all_fields = list(set(all_fields))
+                    playlog.close()
+                    
+                    for field in all_fields:
+                        rmtree(os.path.join(self._get_casedir(), field))
+                    
+                    for f in ["mesh.hdf5", "play.db", "params.txt", "params.pickle"]:
+                        if os.path.isfile(os.path.join(self._get_casedir(), f)):
+                            os.remove(os.path.join(self._get_casedir(), f))
+
 
     def _create_casedir(self):
         casedir = self.params.casedir
