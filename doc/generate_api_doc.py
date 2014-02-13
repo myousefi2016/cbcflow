@@ -52,7 +52,6 @@ def generate_dolfin_doc(input_dir, output_dir, version=None):
 
     # Try to import DOLFIN Python module
     module_name = "cbcflow"
-    import cbcflow
     try:
         exec("import %s" % module_name)
         exec("module = %s" % module_name)

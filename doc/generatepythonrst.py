@@ -71,13 +71,20 @@ def get_objects(module):
     classes = []
     functions = []
     objects = {}
+    
+    
+    #if "cbcflow.utils.bcs" not in module.name:
+    #    return classes, functions
+    #print module.name
+    #return classes, functions
+    
 
     # Ignore classes and functions defined in __init__.py.
     # This is to get rid of double occurrences of classes like FunctionSpace
     # (included in __all__ variable of dolfin/functions/__init__.py
     # and dolfin/functions/functionspace.py.
-    if os.path.split(module.file)[1] == "__init__.py":
-        return classes, functions
+    #if os.path.split(module.file)[1] == "__init__.py":
+    #    return classes, functions
 
     # NOTE: Dirty hack for Python 2.6, in 2.7 it should be possible to use
     # importlib for submodules to test if __all__ is defined.
@@ -88,22 +95,46 @@ def get_objects(module):
 
     # Get objects listed in __all__ by developer.
     exec("from %s import *" % module.name, objects)
+    print define_all
+    
+    #print objects
+    #print module, objects
+    #print "*******", module.name
 
     for key, val in objects.items():
-        import ipdb; ipdb.set_trace()
+        #print val.__module__
+        #import ipdb; ipdb.set_trace()
 #        print "key: ", key
         if isinstance(val, (types.ClassType, types.TypeType)):
+            #if module.name == ".".join(val.__module__.split('.')[:-1]):
+            #if module.name in val.__module__:
+            #if "cbcflow" in val.__module__:
+            #    print val.__module__
             if define_all or module.name == val.__module__:
+                print "Class: ", key
                 classes.append(key)
         elif isinstance(val, types.FunctionType):
+            #if module.name == ".".join(val.__module__.split('.')[:-1]):
+            #if "cbcflow" in val.__module__:
+            #    print val.__module__
+            #print val.__module__
 #            print "fun, mod: ", val.__module__
             if define_all or module.name == val.__module__:
+                print "Function: ", key
                 functions.append(key)
         # Anything else we need to catch?
         else:
             pass
 
     return classes, functions
+
+def index_items2(item_type, items):
+    if item_type == "Classes":
+        output = write_class()
+    print item_type
+    print items
+    exit()
+    
 
 def index_items(item_type, items):
     return """
@@ -126,16 +157,28 @@ def label(package_name, name):
     return output + "%s:\n\n" % name
 
 def write_class(name, module_name):
-    output = name + "\n"
-    output += "="*len(name) + "\n"
-    output += "\n.. currentmodule:: %s\n\n" % module_name
+    #output = name + "\n"
+    #output += "="*len(name) + "\n"
+    print module_name, name
+    output = "\n.. currentmodule:: %s\n\n" % module_name
+    #output = "\n.. module:: %s\n\n" % module_name
+    #output += ":autodoc-process-signature::\n"
+    #output += ":noindex:\n"
     output += ".. autoclass:: %s\n" %  name
+    #output += "   :autodoc-process-signature:: %s\n" % name
     output += "   :members:\n"
     output += "   :undoc-members:\n"
     output += "   :show-inheritance:\n"
 
     return output
 
+def write_function(name, module_name):
+    #output = name + "\n"
+    #output += "="*len(name) + "\n"
+    output = "\n.. currentmodule:: %s\n\n" % module_name
+    output += ".. autofunction:: %s\n" % (name)
+    return output
+    
 def write_object(package_name, directory, module_name, name, obj_type):
     output = ".. Documentation for the %s %s\n\n" % (obj_type, module_name + "." + name)
     output += label(package_name, "_".join(module_name.split(".")[1:] + [name.lower()]))
@@ -164,11 +207,14 @@ def write_documentation(package_name, module, output_dir, version):
         pass
 
     modules = []
+    #print module.submodules
+    
     # Special handling of cpp module in dolfin.
     for sub in module.submodules:
         modules.append(sub + "/index")
 
     classes, functions = get_objects(module)
+    #print classes, functions, module.submodules
 
     output = ".. Index file for the %s module.\n\n" % module.name
     output += label(package_name, "_".join(module.name.split(".")[1:] + ["index"]))
@@ -184,12 +230,22 @@ def write_documentation(package_name, module, output_dir, version):
     outfile = os.path.join(directory, "index.rst")
     f = open(outfile, "w")
     f.write(output)
+    #f.write()
     if modules:
         f.write(index_items("Modules", modules))
     if classes:
-        f.write(index_items("Classes", classes))
+        f.write("Classes \n")
+        f.write("="*20+"\n")
+        for c in classes:
+            f.write(write_class(c, module.name))
+        #f.write(index_items2("Classes", classes))
+        #f.write(index_items("Classes", classes))
     if functions:
-        f.write(index_items("Functions", functions))
+        #f.write(index_items("Functions", functions))
+        f.write("Functions \n")
+        f.write("="*20+"\n")
+        for function in functions:
+            f.write(write_function(function, module.name))
 
     f.write("""\nModule docstring:
 
@@ -199,11 +255,11 @@ def write_documentation(package_name, module, output_dir, version):
    :no-show-inheritance:""" % module.name)
     f.close()
 
-    for o in classes:
-        write_object(package_name, directory, module.name, o, "class")
+    #for o in classes:
+    #    write_object(package_name, directory, module.name, o, "class")
 
-    for o in functions:
-        write_object(package_name, directory, module.name, o, "function")
+    #for o in functions:
+    #    write_object(package_name, directory, module.name, o, "function")
 
 
 def generate_python_api_documentation(module, output_dir, version):

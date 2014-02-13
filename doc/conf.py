@@ -16,11 +16,11 @@ import sys, os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('.'))
+#sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../cbcflow'))
-sys.path.insert(0, os.path.abspath('../cbcflow/core'))
-sys.path.insert(0, os.path.abspath('../demos'))
+#sys.path.insert(0, os.path.abspath('../cbcflow'))
+#sys.path.insert(0, os.path.abspath('../cbcflow/core'))
+#sys.path.insert(0, os.path.abspath('../demos'))
 
 from cbcflow import *
 
@@ -37,6 +37,30 @@ inheritance_graph_attrs = dict(rankdir="LR", size='"6.0, 8.0"',
                                      fontsize=14, ratio='compress')
 inheritance_node_attrs = dict(shape='ellipse', fontsize=14, height=0.75,
                                 )
+
+
+def mod_signature(app, what, name, obj, options, signature,
+            return_annotation):
+    print "*********************************************************"
+    print name
+    print signature
+    print "*********************************************************"
+    
+    doc_indent = '    '
+    directive_indent = ''
+    if what in ['method', 'attribute']:
+        doc_indent += '    '
+        directive_indent += '    '
+    directive = '%s.. py:%s:: %s' % (directive_indent, what, name)
+    if signature:  # modules, attributes, ... don't have a signature
+        directive += signature
+    NAMES.append(name)
+    rst = directive + '\n\n' + doc_indent + obj.__doc__ + '\n'
+    DIRECTIVES[name] = rst
+    
+
+def setup(app):
+    app.connect('autodoc-process-signature', mod_signature)
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -95,7 +119,7 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 
 # A list of ignored prefixes for module index sorting.
-#modindex_common_prefix = []
+modindex_common_prefix = ["cbcflow."]
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
@@ -105,15 +129,68 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+#html_theme = 'default'
+html_theme = 'agogo_mod'
+
+
+headerbg = """
+background: {0}; /* Old browsers */
+background: -moz-linear-gradient(top, {0} 0%, {1} 44%, {2} 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,{0}), color-stop(44%,{1}), color-stop(100%,{2})); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, {0} 0%,{1} 44%,{2} 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, {0} 0%,{1} 44%,{2} 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(top, {0} 0%,{1} 44%,{2} 100%); /* IE10+ */
+background: linear-gradient(to bottom, {0} 0%,{1} 44%,{2} 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='{0}', endColorstr='{2}',GradientType=0 ); /* IE6-9 */
+""".format("#aa1133", "#8f0222", "#6d0019")
+
+
+def swap(text, ch1, ch2):
+    text = text.replace(ch2, '!',)
+    text = text.replace(ch1, ch2)
+    text = text.replace('!', ch1)
+    return text
+  
+#footerbg = swap(headerbg, "top", "bottom")
+footerbg = headerbg
+headerbg = swap(headerbg, "top", "bottom")
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+    "pagewidth": "90em",
+    "documentwidth": "70em",
+    "textalign": "left",
+    "headerbg": headerbg,
+    "footerbg": footerbg,
+    "headercolor1": "#999999",
+    "headercolor2": "#999999",
+    "headerlinkcolor": "#FFFFFF",
+    "bodyfont": "helvetica",
+    "headerfont": "helvetica",
+    }
+"""
+agogo – A theme created by Andi Albrecht. The following options are supported:
+
+    bodyfont (CSS font family): Font for normal text.
+    headerfont (CSS font family): Font for headings.
+    pagewidth (CSS length): Width of the page content, default 70em.
+    documentwidth (CSS length): Width of the document (without sidebar), default 50em.
+    sidebarwidth (CSS length): Width of the sidebar, default 20em.
+    bgcolor (CSS color): Background color.
+    headerbg (CSS value for “background”): background for the header area, default a grayish gradient.
+    footerbg (CSS value for “background”): background for the footer area, default a light gray gradient.
+    linkcolor (CSS color): Body link color.
+    headercolor1, headercolor2 (CSS color): colors for <h1> and <h2> headings.
+    headerlinkcolor (CSS color): Color for the backreference link in headings.
+    textalign (CSS text-align value): Text alignment for the body, default is justify.
+"""
+
 
 # Add any paths that contain custom themes here, relative to this directory.
-#html_theme_path = []
+html_theme_path = ['.']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
