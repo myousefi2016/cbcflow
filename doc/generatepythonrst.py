@@ -24,8 +24,6 @@ import os, sys, types
 
 __all__ = ["generate_python_api_documentation"]
 
-added_to_rst = []
-
 def indent(string, num_spaces):
     "Indent given text block given number of spaces"
     return "\n".join(num_spaces*" " + l for l in string.split("\n"))
@@ -54,20 +52,6 @@ def get_modules(parent, loc, modules):
                 new_mod = Module(".".join([parent.name, m]), f)
                 mod_to_append = m
                 
-                #print "*"*15, get_objects(parent)
-                #parent_classes, parent_functions = get_objects(parent)
-                #classes, functions = get_objects(new_mod)
-                
-                
-                
-                #print classes, functions
-                #return
-                #print set(classes).issubset(set(parent_classes)) and set(functions).issubset(set(parent_functions))
-                #if set(classes).issubset(set(parent_classes)) and set(functions).issubset(set(parent_functions)):
-                #    new_mod = None
-                #else:
-                #    parent.submodules.append(m)
-                
         # Add submodules (directories with '__init__.py' files) to global dict
         # and to parent as submodules.
         if os.path.isdir(f):
@@ -75,15 +59,9 @@ def get_modules(parent, loc, modules):
                 continue
             new_mod = Module(".".join([parent.name, mod]), os.path.join(f, "__init__.py"))
             mod_to_append = mod
-            #parent.submodules.append(mod)
 
             # Recursively extract submodules.
             get_modules(new_mod, f, modules)
-            
-        
-        
-        
-        
 
         if new_mod is not None:
             if new_mod in modules:
@@ -108,20 +86,6 @@ def get_objects(module):
     classes = []
     functions = []
     objects = {}
-    
-    #
-    #if "cbcflow.utils.common" not in module.name:
-    #    return classes, functions
-    #print module.name
-    #return classes, functions
-    
-
-    # Ignore classes and functions defined in __init__.py.
-    # This is to get rid of double occurrences of classes like FunctionSpace
-    # (included in __all__ variable of dolfin/functions/__init__.py
-    # and dolfin/functions/functionspace.py.
-    #if os.path.split(module.file)[1] == "__init__.py":
-    #    return classes, functions
 
     # NOTE: Dirty hack for Python 2.6, in 2.7 it should be possible to use
     # importlib for submodules to test if __all__ is defined.
@@ -132,44 +96,18 @@ def get_objects(module):
 
     # Get objects listed in __all__ by developer.
     exec("from %s import *" % module.name, objects)
-    #print module.name
-    #print define_all
-    #for o in objects:
-    #    print o
-    #define_all = False
-    #print objects
-    
-    #print objects
-    #print module, objects
-    #print "*******", module.name
 
     for key, val in objects.items():
-        #print val.__module__
-        #import ipdb; ipdb.set_trace()
-#        print "key: ", key
         if isinstance(val, (types.ClassType, types.TypeType)):
-            #if module.name == ".".join(val.__module__.split('.')[:-1]):
-            #if module.name in val.__module__:
-            #if "cbcflow" in val.__module__:
-            #    print val.__module__
             if define_all or module.name == val.__module__:
-                #print module.name == val.__module__
-                #print "Class: ", key
                 classes.append(key)
         elif isinstance(val, types.FunctionType):
-            #if module.name == ".".join(val.__module__.split('.')[:-1]):
-            #if "cbcflow" in val.__module__:
-            #    print val.__module__
-            #print val.__module__
-#            print "fun, mod: ", val.__module__
             if define_all or module.name == val.__module__:
-                #print "Function: ", key
                 functions.append(key)
         # Anything else we need to catch?
         else:
             pass
-    #print module.name, classes, functions
-    #exit()
+
     return classes, functions
 
 def index_items(item_type, items):
@@ -193,15 +131,8 @@ def label(package_name, name):
     return output + "%s:\n\n" % name
 
 def write_class(name, module_name):
-    #output = name + "\n"
-    #output += "="*len(name) + "\n"
-    print module_name, name
     output = "\n.. currentmodule:: %s\n\n" % module_name
-    #output = "\n.. module:: %s\n\n" % module_name
-    #output += ":autodoc-process-signature::\n"
-    #output += ":noindex:\n"
     output += ".. autoclass:: %s\n" %  name
-    #output += "   :autodoc-process-signature:: %s\n" % name
     output += "   :members:\n"
     output += "   :undoc-members:\n"
     output += "   :show-inheritance:\n"
@@ -209,8 +140,6 @@ def write_class(name, module_name):
     return output
 
 def write_function(name, module_name):
-    #output = name + "\n"
-    #output += "="*len(name) + "\n"
     output = "\n.. currentmodule:: %s\n\n" % module_name
     output += ".. autofunction:: %s\n" % (name)
     return output
@@ -243,15 +172,12 @@ def write_documentation(package_name, module, output_dir, version):
         pass
 
     modules = []
-    #print module.submodules
-    
+
     # Special handling of cpp module in dolfin.
     for sub in module.submodules:
         modules.append(sub + "/index")
 
-    #classes, functions = get_objects(module)
     classes, functions = module.classes, module.functions
-    #print classes, functions, module.submodules
 
     output = ".. Index file for the %s module.\n\n" % module.name
     output += label(package_name, "_".join(module.name.split(".")[1:] + ["index"]))
@@ -271,7 +197,13 @@ def write_documentation(package_name, module, output_dir, version):
     outfile = os.path.join(directory, "index.rst")
     f = open(outfile, "w")
     f.write(output)
-    #f.write()
+    f.write("""\n
+.. automodule:: %s
+   :no-members:
+   :no-undoc-members:
+   :no-show-inheritance: \n""" % module.name)
+    
+
     if modules:
         f.write(index_items("Modules", modules))
     if classes:
@@ -279,28 +211,12 @@ def write_documentation(package_name, module, output_dir, version):
         f.write("="*20+"\n")
         for c in classes:
             f.write(write_class(c, module.name))
-        #f.write(index_items2("Classes", classes))
-        #f.write(index_items("Classes", classes))
     if functions:
-        #f.write(index_items("Functions", functions))
         f.write("Functions \n")
         f.write("="*20+"\n")
         for function in functions:
             f.write(write_function(function, module.name))
-
-    f.write("""\nModule docstring:
-
-.. automodule:: %s
-   :no-members:
-   :no-undoc-members:
-   :no-show-inheritance:""" % module.name)
     f.close()
-
-    #for o in classes:
-    #    write_object(package_name, directory, module.name, o, "class")
-
-    #for o in functions:
-    #    write_object(package_name, directory, module.name, o, "function")
 
 
 def generate_python_api_documentation(module, output_dir, version):
