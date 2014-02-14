@@ -20,8 +20,8 @@ from dolfin import Point
 from itertools import chain
 
 def import_fenicstools():
-    import cbcflow.utils.fenicstools
-    return cbcflow.utils.fenicstools
+    import fenicstools
+    return fenicstools
 
 def points_in_square(center, radius, resolution):
     points = []

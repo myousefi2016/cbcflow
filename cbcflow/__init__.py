@@ -45,6 +45,8 @@ from cbcflow.fields import *
 # Navier-Stokes solver schemes
 from cbcflow.schemes import *
 
+from cbcflow.utils import *
+
 # Import utils
 #from cbcflow.utils.fenicstools import *
 #from cbcflow.utils.create_slicemesh import create_slicemesh

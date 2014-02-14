@@ -1,16 +1,31 @@
 #!/usr/bin/env python
-
-from distutils.core import setup
-from distutils import sysconfig
+#from distutils.core import setup
+#from distutils import sysconfig
+from setuptools import setup, find_packages
 from os.path import join as pjoin, split as psplit
 from glob import glob
 import sys
 import platform
+from setuptools.command.install import install
+import shutil
+import subprocess
 
 # Version number
 major = 0
 minor = 5
 maintenance = 0
+
+
+class MyInstall(install):
+
+    def run(self):
+        # Install
+        install.run(self)
+
+        # Clean up after install
+        subprocess.call("python setup.py clean --all", shell=True)
+        shutil.rmtree("cbcflow.egg-info")
+        
 
 # TODO: Add eventual commandline scripts here:
 scripts = [
@@ -63,16 +78,19 @@ setup(name = "cbcflow",
                   "cbcflow.utils.core",
                   "cbcflow.utils.fields",
                   "cbcflow.utils.schemes",
-                  "cbcflow.utils.fenicstools",
+                  #"cbcflow.utils.fenicstools",
                   # Note: These are not python packages:
                   #"cbcflow.utils.fenicstools.fem",
                   #"cbcflow.utils.fenicstools.Probe",
                   ],
       package_dir = {"cbcflow": "cbcflow"},
-      package_data = {"cbcflow": ["utils/fenicstools/Probe/*.h",
-                                  "utils/fenicstools/Probe/*.cpp",
-                                  "utils/fenicstools/fem/*.cpp"]},
-#     data_files = [(pjoin("share", "man", "man1"),
-#                    [pjoin("doc", "man", "man1", "cbcflow.1.gz")])]
+      
+      # Require and fetch fenicstools
+      install_requires = ['fenicstools==1.3.0'],
+      dependency_links=['git+https://github.com/oyvinev/fenicstools.git@1.3.0-mod#egg=fenicstools'],
+      
+      # Use custom install class for proper cleanup
+      cmdclass={'install': MyInstall},
+
     )
 

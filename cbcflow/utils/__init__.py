@@ -16,7 +16,6 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 """A collection of utilities for different modules."""
 
-from cbcflow.utils.fenicstools import *
 from cbcflow.utils.bcs import *
 from cbcflow.utils.core import *
 from cbcflow.utils.fields import *

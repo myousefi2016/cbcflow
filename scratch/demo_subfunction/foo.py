@@ -1,9 +1,7 @@
-import sys; sys.path.insert(0, "../../..")
-
 from cbcflow import *
 from cbcflow.dol import *
 
-from cbcflow.core.spaces import NSSpacePool
+#from cbcflow.core.spaces import NSSpacePool
 
 set_log_level(100)
 parameters["allow_extrapolation"] = True

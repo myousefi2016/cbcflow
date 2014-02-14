@@ -19,8 +19,8 @@ from cbcflow.fields.bases.PPField import PPField
 from dolfin import Function, VectorFunctionSpace, FunctionSpace, project, as_vector
 
 def import_fenicstools():
-    import cbcflow.utils.fenicstools
-    return cbcflow.utils.fenicstools
+    import fenicstools
+    return fenicstools
 
 class SubFunction(PPField):
     def __init__(self, field, submesh, params=None, label=None):
