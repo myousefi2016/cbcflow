@@ -27,7 +27,7 @@ from cbcflow.utils.core import NSSpacePoolMixed
 
 
 class CoupledPicard(NSScheme):
-    "Incremental pressure-correction scheme with penalty terms for boundary conditions."
+    "Coupled scheme using a fixed point (Picard) nonlinear solver."
 
     def __init__(self, params=None):
         NSScheme.__init__(self, params)

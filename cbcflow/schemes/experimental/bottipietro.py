@@ -32,7 +32,7 @@ from cbcflow.utils.core import NSSpacePoolSplit
 
 
 class BottiPietro(NSScheme):
-    "A pressure-correction scheme with discontinuous velocity and continuous pressure."
+    "TODO: Describe."
 
     def __init__(self, params=None):
         NSScheme.__init__(self, params)

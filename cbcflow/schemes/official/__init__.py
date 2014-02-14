@@ -21,14 +21,9 @@
 
 # The simplest ipcs schemes with different optimizations
 from cbcflow.schemes.official.ipcs import IPCS
-from cbcflow.schemes.official.ipcs_segregated import SegregatedIPCS
 
 # Schemes with stabilization
-from cbcflow.schemes.official.ipcs_stabilized import IPCS_Stabilized
 from cbcflow.schemes.official.ipcs_stable import IPCS_Stable
-
-# Coupled schemes
-from cbcflow.schemes.official.yosida import Yosida
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme

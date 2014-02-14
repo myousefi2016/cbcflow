@@ -34,7 +34,7 @@ from cbcflow.utils.core import NSSpacePoolSplit
 from time import time
 
 
-class CoupledPreconditonedKAM(NSScheme):
+class CoupledPreconditionedKAM(NSScheme):
     "Coupled scheme with block preconditioning using cbc.block"
 
     def __init__(self, params=None):

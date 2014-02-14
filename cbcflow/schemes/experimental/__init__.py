@@ -24,6 +24,8 @@ lack the testing and validation of the *official* schemes.
 ### Experimental schemes (i.e. work in progress, not tested well, not documented)
 # The simplest ipcs schemes with different optimizations
 from cbcflow.schemes.experimental.ipcs_opt_seg import SegregatedIPCS_Optimized
+from cbcflow.schemes.experimental.ipcs_segregated import SegregatedIPCS
+from cbcflow.schemes.experimental.ipcs_stabilized import IPCS_Stabilized
 
 # Schemes with support for penalty pressure BCs
 from cbcflow.schemes.experimental.ipcs_penalty import PenaltyIPCS
@@ -38,8 +40,10 @@ from cbcflow.schemes.experimental.karper import Karper
 from cbcflow.schemes.experimental.couplednonlinear import CoupledNonLinear
 from cbcflow.schemes.experimental.coupled_picard import CoupledPicard
 from cbcflow.schemes.experimental.stokes import Stokes
-from cbcflow.schemes.experimental.coupledpreconditioned import CoupledPreconditoned
-from cbcflow.schemes.experimental.coupledpreconditioned_kam import CoupledPreconditonedKAM
+from cbcflow.schemes.experimental.coupledpreconditioned import CoupledPreconditioned
+from cbcflow.schemes.experimental.coupledpreconditioned_kam import CoupledPreconditionedKAM
+
+from cbcflow.schemes.experimental.yosida import Yosida
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme
