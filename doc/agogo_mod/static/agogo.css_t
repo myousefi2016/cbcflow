@@ -21,6 +21,16 @@ body {
   background-color: {{ theme_bgcolor }};
 }
 
+div.body ul {
+    line-height: 0.6em;
+    margin-top: 1.0cm;
+}
+
+div.body li {
+    margin: auto;
+    font-size: 80%;
+    padding: 0.2em;
+}
 
 /* Page layout */
 

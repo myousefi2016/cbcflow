@@ -38,30 +38,6 @@ inheritance_graph_attrs = dict(rankdir="LR", size='"6.0, 8.0"',
 inheritance_node_attrs = dict(shape='ellipse', fontsize=14, height=0.75,
                                 )
 
-
-def mod_signature(app, what, name, obj, options, signature,
-            return_annotation):
-    print "*********************************************************"
-    print name
-    print signature
-    print "*********************************************************"
-    
-    doc_indent = '    '
-    directive_indent = ''
-    if what in ['method', 'attribute']:
-        doc_indent += '    '
-        directive_indent += '    '
-    directive = '%s.. py:%s:: %s' % (directive_indent, what, name)
-    if signature:  # modules, attributes, ... don't have a signature
-        directive += signature
-    NAMES.append(name)
-    rst = directive + '\n\n' + doc_indent + obj.__doc__ + '\n'
-    DIRECTIVES[name] = rst
-    
-
-def setup(app):
-    app.connect('autodoc-process-signature', mod_signature)
-
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
