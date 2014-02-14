@@ -16,8 +16,6 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-from cbcflow.core.paramdict import ParamDict
-
 class Parameterized(object):
     "Core functionality for parameterized subclassable components."
     def __init__(self, params):

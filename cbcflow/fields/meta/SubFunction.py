@@ -16,8 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
-#from cbcflow.utils import *
-from dolfin import *
+from dolfin import Function, VectorFunctionSpace, FunctionSpace, project, as_vector
 
 def import_fenicstools():
     import cbcflow.utils.fenicstools
@@ -39,7 +38,7 @@ class SubFunction(PPField):
 
         # Store only name, don't need the field
         if isinstance(field, PPField):
-            value = field.name
+            field = field.name
         self.valuename = field
 
     @property

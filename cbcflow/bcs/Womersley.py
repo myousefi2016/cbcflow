@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.dol import *
+from cbcflow.dol import Expression, Mesh, MeshFunction, error
 
 import numpy as np
 
@@ -23,12 +23,11 @@ from scipy.interpolate import UnivariateSpline
 from scipy.integrate import simps
 from scipy.special import jn
 
-from itertools import izip
 from cbcflow.utils.bcs import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
 def fourier_coefficients(x, y, T, N=25):
     '''From x-array and y-spline and period T, calculate N complex Fourier coefficients.'''
-    omega = 2*pi/T
+    omega = 2*np.pi/T
     ck = []
     ck.append(1/T*simps(y(x), x))
     for n in range(1,N):
@@ -75,7 +74,7 @@ class WomersleyComponent2(Expression):
 
     def _precompute_bessel_functions(self):
         '''Calculate the Bessel functions of the Womersley profile'''
-        self.omega = 2 * pi / self.period
+        self.omega = 2 * np.pi / self.period
         self.N = len(self.Qn)
         self.ns = np.arange(1, self.N)
 
@@ -95,7 +94,7 @@ class WomersleyComponent2(Expression):
         "Compute intermediate terms for womersley function."
         n = len(self._values)
         self._y_coeffs = np.zeros((n,self.N), dtype=np.complex)
-        pir2 = pi * self.radius**2
+        pir2 = np.pi * self.radius**2
         for i, y in enumerate(self._ys):
             self._y_coeffs[i,0] = (2*self.Qn[0]/pir2) * (1 - y**2)
             for n in self.ns:
@@ -161,7 +160,7 @@ class WomersleyComponent1(Expression):
 
     def _precompute_bessel_functions(self):
         '''Calculate the Bessel functions of the Womersley profile'''
-        self.omega = 2 * pi / self.period
+        self.omega = 2 * np.pi / self.period
         self.ns = np.arange(1, self.N)
 
         # Allocate for 0...N-1
@@ -177,7 +176,7 @@ class WomersleyComponent1(Expression):
         self.jn1_betas[1:] = jn(1, self.beta[1:])
 
     def _precompute_r_dependent_coeffs(self, y):
-        pir2 = pi * self.radius**2
+        pir2 = np.pi * self.radius**2
         # Compute intermediate terms for womersley function
         r_dependent_coeffs = np.zeros(self.N, dtype=np.complex)
         if hasattr(self, 'Vn'):
@@ -252,7 +251,7 @@ def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains
         print "Reconstructing transient profile from Cn:"
         for t in np.linspace(0.0, period, 100):
             evaluated = transient_profile(t)
-            reconstructed = np.dot(Cn, np.exp(1j*(2*pi/period)*np.arange(len(Cn))*t)).real
+            reconstructed = np.dot(Cn, np.exp(1j*(2*np.pi/period)*np.arange(len(Cn))*t)).real
             print "%.2e  %.2e  %.2e  %.2e" % (evaluated, reconstructed, (evaluated - reconstructed),
                                               (evaluated - reconstructed) * 2 / abs(evaluated + reconstructed))
         print "*"*80

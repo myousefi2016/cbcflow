@@ -16,9 +16,10 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
-from cbcflow.utils.common import cbcflow_print, cbcflow_warning, sigma
 
-from dolfin import *
+from dolfin import (BoundaryMesh, VectorFunctionSpace, Cell, Facet,
+                    TestFunction, Function, FacetArea, FacetNormal,
+                    Constant, dot, grad, ds, assemble)
 
 from numpy import where
 
@@ -31,8 +32,8 @@ def local_mesh_to_boundary_dofmap(boundary, V, Vb):
     Vb_dm = Vb.dofmap()
 
 
-    mesh_tab_coords = V_dm.tabulate_all_coordinates(mesh)
-    boundary_tab_coords = Vb_dm.tabulate_all_coordinates(Vb.mesh())
+    #mesh_tab_coords = V_dm.tabulate_all_coordinates(mesh)
+    #boundary_tab_coords = Vb_dm.tabulate_all_coordinates(Vb.mesh())
 
     dofmap_to_boundary = {}
 

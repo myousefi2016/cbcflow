@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.PPField import PPField
 from cbcflow.utils.common import sigma
-from dolfin import *
+from dolfin import Function
 
 class Stress(PPField):
     def before_first_compute(self, pp, spaces, problem):

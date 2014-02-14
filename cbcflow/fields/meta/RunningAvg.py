@@ -15,8 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import *
-import numpy
+from dolfin import Function
 
 class RunningAvg(MetaPPField):
     def before_first_compute(self, pp, spaces, problem):

@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from dolfin import *
+from dolfin import Constant, MeshEditor, Mesh, MPI, compile_extension_module
 import numpy as np
 
 cpp_code = '''
@@ -203,6 +203,7 @@ class Slice(Mesh):
         
         
 if __name__ == '__main__':
+    from dolfin import UnitCubeMesh, plot
     mesh = UnitCubeMesh(8,8,8)
     p = np.array([0.5, 0.3, 0.7])
     n = np.array([3,2,1])

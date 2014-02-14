@@ -17,14 +17,14 @@
 
 import pickle
 import os
-import inspect, shelve
+import shelve
 
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor
 from cbcflow.utils.core import NSSpacePoolSplit
-from cbcflow.utils.common import cbcflow_print, cbcflow_warning
+from cbcflow.utils.common import cbcflow_print
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 
@@ -171,10 +171,7 @@ class NSReplay(Parameterized):
         
         # Get space from existing function spaces if mesh is the same
         # TODO: Verify that this check is good enough
-        if mesh.hash() == self._get_mesh().hash():
-            del mesh
-            space = self._get_spaces().get_space(degree, len(shape), family)
-        else:
+        if mesh.hash() != self._get_mesh().hash():
             if mesh.hash() == self._get_boundarymesh().hash():
                 mesh = self._get_boundarymesh()
             rank = len(shape)
@@ -184,7 +181,10 @@ class NSReplay(Parameterized):
                 space = VectorFunctionSpace(mesh, family, degree)
             elif rank == 2:
                 space = TensorFunctionSpace(mesh, family, degree)
-        
+        else:
+            del mesh
+            space = self._get_spaces().get_space(degree, len(shape), family)
+
         return Function(space, name=fieldname)
 
     def _get_all_params(self):

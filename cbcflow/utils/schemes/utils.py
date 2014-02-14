@@ -17,7 +17,7 @@
 from __future__ import division
 
 
-from cbcflow.dol import *
+from cbcflow.dol import as_vector, project, FacetNormal, DirichletBC, Constant, dot, Dn
 from numpy import linspace, zeros, append
 
 # --- Functions for timestepping

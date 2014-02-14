@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.dol import *
+from cbcflow.dol import FacetNormal, as_vector, dot, assemble, Constant, ds
 
 def compute_resistance_value(C, u, ind, facet_domains):
     mesh = facet_domains.mesh()

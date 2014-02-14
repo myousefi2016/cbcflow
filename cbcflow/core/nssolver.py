@@ -16,16 +16,13 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-from cbcflow.dol import plot, parameters, as_vector, MPI, Mesh
+from cbcflow.dol import parameters, Mesh
 
 from time import time
-import os
-import glob
-import re
 
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-from cbcflow.utils.common import get_memory_usage, time_to_string, cbcflow_print, cbcflow_warning
+from cbcflow.utils.common import get_memory_usage, time_to_string, cbcflow_print
 from cbcflow.core.restart import Restart
 
 class NSSolver(Parameterized):

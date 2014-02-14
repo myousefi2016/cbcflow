@@ -15,10 +15,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.core.paramdict import ParamDict
 from cbcflow.fields.bases.PPField import PPField
 
-from dolfin import FunctionSpace, TrialFunction, TestFunction, Function, grad, det
+from dolfin import Function, grad, det
 
 class Delta(PPField):
     @classmethod
@@ -44,8 +43,8 @@ class Delta(PPField):
         u = pp.get("Velocity")
         Q = pp.get("Q")
 
-        S = (grad(u) + grad(u).T)/2
-        Omega = (grad(u) - grad(u).T)/2
+        #S = (grad(u) + grad(u).T)/2
+        #Omega = (grad(u) - grad(u).T)/2
         expr = (Q**3 / 3 + det(grad(u))**2 / 2 )
 
         return self.expr2function(expr, self._function)

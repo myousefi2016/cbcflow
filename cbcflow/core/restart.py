@@ -15,15 +15,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.dol import *
-
-from numpy import linspace
+from cbcflow.dol import compile_extension_module, Function, HDF5File
 
 import shelve
 import os
 import subprocess
 
-from cbcflow.utils.common import cbcflow_warning, cbcflow_print
+from cbcflow.utils.common import cbcflow_warning
 
 fetchable_formats = ["hdf5", "xml"]
 
@@ -33,14 +31,12 @@ def find_common_savetimesteps(play_log, fields):
         if "fields" not in data:
             continue
         
-        
         present = {}
         for f in fields:
             present[f] = False
             for v in data["fields"].values():
                 if f == v['type'] and any([saveformat in fetchable_formats for saveformat in v["save_as"]]):
                     present[f] = True
-
 
         if all(present.values()):
             common_keys.append(int(ts))

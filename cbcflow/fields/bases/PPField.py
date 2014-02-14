@@ -15,16 +15,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from fractions import gcd
-from os.path import isfile, isdir, join
-from os import listdir, makedirs
+from os.path import join
 
-from dolfin import Function, File, MPI, TestFunction, assemble, inner, dx, project, HDF5File
+from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
 import shelve   
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-
-from cbcflow.utils.common import cbcflow_warning
 
 class PPField(Parameterized):
     def __init__(self, params=None, label=None):

@@ -18,11 +18,11 @@
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.utils.core.strip_code import strip_code
-from cbcflow.utils.common import cbcflow_warning, cbcflow_print, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
+from cbcflow.utils.common import cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
-from dolfin import Function, MPI, plot, File, project, as_vector, HDF5File, XDMFFile, error
+from dolfin import Function, MPI, plot, File, HDF5File, XDMFFile, error
 
 import os, re, inspect, pickle, shelve
 from collections import defaultdict
@@ -82,7 +82,7 @@ class DependencyException(Exception):
         if dependency:
             message += ["Dependency %s not functioning." % dependency]
         if timestep:
-            message += ["Relative timestep is %d. Are you trying to calculate time-derivatives at t=0?" % (name, timestep)]
+            message += ["Relative timestep is %d. Are you trying to calculate time-derivatives at t=0?" % (fieldname, timestep)]
         if original_exception_msg:
             message += ["\nOriginal exception was: " + original_exception_msg]
         message = ' '.join(message)
@@ -888,8 +888,6 @@ class NSPostProcessor(Parameterized):
         
 
     def _update_cache(self):
-        problem = self._problem
-
         new_cache = defaultdict(dict)
         # Loop over cache plans for each timestep
         for ts, plan in self._plan.iteritems():

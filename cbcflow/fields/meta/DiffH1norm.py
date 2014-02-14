@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.MetaPPField2 import MetaPPField2
-from dolfin import *
+from dolfin import assemble, grad, sqrt
 
 class DiffH1norm(MetaPPField2):
     "Compute the full H1 norm of the difference between uh and u relative to u."
@@ -27,7 +27,6 @@ class DiffH1norm(MetaPPField2):
 
         dx = problem.dx
 
-        uh2 = assemble((uh**2 + grad(uh)**2)*dx(), mesh=problem.mesh)
         u2 = assemble((u**2 + grad(u)**2)*dx(), mesh=problem.mesh)
         e2 = assemble((e**2 + grad(e)**2)*dx(), mesh=problem.mesh)
 

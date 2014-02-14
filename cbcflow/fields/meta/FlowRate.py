@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
-from dolfin import *
+from dolfin import assemble, dot
 
 class FlowRate(PPField):
     def __init__(self, boundary_id, params=None, label=None):

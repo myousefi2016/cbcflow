@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 
-from cbcflow.dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, Function
+from cbcflow.dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
 
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"

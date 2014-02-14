@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.PPField import PPField
 from dolfin import Function, FunctionAssigner
-from cbcflow.utils.core import NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
+from cbcflow.utils.core import NSSpacePoolMixed
 
 class Pressure(PPField):
     def convert(self, pp, spaces, problem):

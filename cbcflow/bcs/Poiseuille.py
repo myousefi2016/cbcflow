@@ -15,11 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.dol import *
+from cbcflow.dol import Expression, Mesh, MeshFunction
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from itertools import izip
 from cbcflow.utils.bcs import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
 class PoiseuilleComponent(Expression):
@@ -53,7 +52,7 @@ class PoiseuilleComponent(Expression):
 
     def set_t(self, t):
         self.t = float(t) % self.period
-        self._tp = 2.0 * self.transient_profile(self.t) / (pi * self.radius**2)
+        self._tp = 2.0 * self.transient_profile(self.t) / (np.pi * self.radius**2)
 
     def eval(self, value, x):
         # Compute radial coordinates
