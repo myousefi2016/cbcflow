@@ -2,3 +2,5 @@ from Probe import Probe, Probes, StatisticsProbe, StatisticsProbes, StructuredGr
 from WeightedGradient import weighted_gradient_matrix, compiled_gradient_module
 from Interpolation import interpolate_nonmatching_mesh
 from getMemoryUsage import getMemoryUsage
+
+__all__ = ["weighted_gradient_matrix", "compiled_gradient_module", "interpolate_nonmatching_mesh", "getMemoryUsage"]

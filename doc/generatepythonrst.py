@@ -22,8 +22,9 @@
 
 import os, sys, types
 
-
 __all__ = ["generate_python_api_documentation"]
+
+added_to_rst = []
 
 def indent(string, num_spaces):
     "Indent given text block given number of spaces"
@@ -35,6 +36,8 @@ class Module(object):
         self.name = name
         self.file = mod_file
         self.submodules = []
+        self.classes = []
+        self.functions = []
     def __hash__(self):
         return self.name
 
@@ -42,29 +45,63 @@ def get_modules(parent, loc, modules):
     for mod in os.listdir(loc):
         f = os.path.join(loc, mod)
         new_mod = None
+        
+        mod_to_append = None
         # Add modules (files) to global dict and to parent as submodules.
         if os.path.isfile(f):
             m, e = os.path.splitext(mod)
             if e == ".py" and m != "__init__":
                 new_mod = Module(".".join([parent.name, m]), f)
-                parent.submodules.append(m)
+                mod_to_append = m
+                
+                #print "*"*15, get_objects(parent)
+                #parent_classes, parent_functions = get_objects(parent)
+                #classes, functions = get_objects(new_mod)
+                
+                
+                
+                #print classes, functions
+                #return
+                #print set(classes).issubset(set(parent_classes)) and set(functions).issubset(set(parent_functions))
+                #if set(classes).issubset(set(parent_classes)) and set(functions).issubset(set(parent_functions)):
+                #    new_mod = None
+                #else:
+                #    parent.submodules.append(m)
+                
         # Add submodules (directories with '__init__.py' files) to global dict
         # and to parent as submodules.
         if os.path.isdir(f):
             if not "__init__.py" in os.listdir(f):
                 continue
             new_mod = Module(".".join([parent.name, mod]), os.path.join(f, "__init__.py"))
-            parent.submodules.append(mod)
+            mod_to_append = mod
+            #parent.submodules.append(mod)
 
             # Recursively extract submodules.
             get_modules(new_mod, f, modules)
+            
+        
+        
+        
+        
 
         if new_mod is not None:
             if new_mod in modules:
                 print new_mod, modules
                 raise RuntimeError("module already present???")
-            modules.append(new_mod)
-
+            parent_classes, parent_functions = get_objects(parent)
+            classes, functions = get_objects(new_mod)
+        
+            parent_classes, parent_functions = set(parent_classes), set(parent_functions)
+            classes, functions = set(classes), set(functions)
+            
+            new_mod.classes = list(classes-parent_classes)
+            new_mod.functions = list(functions-parent_functions)
+            
+            if len(new_mod.classes)+len(new_mod.functions)+len(new_mod.submodules) > 0:
+                parent.submodules.append(mod_to_append)
+                modules.append(new_mod)
+            
 def get_objects(module):
     """Extract classes and functions defined in a module.
     The function will not return imported classes and functions."""
@@ -72,8 +109,8 @@ def get_objects(module):
     functions = []
     objects = {}
     
-    
-    #if "cbcflow.utils.bcs" not in module.name:
+    #
+    #if "cbcflow.utils.common" not in module.name:
     #    return classes, functions
     #print module.name
     #return classes, functions
@@ -95,7 +132,12 @@ def get_objects(module):
 
     # Get objects listed in __all__ by developer.
     exec("from %s import *" % module.name, objects)
-    print define_all
+    #print module.name
+    #print define_all
+    #for o in objects:
+    #    print o
+    #define_all = False
+    #print objects
     
     #print objects
     #print module, objects
@@ -111,7 +153,8 @@ def get_objects(module):
             #if "cbcflow" in val.__module__:
             #    print val.__module__
             if define_all or module.name == val.__module__:
-                print "Class: ", key
+                #print module.name == val.__module__
+                #print "Class: ", key
                 classes.append(key)
         elif isinstance(val, types.FunctionType):
             #if module.name == ".".join(val.__module__.split('.')[:-1]):
@@ -120,21 +163,14 @@ def get_objects(module):
             #print val.__module__
 #            print "fun, mod: ", val.__module__
             if define_all or module.name == val.__module__:
-                print "Function: ", key
+                #print "Function: ", key
                 functions.append(key)
         # Anything else we need to catch?
         else:
             pass
-
+    #print module.name, classes, functions
+    #exit()
     return classes, functions
-
-def index_items2(item_type, items):
-    if item_type == "Classes":
-        output = write_class()
-    print item_type
-    print items
-    exit()
-    
 
 def index_items(item_type, items):
     return """
@@ -213,7 +249,8 @@ def write_documentation(package_name, module, output_dir, version):
     for sub in module.submodules:
         modules.append(sub + "/index")
 
-    classes, functions = get_objects(module)
+    #classes, functions = get_objects(module)
+    classes, functions = module.classes, module.functions
     #print classes, functions, module.submodules
 
     output = ".. Index file for the %s module.\n\n" % module.name
@@ -226,6 +263,10 @@ def write_documentation(package_name, module, output_dir, version):
     else:
         header = "%s module" % module.name
         output += caption(header, "*")
+        
+        
+    if not modules and not classes and not functions:
+        return
 
     outfile = os.path.join(directory, "index.rst")
     f = open(outfile, "w")
@@ -270,7 +311,6 @@ def generate_python_api_documentation(module, output_dir, version):
                                    "__init__.py"))]
 
     get_modules(submods[0], os.path.dirname(module.__file__), submods)
-    
     print "Writing files for submodules ... "
     for submod in sorted(submods, key=lambda o: o.name):
         print "  Writing files for sub module: ", submod.name

@@ -32,8 +32,4 @@ def show_schemes():
     print "\n".join("    " + f for f in official_schemes)
     print "Experimental schemes available:"
     print "\n".join("    " + f for f in experimental_schemes)
-
-__all__ = (
-    ["show_schemes", "all_schemes", "official_schemes", "experimental_schemes"] +
-    all_schemes
-    )
+    

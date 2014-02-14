@@ -17,8 +17,6 @@
 from cbcflow.dol import *
 import numpy as np
 
-__all__ =["x_to_r2", "compute_radius", "compute_boundary_geometry_acrn", "compute_area", "compute_transient_scale_value"]
-
 def x_to_r2(x, c, n):
     # TODO: Simplify this after testing
     d = len(c)
