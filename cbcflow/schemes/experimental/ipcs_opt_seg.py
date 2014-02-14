@@ -16,10 +16,6 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-__author__ = "Joachim B Haga <jobh@simula.no>"
-__date__ = "2011-11-11"
-__copyright__ = "Copyright (C) 2011 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.nsscheme import *
 from cbcflow.utils.common import Timer, is_periodic, epsilon

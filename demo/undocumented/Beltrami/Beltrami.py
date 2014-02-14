@@ -1,12 +1,5 @@
 #!/usr/bin/env python
-__author__ = "Harish Narayanan <harish@simula.no>"
-__date__ = "2009-01-20"
-__copyright__ = "Copyright (C) 2009-2010 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
-# Modified by Kristian Valen-Sendstad, 2009.
-# Modified by Anders Logg, 2010.
-# Modified by Martin Alnaes, 2013.
 
 from cbcflow import *
 from cbcflow.dol import *

@@ -16,12 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-__author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
-__date__ = "2008-02-01"
-__copyright__ = "Copyright (C) 2008-2010 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
-# Modified by Anders Logg, 2008-2010.
 
 from cbcflow.core.nsscheme import *
 

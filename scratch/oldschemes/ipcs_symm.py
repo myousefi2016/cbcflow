@@ -1,9 +1,5 @@
 from __future__ import division
 
-__author__ = "Joachim B Haga <jobh@simula.no>"
-__date__ = "2012-02-01"
-__copyright__ = "Copyright (C) 2012 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.nsscheme import *
 from cbcflow.core.rhsgenerator import *

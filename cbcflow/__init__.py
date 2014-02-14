@@ -22,8 +22,6 @@ To use cbcflow, do::
 """
 
 __version__ = "0.1"
-__date__ = "2013-11-26"
-__license__  = "GNU GPL version 3 or any later version"
 
 # Basic utilities
 from cbcflow.core.paramdict import ParamDict

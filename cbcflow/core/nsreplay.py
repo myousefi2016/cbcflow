@@ -14,10 +14,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-__author__ = "Oeyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-10-18"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 import pickle
 import os

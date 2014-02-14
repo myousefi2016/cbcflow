@@ -15,10 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
-__author__ = "Martin Alnaes <martinal@simula.no> and Oeyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-04-26"
-__copyright__ = "Copyright (C) 2013-2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.dol import *
 

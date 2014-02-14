@@ -14,10 +14,6 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-__author__ = "Oeyvind Evju <oyvinev@simula.no>"
-__date__ = "2014-02-03"
-__copyright__ = "Copyright (C) 2014 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.dol import *
 

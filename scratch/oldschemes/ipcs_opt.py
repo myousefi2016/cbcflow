@@ -1,9 +1,5 @@
 from __future__ import division
 
-__author__ = "Joachim B Haga <jobh@simula.no>"
-__date__ = "2011-11-11"
-__copyright__ = "Copyright (C) 2011 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 # TODO: Import only what's needed here and elsewhere:
 from cbcflow.core.nsscheme import *
