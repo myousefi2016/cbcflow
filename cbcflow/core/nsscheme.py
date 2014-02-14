@@ -52,7 +52,7 @@ class NSScheme(Parameterized):
 
             # Timestepping method
             # FIXME: Adaptive timestepping still unsupported
-            adaptive_timestepping=False,
+            # adaptive_timestepping=False,
             )
         return params
 
