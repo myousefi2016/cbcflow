@@ -14,6 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""Fields that require input parameters. This is typically fields that
+can be used on different fields, for example time derivatives, averages,
+parts of fields etc.
+"""
+
 
 # Fields that need input
 meta_fields = [

@@ -14,6 +14,12 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""These schemes are considered experimental, and one can not generally expect
+correct simulations results with these.
+
+They implement a variety of ideas for solving the Navier-Stokes equations, but
+lack the testing and validation of the *official* schemes.
+"""
 
 ### Experimental schemes (i.e. work in progress, not tested well, not documented)
 # The simplest ipcs schemes with different optimizations
