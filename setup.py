@@ -15,7 +15,7 @@ major = 0
 minor = 5
 maintenance = 0
 
-
+"""
 class MyInstall(install):
 
     def run(self):
@@ -25,6 +25,7 @@ class MyInstall(install):
         # Clean up after install
         subprocess.call("python setup.py clean --all", shell=True)
         shutil.rmtree("cbcflow.egg-info")
+"""
         
 
 # TODO: Add eventual commandline scripts here:
@@ -86,11 +87,12 @@ setup(name = "cbcflow",
       package_dir = {"cbcflow": "cbcflow"},
       
       # Require and fetch fenicstools
-      install_requires = ['fenicstools==1.3.0'],
+      install_requires = ['fenicstools<=1.3.0'],
       dependency_links=['git+https://github.com/oyvinev/fenicstools.git@1.3.0-mod#egg=fenicstools'],
       
       # Use custom install class for proper cleanup
-      cmdclass={'install': MyInstall},
+      # FIXME: This has to be handled differently, possibly makefile?
+      #cmdclass={'install': MyInstall},
 
     )
 
