@@ -45,6 +45,15 @@ def find_common_savetimesteps(play_log, fields):
 
 
 class Restart(object):
+    """
+    Class to specify restart data. Searches within the given postprocessors
+    casedir for solution data to find a suitable timestep to restart from,
+    based on the parameters restart_time or restart_timestep.
+    
+    Overwrites problem.initial_conditions with solution loaded from file and sets
+    problem.params.T0. Handles postprocessing to avoid overwrite conflicts with
+    existing data.
+    """
     def __init__(self, problem, postprocessor, restart_time, restart_timestep):
         self.problem = problem
         self.postprocessor = postprocessor
@@ -56,7 +65,7 @@ class Restart(object):
         if restart_timestep < 0:
             restart_timestep = 1e8
                
-        self.casedir = self.postprocessor._get_casedir()
+        self.casedir = self.postprocessor.get_casedir()
         
         play_log = shelve.open(os.path.join(self.casedir, "play.db"), 'c')
         timesteps = find_common_savetimesteps(play_log, ["Velocity", "Pressure"])
@@ -84,6 +93,7 @@ class Restart(object):
         self._correct_postprocessing(play_log, timesteps[i])
     
     def _replace_ic(self, problem, timestep, play_log_item):
+        "Replace problem.initial_conditions with data acquired from the play log."
         
         # Find velocity metadata
         keys = {}
@@ -135,6 +145,7 @@ class Restart(object):
         problem.initial_conditions = initial_conditions
 
     def _correct_postprocessing(self, play_log, restart_timestep):
+        "Removes data from casedir found at timestep>restart_timestep."
         play_log_to_remove = {}
         
         for k,v in play_log.items():
@@ -154,7 +165,8 @@ class Restart(object):
             self._clean_field(fieldname, restart_timestep)
     
     def _clean_field(self, fieldname, restart_timestep):
-        metadata = shelve.open(os.path.join(self.postprocessor._get_savedir(fieldname), 'metadata.db'), 'w')
+        "Deletes data from field found at timestep>restart_timestep."
+        metadata = shelve.open(os.path.join(self.postprocessor.get_savedir(fieldname), 'metadata.db'), 'w')
 
         metadata_to_remove = {}
         for k in metadata.keys():
@@ -173,8 +185,7 @@ class Restart(object):
         self._clean_xdmf(fieldname, metadata_to_remove)
         self._clean_pvd(fieldname, metadata_to_remove)
     
-    def _clean_hdf5(self, fieldname, del_metadata):
-        
+    def _clean_hdf5(self, fieldname, del_metadata):        
         delete_from_hdf5_file = '''
         namespace dolfin {
             #include <hdf5.h>  
@@ -193,7 +204,7 @@ class Restart(object):
     
         cpp_module = compile_extension_module(delete_from_hdf5_file)
         
-        hdf5filename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+'.hdf5')
+        hdf5filename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+'.hdf5')
         if not os.path.isfile(hdf5filename):
             return
         for k, v in del_metadata.items():
@@ -201,7 +212,7 @@ class Restart(object):
                 continue
             else:
                 cpp_module.delete_from_hdf5_file(hdf5filename, v['hdf5']['dataset'])
-        hdf5tmpfilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+'_tmp.hdf5')
+        hdf5tmpfilename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+'_tmp.hdf5')
             
         subprocess.call("h5repack %s %s" %(hdf5filename, hdf5tmpfilename), shell=True)
         os.remove(hdf5filename)
@@ -213,11 +224,11 @@ class Restart(object):
             if not 'filename' in v:
                 continue
             else:
-                fullpath = os.path.join(self.postprocesor._get_savedir(fieldname), v['filename'])
+                fullpath = os.path.join(self.postprocesor.get_savedir(fieldname), v['filename'])
                 os.remove(fullpath)
 
     def _clean_txt(self, fieldname, del_metadata):
-        txtfilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+".txt")
+        txtfilename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+".txt")
         if not os.path.isfile(txtfilename):
             return
         
@@ -232,7 +243,7 @@ class Restart(object):
         txtfile.close()
         
     def _clean_shelve(self, fieldname, del_metadata):
-        shelvefilename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname+".db")
+        shelvefilename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+".db")
         if not os.path.isfile(shelvefilename):
             return
         
@@ -243,7 +254,7 @@ class Restart(object):
         shelvefile.close()
     
     def _clean_xdmf(self, fieldname, del_metadata):
-        basename = os.path.join(self.postprocessor._get_savedir(fieldname), fieldname)
+        basename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname)
         if not os.path.isfile(basename+".xdmf"):
             return
         i = 0

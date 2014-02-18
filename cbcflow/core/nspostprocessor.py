@@ -157,8 +157,8 @@ class NSPostProcessor(Parameterized):
         self._sorted_fields_keys.insert(max_index+1, fieldname)
 
     def find_dependencies(self, field):
-        "Read dependencies from source (if available) from calls to PostProcessor.get command"
-
+        "Read dependencies from source code in field.compute function"
+        
         # Get source
         s = inspect.getsource(field.compute)
         s = strip_code(s) # Removes all comments, empty lines etc.
@@ -215,6 +215,7 @@ class NSPostProcessor(Parameterized):
         return sorted(set(deps))
 
     def add_field(self, field):
+        "Add field to postprocessor. Recursively adds basic dependencies."
         # Did we get a field name instead of a field?
         if isinstance(field, str):
             if field in builtin_fields:
@@ -266,9 +267,10 @@ class NSPostProcessor(Parameterized):
         return field
 
     def add_fields(self, fields):
+        "Add several fields at once."
         return [self.add_field(field) for field in fields]
 
-    def should_compute_at_this_time(self, field, t, timestep):
+    def _should_compute_at_this_time(self, field, t, timestep):
         "Check if field is to be computed at current time"
         # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
         # it's easy to swap here with e.g. fp = self._field_params[field.name]
@@ -391,13 +393,14 @@ class NSPostProcessor(Parameterized):
                 save_as = [field.params.save_as]
         return save_as
 
-    def _get_casedir(self):
+    def get_casedir(self):
         return self.params.casedir
 
     def _clean_casedir(self):
+        "Cleans out all files produced by cbcflow in the current casedir."
         if on_master_process():
-            if os.path.isdir(self._get_casedir()):
-                playlogfilename = os.path.join(self._get_casedir(), "play.db")
+            if os.path.isdir(self.get_casedir()):
+                playlogfilename = os.path.join(self.get_casedir(), "play.db")
                 if os.path.isfile(playlogfilename):
                     playlog = shelve.open(playlogfilename, 'r')
 
@@ -409,11 +412,11 @@ class NSPostProcessor(Parameterized):
                     playlog.close()
                     
                     for field in all_fields:
-                        rmtree(os.path.join(self._get_casedir(), field))
+                        rmtree(os.path.join(self.get_casedir(), field))
                     
                     for f in ["mesh.hdf5", "play.db", "params.txt", "params.pickle"]:
-                        if os.path.isfile(os.path.join(self._get_casedir(), f)):
-                            os.remove(os.path.join(self._get_casedir(), f))
+                        if os.path.isfile(os.path.join(self.get_casedir(), f)):
+                            os.remove(os.path.join(self.get_casedir(), f))
 
 
     def _create_casedir(self):
@@ -421,12 +424,13 @@ class NSPostProcessor(Parameterized):
         safe_mkdir(casedir)
         return casedir
 
-    def _get_savedir(self, field_name):
+    def get_savedir(self, field_name):
+        "Returns savedir for given fieldname"
         return os.path.join(self.params.casedir, field_name)
 
     def _create_savedir(self, field_name):
         self._create_casedir()
-        savedir = self._get_savedir(field_name)
+        savedir = self.get_savedir(field_name)
         safe_mkdir(savedir)
         return savedir
 
@@ -440,7 +444,7 @@ class NSPostProcessor(Parameterized):
 
     def _finalize_metadata_file(self, field_name, finalize_data):
         if on_master_process():
-            savedir = self._get_savedir(field_name)
+            savedir = self.get_savedir(field_name)
             metadata_filename = os.path.join(savedir, 'metadata.db')
             metadata_file = shelve.open(metadata_filename)
             metadata_file["finalize_data"] = finalize_data
@@ -448,7 +452,7 @@ class NSPostProcessor(Parameterized):
 
     def _update_metadata_file(self, field_name, data, t, timestep, save_as, metadata):
         if on_master_process():
-            savedir = self._get_savedir(field_name)
+            savedir = self.get_savedir(field_name)
             metadata_filename = os.path.join(savedir, 'metadata.db')
             metadata_file = shelve.open(metadata_filename)
 
@@ -489,7 +493,7 @@ class NSPostProcessor(Parameterized):
             if saveformat == 'hdf5':
                 metadata['dataset'] = field_name+str(timestep)
 
-        savedir = self._get_savedir(field_name)
+        savedir = self.get_savedir(field_name)
         fullname = os.path.join(savedir, filename)
         return fullname, metadata
 
@@ -595,7 +599,7 @@ class NSPostProcessor(Parameterized):
         return metadata
 
     def _fetch_play_log(self):
-        casedir = self._get_casedir()
+        casedir = self.get_casedir()
         play_log_file = os.path.join(casedir, "play.db")
         play_log = shelve.open(play_log_file)
         return play_log
@@ -620,6 +624,7 @@ class NSPostProcessor(Parameterized):
             play_log.close()
 
     def store_params(self, params):
+        "Store parameters in casedir as params.pickle and params.txt."
         casedir = self._create_casedir()
 
         pfn = os.path.join(casedir, "params.pickle")
@@ -631,7 +636,8 @@ class NSPostProcessor(Parameterized):
             f.write(str(params))
 
     def store_mesh(self, mesh):
-        casedir = self._get_casedir()
+        "Store mesh in casedir to mesh.hdf5 (dataset Mesh) in casedir."
+        casedir = self.get_casedir()
         meshfile = HDF5File(os.path.join(casedir, "mesh.hdf5"), 'w')
         meshfile.write(mesh, "Mesh")
         del meshfile
@@ -702,6 +708,7 @@ class NSPostProcessor(Parameterized):
             cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
 
     def _plot_dolfin(self, field_name, data):
+        "Plot field using dolfin plot command"
         if not dolfin_plotting():
             return
 
@@ -722,6 +729,7 @@ class NSPostProcessor(Parameterized):
         plot_object.parameters["title"] = title
 
     def _plot_pylab(self, field_name, data):
+        "Plot using pylab if field is a single scalar."
         pylab = import_pylab()
         if not pylab:
             return
@@ -792,7 +800,7 @@ class NSPostProcessor(Parameterized):
         pylab.draw()
 
     def _rollback_plan(self, t, timestep):
-        # Roll plan one timestep and countdown how long to keep stuff
+        "Roll plan one timestep and countdown how long to keep stuff."
         tss = sorted(self._plan.keys())
         new_plan = defaultdict(lambda: defaultdict(int))
 
@@ -804,6 +812,7 @@ class NSPostProcessor(Parameterized):
         self._plan = new_plan
 
     def _update_plan(self, t, timestep):
+        "Update plan for new timestep."
         # ttk = timesteps to keep
         #self._plan[-1][name] = ttk # How long to cache what's already computed
         #self._plan[0][name] = ttk  # What to compute now and how long to cache it
@@ -813,7 +822,7 @@ class NSPostProcessor(Parameterized):
 
         # Loop over all fields that are triggered for computation at this timestep
         triggered_fields = [(name, field) for name, field in self._fields.iteritems()
-                            if self.should_compute_at_this_time(field, t, timestep)]
+                            if self._should_compute_at_this_time(field, t, timestep)]
 
         for name, field in triggered_fields:
             deps = self._full_dependencies[name]
@@ -839,6 +848,7 @@ class NSPostProcessor(Parameterized):
             self._last_trigger_time[field.name] = (t, timestep)
 
     def _execute_plan(self, t, timestep):
+        "Check plan and compute fields in plan."
         # Initialize cache for current timestep
         assert not self._cache[0], "Not expecting cached computations at this timestep before plan execution!"
         self._cache[0] = {
@@ -905,7 +915,7 @@ class NSPostProcessor(Parameterized):
         self._cache = new_cache
 
     def update_all(self, solution, t, timestep, spaces, problem):
-        "Update all PPFields"
+        "Updates cache, plan, play log and executes plan."
 
         # TODO: Better design solution to making these variables accessible the right places?
         self._problem = problem

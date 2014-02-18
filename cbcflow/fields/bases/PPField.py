@@ -100,19 +100,19 @@ class PPField(Parameterized):
             timestep = pp.get("timestep")
             saveformat = pp._solution[self.name]["format"]
             if saveformat == 'hdf5':
-                hdf5filepath = join(pp._get_casedir(), self.name, self.name+".hdf5")
+                hdf5filepath = join(pp.get_casedir(), self.name, self.name+".hdf5")
                 hdf5file = HDF5File(hdf5filepath, 'r')
                 dataset = self.name+str(timestep)
                 hdf5file.read(pp._solution[self.name]["function"], dataset)
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat in ["xml", "xml.gz"]:
                 xmlfilename = self.name+str(timestep)+"."+saveformat
-                xmlfilepath = join(pp._get_casedir(), self.name, xmlfilename)
+                xmlfilepath = join(pp.get_casedir(), self.name, xmlfilename)
                 function = pp._solution[self.name]["function"]
                 function.assign(Function(function.function_space(), xmlfilepath))
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat == "shelve":
-                shelvefilepath = join(pp._get_casedir(), self.name, self.name+".db")
+                shelvefilepath = join(pp.get_casedir(), self.name, self.name+".db")
                 shelvefile = shelve.open(shelvefilepath)
                 pp._solution[self.name] = shelvefile[str(timestep)]
 

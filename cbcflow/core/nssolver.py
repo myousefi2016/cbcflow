@@ -26,7 +26,13 @@ from cbcflow.utils.common import get_memory_usage, time_to_string, cbcflow_print
 from cbcflow.core.restart import Restart
 
 class NSSolver(Parameterized):
-    "High level Navier-Stokes solver."
+    """High level Navier-Stokes solver. This handles all logic between the cbcflow
+    components.
+    
+    For full functionality, the user should instantiate this class with a NSProblem
+    instance, NSScheme instance and NSPostProcessor instance.
+    
+    """
     def __init__(self, problem, scheme=None, postprocessor=None, params=None):
         Parameterized.__init__(self, params)
 
@@ -36,19 +42,39 @@ class NSSolver(Parameterized):
 
     @classmethod
     def default_params(cls):
+        """Returns the default parameters for a problem.
+
+        Explanation of parameters:
+          - debug: bool, debug mode
+          - check_mem_frequency: int, timestep frequency to check memory consumption
+          - restart: bool, turn restart mode on or off
+          - restart_time: float, time to search for restart data
+          - restart_timestep: int, timestep to search for restart data
+          
+          If restart=True, maximum one of restart_time and restart_timestep can be set.
+          
+        """
         # TODO: Insert generic nssolver params here
         params = ParamDict(
             debug=False,
-            plot_solution=False,
             check_mem_frequency=0,
-            restart = False, # Not yet supported
-            restart_time = -1.0, # Not yet supported
-            restart_timestep = -1, # Not yet supported
+            restart = False, 
+            restart_time = -1.0,
+            restart_timestep = -1,
             enable_annotation=False,
             )
         return params
 
     def solve(self):
+        """ Handles top level logic related to solve.
+        
+        Cleans casedir or loads restart data, stores parameters and mesh in
+        casedir, calls scheme.solve, and lets postprocessor finalize all
+        fields.
+        
+        Returns: namespace dict returned from scheme.solve
+        """
+        
         self._reset()
         
         if self.params.restart:
@@ -77,6 +103,7 @@ class NSSolver(Parameterized):
         return scheme_namespace
 
     def _reset(self):
+        "Reset timers and memory usage"
         self._initial_time = time()
         self._time = time()
         self._accumulated_time = 0
@@ -85,6 +112,7 @@ class NSSolver(Parameterized):
             self._initial_memory = get_memory_usage()
 
     def _summarize(self):
+        "Summarize time spent and memory (if requested)"
         final_time = time()
         msg = "Total time spent in NSSolver: %s" % time_to_string(final_time - self._initial_time)
         cbcflow_print(msg)
@@ -96,6 +124,7 @@ class NSSolver(Parameterized):
             cbcflow_print(msg)
 
     def _update_timing(self, timestep, t, time_at_top):
+        "Update timing and print solver status to screen."
         # Time since last update equals the time for scheme solve
         solve_time = time_at_top - self._time
 
@@ -140,6 +169,8 @@ class NSSolver(Parameterized):
             cbcflow_print('Memory usage is: %s' % get_memory_usage())       
 
     def update(self, u, p, t, timestep, spaces):
+        """Callback from scheme.solve after each timestep to handle update of
+        postprocessor, timings, memory etc."""
         # Do not run this if restarted from this timestep
         if self.params.restart and timestep==self.problem.params.start_timestep:
             return
