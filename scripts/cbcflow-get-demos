@@ -1,0 +1,16 @@
+#!/bin/bash
+
+branch=${1:-v1.3.0}
+folder=${2:-cbcflow-demos}
+
+mkdir $folder
+cd $folder
+
+git clone -b $branch --depth=0 https://bitbucket.org/simula_cbc/cbcflow-data.git
+git clone -b $branch --depth=0 https://bitbucket.org/simula_cbc/cbcflow.git
+
+#mkdir demo
+mv cbcflow/demo .
+rm -rf cbcflow
+
+
