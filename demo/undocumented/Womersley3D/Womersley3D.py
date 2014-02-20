@@ -8,11 +8,11 @@ import numpy as np
 LENGTH = 10.0
 RADIUS = 0.5
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_3k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_24k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_203k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1611k.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_1k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_3k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_24k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_203k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_1611k.xml.gz"),
         ]
 
 
@@ -86,7 +86,7 @@ class Womersley3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            #mesh_filename="../../../data/pipe_0.2.xml.gz",
+            #mesh_filename="../../../cbcflow-data/pipe_0.2.xml.gz",
             refinement_level=0,
             # Analytical solution parameters
             Q=1.0,

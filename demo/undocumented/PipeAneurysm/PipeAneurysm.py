@@ -7,13 +7,13 @@ from cbcflow.dol import *
 
 from os import path
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_0.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_1.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_2.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_3.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_4.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_5.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/aneurysm_6.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_0.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_1.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_2.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_3.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_4.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_5.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/aneurysm_6.xml.gz"),
         ]
 
 # Inflow boundary

@@ -49,7 +49,7 @@ def restart():
     postprocessor = NSPostProcessor(dict(casedir='results'))
     postprocessor.add_fields(fields)
     
-    # Set restart data
+    # Set restart cbcflow-data
     solver_params = params.solver
     solver_params["restart"] = True
     solver_params["restart_time"] = 0.5

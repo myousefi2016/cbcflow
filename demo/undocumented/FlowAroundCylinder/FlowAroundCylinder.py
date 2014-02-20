@@ -5,11 +5,11 @@ from cbcflow.dol import *
 
 from os import path
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_0.6k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_2k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_8k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_32k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/cylinder_129k.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_0.6k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_2k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_8k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_32k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_129k.xml.gz"),
         ]
 
 
