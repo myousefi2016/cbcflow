@@ -1,0 +1,5 @@
+#!/bin/bash
+branch=${1:-v1.3.0}
+echo Cloning branch $branch
+git clone -b $branch --depth=0 https://bitbucket.org/simula_cbc/cbcflow-data.git
+

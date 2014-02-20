@@ -31,6 +31,7 @@ class MyInstall(install):
 # TODO: Add eventual commandline scripts here:
 scripts = [
     pjoin("scripts", "cbcflow-showcase"),
+    pjoin("scripts", "cbcflow-get-data"),
     ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
