@@ -12,6 +12,10 @@
 # serve to show the default.
 
 import sys, os
+import subprocess
+
+from generate_api_doc import generate_dolfin_doc
+generate_dolfin_doc("..", "cbcflow")
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
