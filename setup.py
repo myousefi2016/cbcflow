@@ -89,8 +89,8 @@ setup(name = "cbcflow",
       package_dir = {"cbcflow": "cbcflow"},
       
       # Require and fetch fenicstools
-      install_requires = ['fenicstools<=1.3.0'],
-      dependency_links=['git+https://github.com/oyvinev/fenicstools.git@1.3.0-mod#egg=fenicstools'],
+      install_requires = ['fenicstools==1.3.0'],
+      dependency_links=['https://github.com/mikaem/fenicstools/archive/v1.3.0.zip#egg=fenicstools-1.3.0'],
       
       # Use custom install class for proper cleanup
       # FIXME: This has to be handled differently, possibly makefile?
