@@ -213,6 +213,7 @@ class NSProblem(Parameterized):
         
         Typical usage of this function would be to update time-dependent boundary
         conditions: ::
+            
             bcu, bcp = boundary_conditions
             for bc, _ in bcu:
                 bc.t = t

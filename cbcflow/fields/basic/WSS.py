@@ -76,18 +76,16 @@ def local_mesh_to_boundary_dofmap(boundary, V, Vb):
 
 class WSS(PPField):
     def before_first_compute(self, pp, spaces, problem):
-        """
-        FIXME: CG1 boundary gives very odd results
-        degree = spaces.V.ufl_element().degree()
-        if degree > 1:
-            if degree > 2:
-                cbcflow_warning("WSS is reduced to piecewise linears.")
-            Q = VectorFunctionSpace(problem.mesh, "CG", 1)
-            Q_boundary = VectorFunctionSpace(boundary, "CG", 1)
-        else:
-            Q = VectorFunctionSpace(problem.mesh, "DG", 0)
-            Q_boundary = VectorFunctionSpace(boundary, "DG", 0)
-        """
+        #FIXME: CG1 boundary gives very odd results
+        #degree = spaces.V.ufl_element().degree()
+        #if degree > 1:
+        #    if degree > 2:
+        #        cbcflow_warning("WSS is reduced to piecewise linears.")
+        #    Q = VectorFunctionSpace(problem.mesh, "CG", 1)
+        #    Q_boundary = VectorFunctionSpace(boundary, "CG", 1)
+        #else:
+        #    Q = VectorFunctionSpace(problem.mesh, "DG", 0)
+        #    Q_boundary = VectorFunctionSpace(boundary, "DG", 0)
 
         # Create vector DG0 space on full mesh
         #Q = VectorFunctionSpace(problem.mesh, "DG", 0)

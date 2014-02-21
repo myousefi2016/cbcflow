@@ -29,7 +29,7 @@ def indent(string, num_spaces):
 
 class Module(object):
     def __init__(self, name, mod_file):
-        print name
+        #print name
         self.name = name
         self.file = mod_file
         self.submodules = []
@@ -42,7 +42,7 @@ def get_modules(parent, loc, modules):
     for mod in os.listdir(loc):
         f = os.path.join(loc, mod)
         new_mod = None
-        
+        print f
         mod_to_append = None
         # Add modules (files) to global dict and to parent as submodules.
         if os.path.isfile(f):
@@ -64,7 +64,6 @@ def get_modules(parent, loc, modules):
 
         if new_mod is not None:
             if new_mod in modules:
-                print new_mod, modules
                 raise RuntimeError("module already present???")
             parent_classes, parent_functions = get_objects(parent)
             classes, functions = get_objects(new_mod)
@@ -117,6 +116,7 @@ def index_items(item_type, items):
     :maxdepth: 1
 
 %s
+
 """ % (item_type, indent("\n".join(sorted(items)), 4))
 
 def caption(string, level, top=False):
@@ -135,6 +135,7 @@ def write_class(name, module_name):
     output += "   :members:\n"
     output += "   :undoc-members:\n"
     output += "   :show-inheritance:\n"
+    output += "\n"
 
     return output
 
@@ -196,11 +197,13 @@ def write_documentation(package_name, module, output_dir, version):
     outfile = os.path.join(directory, "index.rst")
     f = open(outfile, "w")
     f.write(output)
-    f.write("""\n
-.. automodule:: %s
-   :no-members:
-   :no-undoc-members:
-   :no-show-inheritance: \n""" % module.name)
+    f.write("""\n.. automodule:: %s\n\n""" % module.name)
+    
+#    f.write("""\n
+#.. automodule:: %s
+#   :no-members:
+#   :no-undoc-members:
+#   :no-show-inheritance: \n\n""" % module.name)
     
 
     if modules:
@@ -215,6 +218,7 @@ def write_documentation(package_name, module, output_dir, version):
         f.write("="*20+"\n")
         for function in functions:
             f.write(write_function(function, module.name))
+    f.write('\n')
     f.close()
 
 
@@ -224,6 +228,8 @@ def generate_python_api_documentation(module, output_dir, version):
     submods = [Module(module.__name__,
                       os.path.join(os.path.dirname(module.__file__),
                                    "__init__.py"))]
+    
+    
 
     get_modules(submods[0], os.path.dirname(module.__file__), submods)
     print "Writing files for submodules ... "

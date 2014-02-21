@@ -39,6 +39,7 @@ MOCK_MODULES = ['dolfin', 'ufl', 'cbcflow.dol', 'numpy', 'scipy', 'scipy.interpo
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
+if not os.path.isdir('_static'): os.mkdir('_static')
 
 # on_rtd is whether we are on readthedocs.org
 # Insert cwd in path to be able to import from generate_api_doc
@@ -51,7 +52,6 @@ sys.path.insert(0, os.path.abspath('..'))
 # Generate all rst files
 from generate_api_doc import generate_dolfin_doc
 generate_dolfin_doc("..", "cbcflow")
-
 
 # -- General configuration -----------------------------------------------------
 
