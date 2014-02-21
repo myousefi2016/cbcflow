@@ -12,21 +12,46 @@
 # serve to show the default.
 
 import sys, os
-import subprocess
+class Mock(object):
 
+    __all__ = []
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return '/dev/null'
+        elif name[0] == name[0].upper():
+            mockType = type(name, (), {})
+            mockType.__module__ = __name__
+            return mockType
+        else:
+            return Mock()
+
+# No need to actually import these, just avoid import errors when using sphinx autodoc/autoclass/autmodule
+MOCK_MODULES = ['dolfin', 'ufl', 'cbcflow.dol', 'numpy', 'scipy', 'scipy.interpolate',
+                    'scipy.integrate', 'scipy.special', 'matplotlib', 'matplotlib.pyplot']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
+
+
+# on_rtd is whether we are on readthedocs.org
+# Insert cwd in path to be able to import from generate_api_doc
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+if on_rtd: sys.path.insert(0, os.getcwd())
+
+# Insert .. to import cbcflow
+sys.path.insert(0, os.path.abspath('..'))
+
+# Generate all rst files
 from generate_api_doc import generate_dolfin_doc
 generate_dolfin_doc("..", "cbcflow")
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
-#sys.path.insert(0, os.path.abspath('../cbcflow'))
-#sys.path.insert(0, os.path.abspath('../cbcflow/core'))
-#sys.path.insert(0, os.path.abspath('../demos'))
-
-from cbcflow import *
 
 # -- General configuration -----------------------------------------------------
 
