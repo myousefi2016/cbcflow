@@ -12,8 +12,6 @@ files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/
          path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_129k.xml.gz"),
         ]
 
-
-
 class LeftBoundary(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and near(x[0], 0.0)
@@ -26,26 +24,13 @@ class Cylinder(SubDomain):
     def inside(self, x, on_boundary):
         return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
 
+class Wall(SubDomain):
+    def inside(self, x, on_boundary):
+        return on_boundary and (near(x[1], 0.0) or near(x[1], 1.0))
+
 class FlowAroundCylinder(NSProblem):
     "Flow around a cylinder in 2D."
-
-    def __init__(self, params=None):
-        NSProblem.__init__(self, params)
-        
-        # Load mesh
-        mesh = Mesh(files[self.params.refinement_level])
-
-        # Create boundary markers
-        facet_domains = FacetFunction("size_t", mesh)
-        facet_domains.set_all(4)
-        DomainBoundary().mark(facet_domains, 0)
-        Cylinder().mark(facet_domains, 0)
-        LeftBoundary().mark(facet_domains, 1)
-        RightBoundary().mark(facet_domains, 2)
-
-        # Store mesh and markers
-        self.initialize_geometry(mesh, facet_domains=facet_domains)
-
+    
     @classmethod
     def default_params(cls):
         params = NSProblem.default_params()
@@ -63,6 +48,23 @@ class FlowAroundCylinder(NSProblem):
             )
         return params
 
+    def __init__(self, params=None):
+        NSProblem.__init__(self, params)
+        
+        # Load mesh
+        mesh = Mesh(files[self.params.refinement_level])
+
+        # Create boundary markers
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(4)
+        Wall().mark(facet_domains, 0)
+        Cylinder().mark(facet_domains, 0)
+        LeftBoundary().mark(facet_domains, 1)
+        RightBoundary().mark(facet_domains, 2)
+
+        # Store mesh and markers
+        self.initialize_geometry(mesh, facet_domains=facet_domains)
+
     def initial_conditions(self, spaces, controls):
         c0 = Constant(0)
         u0 = [c0, c0]
@@ -74,20 +76,15 @@ class FlowAroundCylinder(NSProblem):
         c1 = Constant(1)
 
         # Create no-slip boundary condition for velocity
+        bcu0 = ([c0, c0], 0)
         bcu1 = ([c1, c0], 1)
-        bcu2 = ([c0, c0], 0)
-        bcu3 = ([c1, c0], 2)
 
         # Create boundary conditions for pressure
-        bcp1 = (c0, 2)
+        bcp0 = (c0, 2)
 
         # Collect and return
-        bcu = [bcu1, bcu2]
-        bcp = []
-        if 1:
-            bcp += [bcp1]
-        else:
-            bcu += [bcu3]
+        bcu = [bcu0, bcu1]
+        bcp = [bcp0]
         return (bcu, bcp)
 
     '''
@@ -114,19 +111,21 @@ class FlowAroundCylinder(NSProblem):
     '''
 
 def main():
-    problem = FlowAroundCylinder()
+    problem = FlowAroundCylinder({"refinement_level": 2})
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=False, save=True)
+    postprocessor = NSPostProcessor({"casedir": casedir})
+    
+    plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
+        StreamFunction(plot_and_save),
         ]
-    postproc = NSPostProcessor({"casedir": casedir})
-    postproc.add_fields(fields)
+    postprocessor.add_fields(fields)
 
-    solver = NSSolver(problem, scheme, postproc)
+    solver = NSSolver(problem, scheme, postprocessor)
     solver.solve()
 
 if __name__ == "__main__":
