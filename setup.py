@@ -7,26 +7,11 @@ from glob import glob
 import sys
 import platform
 from setuptools.command.install import install
-import shutil
-import subprocess
 
 # Version number
 major = 0
 minor = 5
 maintenance = 0
-
-"""
-class MyInstall(install):
-
-    def run(self):
-        # Install
-        install.run(self)
-
-        # Clean up after install
-        subprocess.call("python setup.py clean --all", shell=True)
-        shutil.rmtree("cbcflow.egg-info")
-"""
-        
 
 # TODO: Add eventual commandline scripts here:
 scripts = [
@@ -89,8 +74,8 @@ setup(name = "cbcflow",
       package_dir = {"cbcflow": "cbcflow"},
       
       # Require and fetch fenicstools
-      install_requires = ['fenicstools==1.3.0'],
-      dependency_links=['https://github.com/mikaem/fenicstools/archive/v1.3.0.zip#egg=fenicstools-1.3.0'],
+      #install_requires = ['scipy',
+      #                    'numpy'],
       
       # Use custom install class for proper cleanup
       # FIXME: This has to be handled differently, possibly makefile?
