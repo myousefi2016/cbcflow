@@ -39,7 +39,6 @@ def get_modules(parent, loc, modules):
     for mod in os.listdir(loc):
         f = os.path.join(loc, mod)
         new_mod = None
-        print f
         mod_to_append = None
         # Add modules (files) to global dict and to parent as submodules.
         if os.path.isfile(f):
