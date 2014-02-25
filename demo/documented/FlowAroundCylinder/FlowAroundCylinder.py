@@ -33,6 +33,7 @@ class FlowAroundCylinder(NSProblem):
     
     @classmethod
     def default_params(cls):
+	"Default parameters overwriting and adding to NSProblem.default_params()"
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
@@ -66,12 +67,14 @@ class FlowAroundCylinder(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     def initial_conditions(self, spaces, controls):
+        "Setting the flow at rest as initial conditions"
         c0 = Constant(0)
         u0 = [c0, c0]
         p0 = c0
         return (u0, p0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
+	"Setting uniform velocity on inlet, p=0 on outlet and no-slip elsewhere"
         c0 = Constant(0)
         c1 = Constant(1)
 
@@ -87,44 +90,28 @@ class FlowAroundCylinder(NSProblem):
         bcp = [bcp0]
         return (bcu, bcp)
 
-    '''
-    # FIXME: Change this to use the new test_functionals, test_references interface:
-    def functional(self, t, u, p):
-        # Only check final time
-        if t < self.T:
-            return 0
-        else:
-            # Compute stream function and report minimum
-            psi = StreamFunction(u)
-            vals  = psi.vector().array()
-            vmin = MPI.min(vals.min())
-
-            cbcflow_print("Stream function has minimal value %s" % vmin)
-
-            return vmin
-
-    def reference(self, t):
-        # Only check final time
-        if t < self.T:
-            return 0.0
-        return -0.061076605
-    '''
 
 def main():
+    # Create problem and scheme instances
     problem = FlowAroundCylinder({"refinement_level": 2})
     scheme = IPCS_Stable()
 
+    # Create postprocessor instance pointing to a case directory
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     postprocessor = NSPostProcessor({"casedir": casedir})
     
+    # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
         StreamFunction(plot_and_save),
         ]
+    
+    # Add fields to postprocessor
     postprocessor.add_fields(fields)
 
+    # Create NSSolver instance and solve problem
     solver = NSSolver(problem, scheme, postprocessor)
     solver.solve()
 
