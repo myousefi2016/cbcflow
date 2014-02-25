@@ -80,7 +80,7 @@ class NSSolver(Parameterized):
         if self.params.restart:
             Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
         else:
-            # If no restart, remove any existing data coming from CBCFlow
+            # If no restart, remove any existing data coming from cbcflow
             self.postprocessor._clean_casedir()
         
         params = ParamDict(solver=self.params,
