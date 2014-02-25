@@ -13,6 +13,8 @@ Contents:
 
    Installation/index
    Demos/index
+   Functionality/index
+   Design/index
    cbcflow/programmers-reference/index
 
 
