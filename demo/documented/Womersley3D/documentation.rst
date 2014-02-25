@@ -2,6 +2,7 @@
 
 Womersley flow in 3D
 ===================================
+
 In this demo it is demonstrated how to handle problems with time-dependent boundary
 conditions and known analytical solution/reference solution. The problem is transient
 Womersley flow in a cylindrical pipe.
@@ -46,12 +47,13 @@ We could also add a *SubDomain*-class for the remaining wall, but this will be h
 
 Defining the NSProblem
 _____________________________________
+
 We first define a problem class inheriting from :class:`.NSProblem`: ::
     
     class Womersley3D(NSProblem):
     
 The parameters of the problem are defined to give a Reynolds number of about 30 and
-Womersley number of about 60.
+Womersley number of about 60. ::
 
     @classmethod
     def default_params(cls):
@@ -118,6 +120,7 @@ Finally, we store the mesh and facet domains to *self*: ::
 
 The analytical solution
 ___________________________________
+
 The Womersley profile can be obtained by using the helper function :func:`.make_womersley_bcs`.
 This function returns a list of scalar *Expression* instances defining the Womersley profile: ::
 
@@ -133,7 +136,8 @@ This function returns a list of scalar *Expression* instances defining the Womer
 Note that the pressure solution defined here is not correct in the transient case.
 
 Using an analytical/reference solution
-____________________________________
+_________________________________________
+
 If one for example wants to validate a scheme, it is required to define the following functions: ::
     
     def test_fields(self):
@@ -150,6 +154,7 @@ These functions are used in the regression/validation test suite to check and re
 
 Initial conditions
 ____________________________________
+
 As initial conditions we simply use the analytical solution at t=0.0: ::
 
     def initial_conditions(self, spaces, controls):
@@ -157,6 +162,7 @@ As initial conditions we simply use the analytical solution at t=0.0: ::
 
 Boundary conditions
 ____________________________________
+
 At the boundaries, we also take advantage of the analytical solution, and we set no-slip
 conditions at the cylinder walls:
 

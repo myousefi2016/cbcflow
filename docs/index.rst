@@ -12,8 +12,7 @@ Contents:
    :maxdepth: 2
 
    Installation/index
-   GetStarted/index
-   Tutorial/index
+   Demos/index
    cbcflow/programmers-reference/index
 
 
