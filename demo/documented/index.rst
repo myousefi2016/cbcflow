@@ -1,9 +1,7 @@
+.. _Demos:
 
-.. _getstarted:
-
-Get Started
-=============================
-
+Demos
+==================================
 To get started, we recommend starting with the demos. To get access to all the
 demos, execute the following command in a terminal window:
 
@@ -26,3 +24,19 @@ demo data in the root folder of the repository:
 .. code-block:: bash
 
    cbcflow-get-data
+
+If you are
+unfamiliar with FEniCS, please refer to the `FEniCS Tutorial <http://fenicsproject.org/documentation/tutorial/>`_
+for the FEniCS-specifics of these demos.
+
+
+**Documented demos**:
+
+.. toctree::
+    :maxdepth: 1
+    
+    FlowAroundCylinder/documentation
+    Womersley3D/documentation
+    Replay/documentation
+    Restart/documentation
+    

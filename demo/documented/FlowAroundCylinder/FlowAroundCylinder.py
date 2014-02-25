@@ -54,6 +54,18 @@ class FlowAroundCylinder(NSProblem):
         
         # Load mesh
         mesh = Mesh(files[self.params.refinement_level])
+	
+	# The mesh can also be generated on the fly. This has been
+	# commented out because the mesh generator is non-deterministic and thus
+	# unsuitable for the test suites.
+	"""
+	refinement_levels=[32,64,128,256,512]
+        N = refinement_levels[self.params.refinement_level]
+        # Create mesh
+        r = Rectangle(0,0, 10, 1)
+        c = Circle(2.0, 0.5, 0.12)
+        mesh = Mesh(r-c, N)
+	"""
 
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)

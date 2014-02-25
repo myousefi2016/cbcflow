@@ -1,13 +1,10 @@
-from os import path
 import sys
-
+from os import path
 # Add FlowAroundCylinder problem as example problem
-sys.path.insert(0, path.join(path.dirname(path.realpath(__file__)),'../../../demo/undocumented/FlowAroundCylinder'))
+sys.path.insert(0, path.join(path.dirname(path.realpath(__file__)),'../../../demo/documented/FlowAroundCylinder'))
+from FlowAroundCylinder import FlowAroundCylinder       
 
 from cbcflow import *
-from dolfin import *
-
-from FlowAroundCylinder import FlowAroundCylinder       
 
 def play():
     # First solve the problem
@@ -17,7 +14,7 @@ def play():
     postprocessor = NSPostProcessor({"casedir": "Results"})
     
     postprocessor.add_fields([
-        Velocity({"save": True, "stride_timestep": 2, "plot": True}),
+        Velocity({"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
         Pressure({"save": True, "stride_timestep": 3}),
     ])
     
@@ -30,6 +27,7 @@ def replay():
     
     # Add new fields to compute
     postprocessor.add_fields([
+        Stress({"save": True}),
         StreamFunction({"save": True, "plot": True}),
         L2norm("Velocity", {"save": True, "plot": True}),
     ])
@@ -39,8 +37,9 @@ def replay():
     replayer.replay()
     
 if __name__ == '__main__':
-    set_log_level(100)
-    
+    # Solve problem
     play()
+    
+    # Loop through saved solution and do some more calculations
     replay()
     

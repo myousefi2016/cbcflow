@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 from cbcflow import *
-from cbcflow.dol import *
+from dolfin import *
+
 from os import path
 import numpy as np
 
@@ -22,11 +23,32 @@ class Inflow(SubDomain):
 
 class Outflow(SubDomain):
     def inside(self, x, on_boundary):
-        return x[0] > 10.0-1e-6 and on_boundary
+        return x[0] > LENGTH-1e-6 and on_boundary
 
 
 class Womersley3D(NSProblem):
     "3D pipe test problem with known transient analytical solution."
+
+    @classmethod
+    def default_params(cls):
+        params = NSProblem.default_params()
+        params.replace(
+            # Time parameters
+            T=None,
+            dt=1e-3,
+            period=0.8,
+            num_periods=1.0,
+            # Physical parameters
+            rho=1.0,
+            mu=1.0/30.0,
+            )
+        params.update(
+            # Spatial parameters
+            refinement_level=0,
+            # Analytical solution parameters
+            Q=1.0,
+            )
+        return params
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
@@ -59,7 +81,6 @@ class Womersley3D(NSProblem):
             self.Q_coeffs = [(0.0, self.Q), (1.0, self.Q)]
         else:
             print "Using transient bcs."
-            T = self.params.T
             P = self.params.period
             tvalues = np.linspace(0.0, P)
             #Qfloor, Qpeak = 1.0, 0.0
@@ -71,32 +92,9 @@ class Womersley3D(NSProblem):
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
-    @classmethod
-    def default_params(cls):
-        params = NSProblem.default_params()
-        params.replace(
-            # Time parameters
-            T=None,
-            dt=1e-3,
-            period=0.8,
-            num_periods=1.0,
-            # Physical parameters
-            rho=1.0,
-            mu=1.0/30.0,
-            )
-        params.update(
-            # Spatial parameters
-            #mesh_filename="../../../cbcflow-data/pipe_0.2.xml.gz",
-            refinement_level=0,
-            # Analytical solution parameters
-            Q=1.0,
-            )
-        return params
-
     def analytical_solution(self, spaces, t):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
-        #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
         for uc in ua:
             uc.set_t(t)
         pa = Expression("-beta * x[0]", beta=1.0)
@@ -148,7 +146,7 @@ class Womersley3D(NSProblem):
 
 
 def main():
-    problem = Womersley3D()
+    problem = Womersley3D({"refinement_level": 2})
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

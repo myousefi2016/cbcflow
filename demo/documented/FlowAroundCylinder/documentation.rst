@@ -1,3 +1,12 @@
+.. _FlowAroundCylinder:
+
+Flow Around A Cylinder
+==================================
+This tutorial demonstrate how one can use cbcflow to solve a simple problem, namely
+a flow around a cylinder, inducing a vortex street behind the cylinder.
+
+The source code for this can be found in :download:`FlowAroundCylinder.py`.
+
 We start by importing cbcflow and dolfin: ::
 
    from cbcflow import *
@@ -17,7 +26,7 @@ The meshes for this problem is pregenerated, and is specified at the following l
              path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_129k.xml.gz"),
             ]
 
-This requires that you have installed the demo data, as specified in :ref:`getstarted`.
+This requires that you have installed the demo data, as specified in :ref:`Demos`.
 
 The domain is based on a rectangle with corners in (0,0), (0,1), (10,0) and (10,1).
 The cylinder is centered in (2,0.5) with radius of 0.12. The different boundaries

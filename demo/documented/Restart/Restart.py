@@ -1,15 +1,12 @@
 from os import path
 import sys
-
 # Add Beltrami problem as example problem
 sys.path.insert(0, path.join(path.dirname(path.realpath(__file__)), '../../../demo/undocumented/Beltrami'))
-
-import pickle
+from Beltrami import Beltrami
 
 from cbcflow import *
-from dolfin import *
 
-from Beltrami import Beltrami
+
 
 def play():
     problem = Beltrami(dict(dt=1e-2, T=1.0))
@@ -32,12 +29,14 @@ def play():
 
 def restart():
     # Load params, to reuse
+    import pickle
     params = pickle.load(open('results/params.pickle', 'r'))
     
     # Create new problem and scheme instances
     # Note: New scheme, and new end time
     problem = Beltrami(params.problem)
     problem.params.T = 2.0
+    problem.params.dt = 5e-3
     scheme = IPCS_Stable(params.scheme)
     
     # Set up postprocessor with new fields
@@ -50,11 +49,10 @@ def restart():
     postprocessor.add_fields(fields)
     
     # Set restart cbcflow-data
-    solver_params = params.solver
-    solver_params["restart"] = True
-    solver_params["restart_time"] = 0.5
-        
-    solver = NSSolver(problem, scheme, postprocessor, params=solver_params)
+    solver = NSSolver(problem, scheme, postprocessor)
+    solver.params["restart"] = True
+    solver.params["restart_time"] = 0.5
+
     solver.solve()
     
 if __name__ == '__main__':
