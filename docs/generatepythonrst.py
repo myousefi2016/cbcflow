@@ -15,9 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with DOLFIN. If not, see <http://www.gnu.org/licenses/>.
 #
-#
-# First added:  2011-05-23
-# Last changed: 2011-06-18
 
 import os, sys, types
 
@@ -147,6 +144,7 @@ def write_function(name, module_name):
 def write_object(package_name, directory, module_name, name, obj_type):
     output = ".. Documentation for the %s %s\n\n" % (obj_type, module_name + "." + name)
     output += label(package_name, "_".join(module_name.split(".")[1:] + [name.lower()]))
+    
     if obj_type == "class":
         output += write_class(name, module_name)
     else:

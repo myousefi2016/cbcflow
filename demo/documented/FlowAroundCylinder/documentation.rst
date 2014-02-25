@@ -1,4 +1,3 @@
-
 We start by importing cbcflow and dolfin: ::
 
    from cbcflow import *
@@ -44,7 +43,7 @@ Defining a NSProblem
 __________________________________
 
 To define a problem class recognized by cbcflow, the class must inherit from
-:ref:`NSProblem <programmers_reference_core_nsproblem_index>`:
+:class:`.NSProblem`:
 
 .. code-block:: python
 
@@ -52,7 +51,7 @@ To define a problem class recognized by cbcflow, the class must inherit from
     
 Parameters
 --------------------------------------
-This class inherit from a :ref:`Parameterized <programmers_reference_core_parameterized_index>`,
+This class inherit from the :class:`.Parameterized` class,
 allowing for parameters in the class interface. We supply default parameters to
 the problem: ::
 
@@ -103,7 +102,7 @@ geometry: ::
         
 The first call to NSProblem.__init__ updates the default parameters with any parameters
 passed to the constructor as a dict or
-:ref:`ParamDict <programmers_reference_core_paramdict_index>`. This sets params as an
+:class:`.ParamDict`. This sets params as an
 attribute to self. We load the mesh from a string defined in the files-list, and define
 its domains. Finally, we call self.initialize_geometry to attach facet_domains to the mesh,
 and the mesh to self.
@@ -119,7 +118,7 @@ These initial conditions are prescribed by ::
         p0 = c0
         return (u0, p0)
         
-The argument *spaces* is a :ref:`NSSpacePool <programmers_reference_utils_core_spaces_index>`
+The argument *spaces* is a :class:`.NSSpacePool`
 helper object used to construct and contain the common function spaces related
 to the Navier-Stokes solution. This is used to limit the memory consumption and
 simplify the interface, so that you can, for example, call spaces.DV to get the
@@ -178,7 +177,7 @@ and validated, and hence classified as *official*. Use ::
 
 to list all schemes available, both official and unofficial.
 
-In our application we select a very efficient operator-splitting scheme, IPCS_Stable, ::
+In our application we select a very efficient operator-splitting scheme, :class:`.IPCS_Stable`, ::
 
     scheme = IPCS_Stable()
 
@@ -186,7 +185,7 @@ Setting up postprocessing
 --------------------------------------
 The postprocessing is set up to determine what we want to do with our obtained solution.
 We start by creating a
-:ref:`NSPostProcessor <programmers_reference_core_nspostprocessor_index>`
+:class:`.NSPostProcessor`
 to handle all the logic: ::
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
@@ -200,7 +199,7 @@ Then, we have to choose what we want to compute from the solution. The command :
 
     show_fields()
 
-lists all available :ref:`PPFields <programmers_reference_fields_bases_index>`
+lists all available :class:`.PPField`
 to compute from the solution.
 
 In this case, we are interested in the velocity, pressure and stream function,
@@ -228,12 +227,12 @@ Finally, we need to add these fields to the postprocessor: ::
 Solving the problem
 ----------------------------------------
 We now have instances of the classes
-:ref:`NSProblem <programmers_reference_core_nsproblem_index>`,
-:ref:`NSScheme <programmers_reference_core_nsscheme_index>`,
-and :ref:`NSPostProcessor <programmers_reference_core_nspostprocessor_index>`.
+:class:`.NSProblem`,
+:class:`.NSScheme`,
+and :class:`.NSPostProcessor`.
 
 These can be combined in a general class to handle the logic between the classes,
-namely a :ref:`NSSolver <programmers_reference_core_nssolver_index>` instance: ::
+namely a :class:`.NSSolver` instance: ::
 
     solver = NSSolver(problem, scheme, postprocessor)
 
