@@ -1,19 +1,25 @@
 
-from cbcflow import *
-import sys
 import pytest
+
+import sys
+import os
 import itertools
 from collections import defaultdict
 import argparse
 
-# FIXME: Assuming run from ./, that's not compatible with running all tests from tests/
-sys.path.insert(0, "../../demo/undocumented/Poiseuille2D")
-sys.path.insert(0, "../../demo/undocumented/Poiseuille3D")
-sys.path.insert(0, "../../demo/undocumented/Womersley2D")
-sys.path.insert(0, "../../demo/undocumented/Womersley3D")
-sys.path.insert(0, "../../demo/undocumented/Beltrami")
-sys.path.insert(0, "../../demo/undocumented/LidDrivenCavity")
+from cbcflow import *
 
+
+# Hacks to import problem classes from demo directories
+demo_dir = os.path.abspath(os.path.join(__file__, "..", "..", "demo"))
+udemo_dir = os.path.join(demo_dir, "undocumented")
+ddemo_dir = os.path.join(demo_dir, "documented")
+sys.path.insert(0, os.path.join(ddemo_dir, "Poiseuille2D"))
+sys.path.insert(0, os.path.join(ddemo_dir, "Poiseuille3D"))
+sys.path.insert(0, os.path.join(ddemo_dir, "Womersley2D"))
+sys.path.insert(0, os.path.join(ddemo_dir, "Womersley3D"))
+sys.path.insert(0, os.path.join(ddemo_dir, "Beltrami"))
+sys.path.insert(0, os.path.join(ddemo_dir, "LidDrivenCavity"))
 from Poiseuille2D import Poiseuille2D
 from Poiseuille3D import Poiseuille3D
 from Womersley2D import Womersley2D
@@ -35,13 +41,13 @@ class ParseParameterized(argparse.Action):
             #if arg[0] == '-':
             #    break
             #nargs += 1
-            
+
             # Create new key if this is not recognized as a parameter
             if "=" not in arg:
                 key = arg
                 parameterized[key] = ParamDict()
                 continue
-            
+
             # Add parameters
             param, value = arg.split('=')
             if value.isdigit():
@@ -57,31 +63,24 @@ class ParseParameterized(argparse.Action):
 
 
 def pytest_addoption(parser):
-    parser.addoption("--type", action="store", default="changed", 
-        choices=["changed", "update"], dest="type", help="check if reference has changed, or update reference")
-
     parser.addoption("--testsize", action="store", default="all",
         choices=["all", "fast", "slow", "slowest", "debug"], dest="testsize", help="run all, slow or fast test")
 
-    # TODO: Add option for validation mode
-    #parser.addoption("--mode", action="store", default="regression", choices=["regression", "validation"],
-    #                 dest="mode", help="Run regression test or generate validation figures")
-    
     parser.addoption("--schemes", nargs="*", action=ParseParameterized, dest="schemes")
     parser.addoption("--problems", nargs="*", action=ParseParameterized, dest="problems")
-    
-def create_default_problem_factories():   
+
+def create_default_problem_factories():
     problem_factories = [
             lambda refinement_level,dt: LidDrivenCavity(ParamDict(refinement_level=refinement_level, dt=dt, T=2.5, mu=1./1000., rho=1.0)),
             lambda refinement_level,dt: Poiseuille2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
             lambda refinement_level,dt: Poiseuille3D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
             lambda refinement_level,dt: Womersley2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=1.0)),
-            lambda refinement_level,dt: Womersley3D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=1.0)), 
+            lambda refinement_level,dt: Womersley3D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=1.0)),
             lambda refinement_level,dt: Beltrami(ParamDict(refinement_level=refinement_level, dt=dt, T=1.0)),
             ]
     return problem_factories
 
-def create_custom_problem_factories(cmdline_problem_args):   
+def create_custom_problem_factories(cmdline_problem_args):
     # Create factories from what has been parsed from --problems option at command line
     problem_factories = []
     for problem_name, params in cmdline_problem_args.items():
@@ -93,7 +92,7 @@ def create_custom_problem_factories(cmdline_problem_args):
         problem_factories.append(factory)
     return problem_factories
 
-def create_problem_factories(cmdline_problem_args):   
+def create_problem_factories(cmdline_problem_args):
     if cmdline_problem_args:
         return create_custom_problem_factories(cmdline_problem_args)
     else:
@@ -134,7 +133,7 @@ def pytest_generate_tests(metafunc):
     problem_factories = create_problem_factories(metafunc.config.option.problems)
     scheme_factories = create_scheme_factories(metafunc.config.option.schemes)
 
-    testsize = metafunc.config.option.testsize    
+    testsize = metafunc.config.option.testsize
     if testsize == "all":
         params = dict(
             refinements = range(5),

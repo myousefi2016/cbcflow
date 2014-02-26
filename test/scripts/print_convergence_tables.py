@@ -89,9 +89,9 @@ def read_tables(folder):
             case_data[dt][refinement_level] = {}
 
         # Now store the test error values in this table entry
-        case_data[dt][refinement_level] = datafile["errors"]
-        if datafile["errors"]:
-            case_data["fields"] = list(set(case_data["fields"] + datafile["errors"].keys()))
+        case_data[dt][refinement_level] = datafile["values"]
+        if datafile["values"]:
+            case_data["fields"] = list(set(case_data["fields"] + datafile["values"].keys()))
 
     return table_dict
 
