@@ -15,12 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-__author__ = "Martin Alnaes <martinal@simula.no>"
-__date__ = "2013-07-01"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
-from cbcflow.dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, Function
+from cbcflow.dol import FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
 
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"

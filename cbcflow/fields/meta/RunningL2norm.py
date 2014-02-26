@@ -15,8 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import *
-import numpy as np
+from numpy import sqrt
 
 class RunningL2norm(MetaPPField):
     def before_first_compute(self, pp, spaces, problem):
@@ -29,6 +28,6 @@ class RunningL2norm(MetaPPField):
 
         self._count += 1
         self._sum += u**2
-        self._value = np.sqrt(self._sum) / self._count
+        self._value = sqrt(self._sum) / self._count
 
         return self._value

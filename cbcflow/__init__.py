@@ -14,9 +14,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+r"""This is the base module of cbcflow.
+
+To use cbcflow, do::
+
+    from cbcflow import *
+"""
+
 __version__ = "0.1"
-__date__ = "2013-11-26"
-__license__  = "GNU GPL version 3 or any later version"
 
 # Basic utilities
 from cbcflow.core.paramdict import ParamDict
@@ -39,6 +44,8 @@ from cbcflow.fields import *
 
 # Navier-Stokes solver schemes
 from cbcflow.schemes import *
+
+from cbcflow.utils import *
 
 # Import utils
 #from cbcflow.utils.fenicstools import *

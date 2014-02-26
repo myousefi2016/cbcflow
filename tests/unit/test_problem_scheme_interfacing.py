@@ -232,7 +232,7 @@ def load_tests(loader, standard_tests, none):
         lambda: IPCS_Stabilized({'theta':0.0}),
         lambda: IPCS_Stabilized({'theta':1.0}),
         lambda: IPCS_Stabilized({'theta':0.5}),
-        lambda: IPCS_Stable({'adaptive_timestepping':True}),
+        #lambda: IPCS_Stable({'adaptive_timestepping':True}),
         ]
 
     return make_suite(loader, TestProblemSchemeInterfacing, [schemes])

@@ -38,7 +38,6 @@ class AnalyticalVelocity(PPField):
         self._function = Function(V, name=self.name)
 
     def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
         t = pp.get("t")
 
         ua, pa = problem.analytical_solution(spaces, t)

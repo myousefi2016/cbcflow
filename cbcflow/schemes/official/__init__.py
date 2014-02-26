@@ -14,19 +14,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""These *official* schemes have been validated against reference solutions. """
+
 
 ### Schemes tested and documented well FIXME: Define criteria and make these schemes pass
 
 # The simplest ipcs schemes with different optimizations
 from cbcflow.schemes.official.ipcs import IPCS
-from cbcflow.schemes.official.ipcs_segregated import SegregatedIPCS
 
 # Schemes with stabilization
-from cbcflow.schemes.official.ipcs_stabilized import IPCS_Stabilized
 from cbcflow.schemes.official.ipcs_stable import IPCS_Stable
-
-# Coupled schemes
-from cbcflow.schemes.official.yosida import Yosida
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme

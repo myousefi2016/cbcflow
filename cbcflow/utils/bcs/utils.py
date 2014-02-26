@@ -14,16 +14,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.dol import *
+from cbcflow.dol import (SubsetIterator, MPI, ds, assemble, Constant, sqrt,
+                         FacetNormal, as_vector)
 import numpy as np
-
-__all__ =["x_to_r2", "compute_radius", "compute_boundary_geometry_acrn", "compute_area", "compute_transient_scale_value"]
 
 def x_to_r2(x, c, n):
     # TODO: Simplify this after testing
     d = len(c)
     rv = [x[i]-c[i] for i in xrange(d)]
-    rvn = sum(rv[i]*n[i] for i in xrange(d))
+    rvn = sum([rv[i]*n[i] for i in xrange(d)])
     rv = [rv[i] - rvn*n[i] for i in xrange(d)]
     r2 = sum(rv[i]**2 for i in xrange(d))
     return r2
@@ -61,7 +60,7 @@ def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
     # Compute average normal (assuming boundary is actually flat)
     n = FacetNormal(mesh)
     ni = [assemble(n[i]*dsi, mesh=mesh) for i in xrange(d)]
-    n_len = np.sqrt(sum(ni[i]**2 for i in xrange(d))) # Should always be 1!?
+    n_len = np.sqrt(sum([ni[i]**2 for i in xrange(d)])) # Should always be 1!?
     normal = [ni[i]/n_len for i in xrange(d)]
 
     # Compute radius by taking max radius of boundary points

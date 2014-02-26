@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-
-from distutils.core import setup
-from distutils import sysconfig
+#from distutils.core import setup
+#from distutils import sysconfig
+from setuptools import setup, find_packages
 from os.path import join as pjoin, split as psplit
 from glob import glob
 import sys
 import platform
+from setuptools.command.install import install
 
 # Version number
 major = 0
@@ -15,6 +16,8 @@ maintenance = 0
 # TODO: Add eventual commandline scripts here:
 scripts = [
     pjoin("scripts", "cbcflow-showcase"),
+    pjoin("scripts", "cbcflow-get-data"),
+    pjoin("scripts", "cbcflow-get-demos"),
     ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
@@ -63,16 +66,20 @@ setup(name = "cbcflow",
                   "cbcflow.utils.core",
                   "cbcflow.utils.fields",
                   "cbcflow.utils.schemes",
-                  "cbcflow.utils.fenicstools",
+                  #"cbcflow.utils.fenicstools",
                   # Note: These are not python packages:
                   #"cbcflow.utils.fenicstools.fem",
                   #"cbcflow.utils.fenicstools.Probe",
                   ],
       package_dir = {"cbcflow": "cbcflow"},
-      package_data = {"cbcflow": ["utils/fenicstools/Probe/*.h",
-                                  "utils/fenicstools/Probe/*.cpp",
-                                  "utils/fenicstools/fem/*.cpp"]},
-#     data_files = [(pjoin("share", "man", "man1"),
-#                    [pjoin("doc", "man", "man1", "cbcflow.1.gz")])]
+      
+      # Require and fetch fenicstools
+      #install_requires = ['scipy',
+      #                    'numpy'],
+      
+      # Use custom install class for proper cleanup
+      # FIXME: This has to be handled differently, possibly makefile?
+      #cmdclass={'install': MyInstall},
+
     )
 

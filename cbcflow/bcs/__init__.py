@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+r""" Helper modules for specifying inlet and outlet boundary conditions. """
 
 from cbcflow.bcs.Poiseuille import Poiseuille, make_poiseuille_bcs
 from cbcflow.bcs.Womersley import Womersley, make_womersley_bcs

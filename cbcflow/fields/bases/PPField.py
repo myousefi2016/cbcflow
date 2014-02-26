@@ -15,16 +15,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from fractions import gcd
-from os.path import isfile, isdir, join
-from os import listdir, makedirs
+from os.path import join
 
-from dolfin import Function, File, MPI, TestFunction, assemble, inner, dx, project, HDF5File
+from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
 import shelve   
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
-
-from cbcflow.utils.common import cbcflow_warning
 
 class PPField(Parameterized):
     def __init__(self, params=None, label=None):
@@ -104,19 +100,19 @@ class PPField(Parameterized):
             timestep = pp.get("timestep")
             saveformat = pp._solution[self.name]["format"]
             if saveformat == 'hdf5':
-                hdf5filepath = join(pp._get_casedir(), self.name, self.name+".hdf5")
+                hdf5filepath = join(pp.get_casedir(), self.name, self.name+".hdf5")
                 hdf5file = HDF5File(hdf5filepath, 'r')
                 dataset = self.name+str(timestep)
                 hdf5file.read(pp._solution[self.name]["function"], dataset)
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat in ["xml", "xml.gz"]:
                 xmlfilename = self.name+str(timestep)+"."+saveformat
-                xmlfilepath = join(pp._get_casedir(), self.name, xmlfilename)
+                xmlfilepath = join(pp.get_casedir(), self.name, xmlfilename)
                 function = pp._solution[self.name]["function"]
                 function.assign(Function(function.function_space(), xmlfilepath))
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat == "shelve":
-                shelvefilepath = join(pp._get_casedir(), self.name, self.name+".db")
+                shelvefilepath = join(pp.get_casedir(), self.name, self.name+".db")
                 shelvefile = shelve.open(shelvefilepath)
                 pp._solution[self.name] = shelvefile[str(timestep)]
 

@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-__author__ = "Martin Sandve Alnes <kent-and@simula.no>"
-__date__ = "2013-07-28"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow import *
 from cbcflow.dol import *

@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.PPField import PPField
-from dolfin import as_vector, Function
+from dolfin import Function
 
 class AnalyticalPressure(PPField):
     @classmethod
@@ -38,7 +38,6 @@ class AnalyticalPressure(PPField):
         self._function = Function(V, name=self.name)
 
     def compute(self, pp, spaces, problem):
-        p = pp.get("Pressure")
         t = pp.get("t")
 
         ua, pa = problem.analytical_solution(spaces, t)

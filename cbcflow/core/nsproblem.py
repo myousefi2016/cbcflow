@@ -15,10 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
-__author__ = "Martin Alnaes <martinal@simula.no> and Oeyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-04-26"
-__copyright__ = "Copyright (C) 2013-2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 import ufl
 
@@ -95,7 +91,7 @@ class NSProblem(Parameterized):
     def initialize_geometry(self, mesh, facet_domains=None, cell_domains=None):
         """Stores mesh, domains and related quantities in a canonical member naming.
 
-        Creates properties:
+        Creates attributes on self:
 
             - mesh
             - facet_domains
@@ -129,6 +125,7 @@ class NSProblem(Parameterized):
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
+        
         TODO: Document expected observations behaviour here.
         """
         return []
@@ -138,14 +135,24 @@ class NSProblem(Parameterized):
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
+        
         TODO: Document expected controls behaviour here.
         """
         return []
 
     def initial_conditions(self, spaces, controls):
         """Return initial conditions.
+        
+        The initial conditions should be specified as follows: ::
+            # Return u=(x,y,0) and p=0 as initial conditions
+            u0 = [Expression("x[0]"), Expression("x[1]"), Constant(0)]
+            p0 = Constant(0)
+            return u0, p0
+            
+        Note that the velocity is specified as a list of scalars instead of
+        vector expressions.
 
-        TODO: Document expected initial_conditions behaviour here.
+        This function must be overridden py subclass.
 
         Returns: u, p
         """
@@ -154,26 +161,68 @@ class NSProblem(Parameterized):
     def boundary_conditions(self, spaces, u, p, t, controls):
         """Return boundary conditions in raw format.
 
-        TODO: Document expected boundary_conditions behaviour here.
+        Boundary conditions should . The boundary conditions
+        can be specified as follows: ::
+            
+            # Specify u=(0,0,0) on mesh domain 0 and u=(x,y,z) on mesh domain 1
+            bcu = [
+                ([Constant(0), Constant(0), Constant(0)], 0),
+                ([Expression("x[0]"), Expression("x[1]"), Expression("x[2]")], 1)
+                ]
+            
+            # Specify p=x^2+y^2 on mesh domain 2 and p=0 on mesh domain 3
+            bcp = [
+                (Expression("x[0]*x[0]+x[1]*x[1]"), 2),
+                (Constant(0), 3)
+            ]
+            
+            return bcu, bcp
+        
+        Note that the velocity is specified as a list of scalars instead of
+        vector expressions.
+        
+        For schemes applying Dirichlet boundary conditions, the domain
+        argument(s) are parsed to DirichletBC and can be specified in a matter
+        that matches the signature of this class.
+        
+        This function must be overridden py subclass.
+        
+        Returns: a tuple with boundary conditions for velocity and pressure
+        
         """
         raise NotImplementedError("boundary_conditions must be overridden in subclass")
 
     def body_force(self, spaces, t):
-        """"Return body force, defaults to 0.
-
-        TODO: Document expected body_force behaviour here.
+        """ Return body force, defaults to 0.
+        
+        If not overridden by subclass this function will return zero.
+        
+        Returns: list of scalars.
         """
         d = self.mesh.geometry().dim()
         c0 = Constant(0.0)
         return [c0]*d
 
-    def update(self, spaces, u, p, t, timestep, boundary_conditions, observations, controls): # TODO: Add body_force here
+    def update(self, spaces, u, p, t, timestep, boundary_conditions, observations=None, controls=None): # TODO: Add body_force here
         """Update functions previously returned to new timestep.
 
-        TODO: Document expected update behaviour here.
+        This function is called before computing the solution at a new timestep.
 
-        The arguments bcs, observations, controls should be the
-        exact lists of objects returned by boundary_conditions, observations, controls
+        The arguments boundary_conditions, observations, controls should be the
+        exact lists of objects returned by boundary_conditions, observations, controls.
+        
+        Typical usage of this function would be to update time-dependent boundary
+        conditions: ::
+            
+            bcu, bcp = boundary_conditions
+            for bc, _ in bcu:
+                bc.t = t
+            
+            for bc, _ in bcp:
+                bc.t = t
+                
+        returns None
+
         """
         pass
 

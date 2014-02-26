@@ -16,10 +16,6 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-__author__ = "Oyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-04-30"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.nsscheme import *
 from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
@@ -34,7 +30,7 @@ from cbcflow.utils.core import NSSpacePoolSplit
 from time import time
 
 
-class CoupledPreconditonedKAM(NSScheme):
+class CoupledPreconditionedKAM(NSScheme):
     "Coupled scheme with block preconditioning using cbc.block"
 
     def __init__(self, params=None):

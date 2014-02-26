@@ -17,7 +17,7 @@
 
 import dolfin
 from cbcflow.utils.core import NSSpacePoolSplit
-from cbcflow.dol import *
+from cbcflow.dol import Function, plot, Constant, as_vector
 
 def animate_expression(f, name, V, t, timesteps):
     f0 = Function(V)
@@ -28,6 +28,8 @@ def animate_expression(f, name, V, t, timesteps):
 
 def animate_functions(functions, name, V):
     z = Function(V)
+    # FIXME: observations undefined
+    observations = {}
     for tk,zk in observations:
         z.assign(zk)
         plot(z, title="%s at t=%g" % (name, tk))
@@ -61,7 +63,7 @@ def show_problem(problem, interactive=True, bc_snapshots=4):
     # Make linear function spaces suitable for plotting
     spaces = NSSpacePoolSplit(problem.mesh, u_degree=1, p_degree=1)
     V = spaces.V
-    Q = spaces.Q
+    #Q = spaces.Q
 
     # Plot observations if any
     observations = problem.observations(spaces, t)

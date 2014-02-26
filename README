@@ -1,23 +1,23 @@
-cbc.flow
+cbcflow
 ========
 
 Description
 -----------
 
-cbc.flow is a collection of solvers for the incompressible Navier Stokes equations,
+cbcflow is a collection of solvers for the incompressible Navier Stokes equations,
 built on the FEniCS project. It is originally based on solvers from the NSbench project.
 
 Authors
 -------
 
-cbc.flow is developed by
+cbcflow is developed by
 
   * Øyvind Evju
   * Martin Sandve Alnæs
   * Kent-Andre Mardal
   * Kristian Valen-Sendstad
 
-Previous contributors to cbc.flow are:  
+Previous contributors to cbcflow are:  
 
   * Joachim Berdal Haga 
 
@@ -32,13 +32,15 @@ The original NSbench was written by
 Licence
 -------
 
-cbc.flow is licensed under the GNU GPL, version 3 or (at your option) any
+cbcflow is licensed under the GNU GPL, version 3 or (at your option) any
 later version.
 
-cbc.flow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
+cbcflow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
 
 Documentation
 -------------
+The full documentation for cbcflow can be found at http://cbcflow.readthedocs.org.
+
 
 The solvers in the original NSbench project is documented in
 
@@ -52,7 +54,7 @@ The solvers in the original NSbench project is documented in
 Installation
 ------------
 
-cbc.flow requires an installation of FEniCS version 1.3, see www.fenicsproject.org.
+cbcflow requires an installation of FEniCS version 1.3, see www.fenicsproject.org.
 
 To install simply run
 
@@ -63,11 +65,11 @@ Contact
 
 The latest version of this software can be obtained from
 
-  www.bitbucket.org/simula_cbc/cbc.flow/
+  www.bitbucket.org/simula_cbc/cbcflow/
 
 Please report bugs and other issues through the bitbucket issue tracker at:
 
-  www.bitbucket.org/simula_cbc/cbc.flow/issues
+  www.bitbucket.org/simula_cbc/cbcflow/issues
 
 More about the Center for Biomedical Computing can be found at
 

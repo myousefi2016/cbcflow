@@ -1,15 +1,11 @@
 #!/usr/bin/env python
-__author__ = "Oyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-04-15"
-__copyright__ = "Copyright (C) 2009-2010 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow import *
 from cbcflow.dol import *
 from os import path
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/dog_mesh_37k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/dog_mesh_97k.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/dog_mesh_37k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/dog_mesh_97k.xml.gz"),
         ]
 
 c0 = Constant(0)

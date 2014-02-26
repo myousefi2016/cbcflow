@@ -14,3 +14,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+""" Base classes for all postprocessing fields. """
+
+from PPField import PPField
+from MetaPPField import MetaPPField
+from MetaPPField2 import MetaPPField2
+
+__all__ = ["PPField", "MetaPPField", "MetaPPField2"]

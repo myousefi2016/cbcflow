@@ -14,21 +14,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-__author__ = "Oeyvind Evju <oyvinev@simula.no>"
-__date__ = "2013-10-18"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 import pickle
 import os
-import inspect, shelve
+import shelve
 
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor
 from cbcflow.utils.core import NSSpacePoolSplit
-from cbcflow.utils.common import cbcflow_print, cbcflow_warning
+from cbcflow.utils.common import cbcflow_print
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 
@@ -66,7 +62,7 @@ class NSReplay(Parameterized):
         return params
 
     def _fetch_history(self):
-        casedir = self.postproc._get_casedir()
+        casedir = self.postproc.get_casedir()
         assert(os.path.isfile(os.path.join(casedir, "play.db")))
        
         # Read play.shelve
@@ -135,7 +131,7 @@ class NSReplay(Parameterized):
     def _get_mesh(self):
         if not hasattr(self, "_mesh"):       
             # Read mesh
-            meshfilename = os.path.join(self.postproc._get_casedir(), "mesh.hdf5")
+            meshfilename = os.path.join(self.postproc.get_casedir(), "mesh.hdf5")
             assert os.path.isfile(meshfilename), "Unable to find mesh file!"
             meshfile = HDF5File(meshfilename, 'r')
             self._mesh = Mesh()
@@ -163,11 +159,11 @@ class NSReplay(Parameterized):
         # Load mesh
         if saveformat == 'hdf5':    
             mesh = Mesh()
-            hdf5file = HDF5File(os.path.join(self.postproc._get_casedir(),fieldname, fieldname+'.hdf5'), 'r')
+            hdf5file = HDF5File(os.path.join(self.postproc.get_casedir(),fieldname, fieldname+'.hdf5'), 'r')
             hdf5file.read(mesh, "Mesh")
             del hdf5file
         elif saveformat == 'xml' or saveformat == 'xml.gz':
-            mesh = Mesh(os.path.join(self.postproc._get_casedir(), fieldname, "mesh."+saveformat))
+            mesh = Mesh(os.path.join(self.postproc.get_casedir(), fieldname, "mesh."+saveformat))
         
         shape = eval(metadata["element_value_shape"])
         degree = eval(metadata["element_degree"])
@@ -175,10 +171,7 @@ class NSReplay(Parameterized):
         
         # Get space from existing function spaces if mesh is the same
         # TODO: Verify that this check is good enough
-        if mesh.hash() == self._get_mesh().hash():
-            del mesh
-            space = self._get_spaces().get_space(degree, len(shape), family)
-        else:
+        if mesh.hash() != self._get_mesh().hash():
             if mesh.hash() == self._get_boundarymesh().hash():
                 mesh = self._get_boundarymesh()
             rank = len(shape)
@@ -188,11 +181,14 @@ class NSReplay(Parameterized):
                 space = VectorFunctionSpace(mesh, family, degree)
             elif rank == 2:
                 space = TensorFunctionSpace(mesh, family, degree)
-        
+        else:
+            del mesh
+            space = self._get_spaces().get_space(degree, len(shape), family)
+
         return Function(space, name=fieldname)
 
     def _get_all_params(self):
-        paramfile = open(os.path.join(self.postproc._get_casedir(), "params.pickle"), 'rb')
+        paramfile = open(os.path.join(self.postproc.get_casedir(), "params.pickle"), 'rb')
         return pickle.load(paramfile)
        
     def _get_function(self, fieldname, metadata, saveformat):
@@ -243,7 +239,7 @@ class NSReplay(Parameterized):
                     
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
-                pp = NSPostProcessor({"casedir": self.postproc._get_casedir()})
+                pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
                 pp.add_field(field)
                 postprocessors.append([keys, t_dep, pp])
                 

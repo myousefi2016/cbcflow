@@ -15,14 +15,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-#from cbcflow.utils import *
 import numpy as np
 from dolfin import Point
 from itertools import chain
 
 def import_fenicstools():
-    import cbcflow.utils.fenicstools
-    return cbcflow.utils.fenicstools
+    import fenicstools
+    return fenicstools
 
 def points_in_square(center, radius, resolution):
     points = []

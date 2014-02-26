@@ -14,6 +14,37 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""
+Basic postprocessing fields.
+
+These fields can all be created from the postprocessor from name only.
+This is useful when handling dependencies for a postprocessing field: ::
+
+    class DummyField(PPField):
+        def __init__(self, field_dep):
+            self.field_dep = field_dep
+    
+        def compute(self, pp, spaces, problem):
+            val = pp.get(field_dep)
+            return val/2.0
+    
+If a postprocessing field depends only on basic fields to be calculated, the
+dependencies will be implicitly added to the postprocessor "on the fly" from
+the name alone: ::
+    
+    field = DummyField("ABasicField")
+    pp = NSPostProcessor()
+    pp.add_field(field) # Implicitly adds ABasicField object
+            
+For non-basic dependencies, the dependencies have to be explicitly added *before*
+the field depending on it: ::
+
+    dependency = ANonBasicField("ABasicField")
+    field = DummyField(dependency.name)
+    pp.add_field(dependency) # Added before field
+    pp.add_field(field) # pp now knows about dependency
+
+"""
 
 # Fields that can be constructed just by name
 basic_fields = [

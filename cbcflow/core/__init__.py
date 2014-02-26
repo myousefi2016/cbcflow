@@ -14,3 +14,4 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+""" Core modules of cbcflow. """

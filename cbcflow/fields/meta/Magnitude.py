@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import *
-import numpy
+from dolfin import project, sqrt, Function, inner
+from cbcflow.utils.common import cbcflow_warning
 
 class Magnitude(MetaPPField):
     def compute(self, pp, spaces, problem):
@@ -32,7 +32,7 @@ class Magnitude(MetaPPField):
                 return mag
         else:
             # Don't know how to handle object
-            headlow_warning("Don't know how to calculate magnitude of object of type %s. Returning object." %type(u))
+            cbcflow_warning("Don't know how to calculate magnitude of object of type %s. Returning object." %type(u))
             return u
                         
     

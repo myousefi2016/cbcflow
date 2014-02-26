@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-__author__ = "Martin Sandve Alnes <martinal@simula.no>"
-__date__ = "2013-08-12"
-__copyright__ = "Copyright (C) 2013 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow import *
 from cbcflow.dol import *
@@ -10,11 +6,11 @@ from os import path
 
 import numpy as np
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_3k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_24k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_203k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../data/pipe_1611k.xml.gz"),
+files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_1k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_3k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_24k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_203k.xml.gz"),
+         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/pipe_1611k.xml.gz"),
         ]
 
 class Inflow(SubDomain):
@@ -87,7 +83,7 @@ class Poiseuille3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            #mesh_filename="../../../data/pipe_0.2.xml.gz",
+            #mesh_filename="../../../cbcflow-data/pipe_0.2.xml.gz",
             refinement_level=0,
             # Analytical solution parameters
             Q=1.0,

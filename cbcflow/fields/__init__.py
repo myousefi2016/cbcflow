@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""A collection of postprocessing fields (PPFields) to be used by a NSPostProcessor object."""
+
 
 # Base classes for fields
 from cbcflow.fields.bases.PPField import PPField
@@ -41,11 +43,4 @@ def show_fields():
     print "\n".join("    " + f for f in basic_fields)
     print "Postprocessing fields available with parameters:"
     print "\n".join("    " + f for f in meta_fields)
-
-# Define symbols to export
-__all__ = (
-      ["PPField", "MetaPPField", "MetaPPField2"]
-    + ["show_fields", "field_classes", "basic_fields", "meta_fields", "all_fields"]
-    + all_fields
-    )
 

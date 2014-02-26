@@ -1,8 +1,4 @@
 
-__author__ = "Kristian Valen-Sendstad <kvs@simula.no>"
-__date__ = "2012"
-__copyright__ = "Copyright (C) 2012 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 
 from solverbase import *

@@ -16,10 +16,6 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-__author__ = "Martin Sandve Alnaes <kvs@simula.no>"
-__date__ = "2013-08-13"
-__copyright__ = "Copyright (C) 2008-2010 " + __author__
-__license__  = "GNU GPL version 3 or any later version"
 
 from cbcflow.core.nsscheme import *
 from cbcflow.utils.common import Timer, is_periodic
@@ -32,7 +28,7 @@ from cbcflow.utils.core import NSSpacePoolSplit
 
 
 class BottiPietro(NSScheme):
-    "A pressure-correction scheme with discontinuous velocity and continuous pressure."
+    "TODO: Describe."
 
     def __init__(self, params=None):
         NSScheme.__init__(self, params)
