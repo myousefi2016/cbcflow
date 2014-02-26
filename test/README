@@ -4,8 +4,12 @@ Test organization:
     unit/       - Tests of internal cbcflow components and interfaces.
     validation/ - Tests running combinations of schemes and problems and writing
                   values of error norms and other fields to a reference database.
+    scripts/    - Utility scripts for working with the test suite.
+    output/     - Validation tests will write output here. Should never be checked in, these are local files.
 
-To run default set of tests:
+    cbcflow-reference-data/  - Vetted reference data for validation tests. If missing run ./scripts/download.py.
+
+To run full default set of tests:
 
     py.test
 
@@ -14,7 +18,7 @@ To run unit or validation tests only:
     py.test unit
     py.test validation
 
-Example commands for running only selected schemes and problems:
+Example commands for running validation tests for only selected schemes and problems:
 
     cd validation/
     time py.test -s --testsize fast --schemes IPCS IPCS_Stable --type changed --problems Womersley2D Beltrami
