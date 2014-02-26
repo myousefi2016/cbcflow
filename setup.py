@@ -1,12 +1,7 @@
 #!/usr/bin/env python
-#from distutils.core import setup
-#from distutils import sysconfig
-from setuptools import setup, find_packages
-from os.path import join as pjoin, split as psplit
-from glob import glob
-import sys
-import platform
-from setuptools.command.install import install
+
+import os, sys, platform
+from setuptools import setup
 
 # Version number
 major = 0
@@ -15,9 +10,9 @@ maintenance = 0
 
 # TODO: Add eventual commandline scripts here:
 scripts = [
-    pjoin("scripts", "cbcflow-showcase"),
-    pjoin("scripts", "cbcflow-get-data"),
-    pjoin("scripts", "cbcflow-get-demos"),
+    os.path.pjoin("scripts", "cbcflow-showcase"),
+    os.path.pjoin("scripts", "cbcflow-get-data"),
+    os.path.pjoin("scripts", "cbcflow-get-demos"),
     ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
@@ -28,7 +23,7 @@ if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
     for script in scripts:
         batch_file = script + ".bat"
         f = open(batch_file, "w")
-        f.write('python "%%~dp0\%s" %%*' % psplit(script)[1])
+        f.write('python "%%~dp0\%s" %%*' % os.path.psplit(script)[1])
         f.close()
         batch_files.append(batch_file)
     scripts.extend(batch_files)
@@ -37,14 +32,14 @@ setup(name = "cbcflow",
       version = "%d.%d.%d" % (major, minor, maintenance),
       description = "cbcflow -- Navier-Stokes solver from the Center of Biomedical Computing",
       author = "Oyvind Evju, Martin Sandve Alnaes, Kent-Andre Mardal",
-      author_email = "martinal@simula.no", # TODO: Email list?
+      author_email = "martinal@simula.no", # FIXME: Email list?
       url = 'https://bitbucket.org/simula_cbc/cbcflow',
       classifiers = [
           'Development Status :: 2 - Pre-Alpha',
           'Environment :: Console',
           'Intended Audience :: Developers',
           'Intended Audience :: Science/Research',
-          'Programming Language :: Python :: 2.6',
+          'Programming Language :: Python :: 2.7',
           'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
           'Topic :: Scientific/Engineering :: Mathematics',
           'Topic :: Software Development :: Libraries :: Python Modules',
@@ -66,20 +61,7 @@ setup(name = "cbcflow",
                   "cbcflow.utils.core",
                   "cbcflow.utils.fields",
                   "cbcflow.utils.schemes",
-                  #"cbcflow.utils.fenicstools",
-                  # Note: These are not python packages:
-                  #"cbcflow.utils.fenicstools.fem",
-                  #"cbcflow.utils.fenicstools.Probe",
                   ],
       package_dir = {"cbcflow": "cbcflow"},
-      
-      # Require and fetch fenicstools
-      #install_requires = ['scipy',
-      #                    'numpy'],
-      
-      # Use custom install class for proper cleanup
-      # FIXME: This has to be handled differently, possibly makefile?
-      #cmdclass={'install': MyInstall},
-
     )
 
