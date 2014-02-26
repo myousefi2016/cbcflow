@@ -7,7 +7,12 @@ Test organization:
 
 To run default set of tests:
 
-    time py.test
+    py.test
+
+To run unit or validation tests only:
+
+    py.test unit
+    py.test validation
 
 Example commands for running only selected schemes and problems:
 
