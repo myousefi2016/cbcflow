@@ -21,7 +21,7 @@ To use cbcflow, do::
     from cbcflow import *
 """
 
-__version__ = "0.1"
+__version__ = "0.5"
 
 # Basic utilities
 from cbcflow.core.paramdict import ParamDict
@@ -45,9 +45,5 @@ from cbcflow.fields import *
 # Navier-Stokes solver schemes
 from cbcflow.schemes import *
 
-from cbcflow.utils import *
-
-# Import utils
-#from cbcflow.utils.fenicstools import *
-#from cbcflow.utils.create_slicemesh import create_slicemesh
-#from cbcflow.utils.Slice import Slice
+# This is too broad:
+#from cbcflow.utils import *
