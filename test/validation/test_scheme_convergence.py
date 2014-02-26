@@ -2,7 +2,7 @@
 import pytest
 
 import logging
-import os, sys, shelve, time
+import os, sys, shelve
 from hashlib import sha1
 from numpy import sqrt
 
@@ -10,6 +10,8 @@ from ufl.classes import ListTensor
 from dolfin import *
 
 from cbcflow import *
+
+import time
 
 set_log_level(100)
 
@@ -33,7 +35,7 @@ def l2norm(val, ref):
     return sqrt(err/ref) if ref > 1e-14 else sqrt(err)
 
 def write_output_data(filename, metadata, values):
-    path = os.path.abspath(os.path.join(__file__, "..", "output"))
+    path = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "output"))
     ref_filename = os.path.join(path, filename)
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -44,7 +46,7 @@ def write_output_data(filename, metadata, values):
     f.close()
 
 def read_reference_data(filename):
-    path = os.path.abspath(os.path.join(__file__, "..", "cbcflow-reference-data"))
+    path = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "cbcflow-reference-data"))
     ref_filename = os.path.join(path, filename)
     if os.path.isfile(ref_filename):
         ref = shelve.open(ref_filename, 'r')

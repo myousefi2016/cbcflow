@@ -11,15 +11,20 @@ from cbcflow import *
 
 
 # Hacks to import problem classes from demo directories
-demo_dir = os.path.abspath(os.path.join(__file__, "..", "..", "demo"))
-udemo_dir = os.path.join(demo_dir, "undocumented")
+demo_dir = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "..", "demo"))
+
+# Documented demos:
 ddemo_dir = os.path.join(demo_dir, "documented")
-sys.path.insert(0, os.path.join(ddemo_dir, "Poiseuille2D"))
-sys.path.insert(0, os.path.join(ddemo_dir, "Poiseuille3D"))
-sys.path.insert(0, os.path.join(ddemo_dir, "Womersley2D"))
 sys.path.insert(0, os.path.join(ddemo_dir, "Womersley3D"))
-sys.path.insert(0, os.path.join(ddemo_dir, "Beltrami"))
-sys.path.insert(0, os.path.join(ddemo_dir, "LidDrivenCavity"))
+
+# Undocumented demos:
+udemo_dir = os.path.join(demo_dir, "undocumented")
+sys.path.insert(0, os.path.join(udemo_dir, "Poiseuille2D"))
+sys.path.insert(0, os.path.join(udemo_dir, "Poiseuille3D"))
+sys.path.insert(0, os.path.join(udemo_dir, "Womersley2D"))
+sys.path.insert(0, os.path.join(udemo_dir, "Beltrami"))
+sys.path.insert(0, os.path.join(udemo_dir, "LidDrivenCavity"))
+
 from Poiseuille2D import Poiseuille2D
 from Poiseuille3D import Poiseuille3D
 from Womersley2D import Womersley2D
