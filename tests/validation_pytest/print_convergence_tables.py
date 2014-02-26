@@ -1,10 +1,15 @@
-import shelve
+#!/usr/bin/env python
 import os
-from hashlib import sha1
 import sys
-import pprint
+import shelve
+from hashlib import sha1
+from itertools import chain
 
-def print_table(scheme_data, problem_data, data):
+def print_table(scheme_data, problem_data, case_data, write=sys.stdout.write):
+
+    # Table entry formatting (cw=column width)
+    cw = 12
+    align = '{{0:{align}{w}}}'.format(w=cw, align='^')
 
     # Print table header
     print "Scheme: ", scheme_data["name"]
@@ -14,79 +19,101 @@ def print_table(scheme_data, problem_data, data):
     print "Problem: ", problem_data["name"]
     print "Problem parameters:"
     print problem_data["params"]
-    
-    fields = data.pop("fields")
 
-    # Print table (cw=column width)    
-    cw = 12
+    # Loop over fields
+    fields = case_data.pop("fields")
     for f in fields:
         print
         print f
-        for i, dt in enumerate(reversed(sorted(data.keys()))):
-            if i==0:
-                for refinement_level in [""]+sorted(data[dt].keys()):
-                    sys.stdout.write('{0:{align}{w}}'.format(refinement_level, w=cw, align="^"))
-                sys.stdout.write('\n')
-            sys.stdout.write('{0:{align}{w}}'.format(dt, w=cw, align="^"))
-            for refinement_level in sorted(data[dt].keys()):
-                if data[dt][refinement_level] and f in data[dt][refinement_level]:
-                    err = "%.4e" %data[dt][refinement_level][f]
-                else:
-                    err = "N/A"
-                
-                sys.stdout.write('{0:{align}{w}}'.format(err, w=cw, align="^"))
-            sys.stdout.write('\n')
+
+        # Get row and column values
+        dts = reversed(sorted(case_data.keys()))
+        refinement_levels = sorted(set(chain(*(case_data[dt].keys() for dt in dts))))
+
+        # Write column headers
+        if dts:
+            for refinement_level in [""]+refinement_levels:
+                write(align.format(refinement_level))
+            write('\n')
+
+        # Write the table rows
+        for i, dt in enumerate(dts):
+            # Row header
+            write(align.format(dt))
+            # Row values
+            for refinement_level in refinement_level:
+                value = case_data[dt][refinement_level].get(f)
+                err = "N/A" if value is None else ("%.4e"  % value)
+                write(align.format(err))
+            write('\n')
     print
     print "-"*80
     print
-    
-    
 
-
-L = []
-
-if __name__ == '__main__':
-    
-    table_dict = {}
-    
+def read_tables(folder):
     # Read all files from reference folder, and sort into table dict
-    folder = 'reference'
+    table_dict = {}
     for f in os.listdir(folder):
         datafile = dict(shelve.open(os.path.join(folder, f), 'r'))
-        
-        problem_data = datafile["metadata"]["problem"]
+
+        # Unused:
+        #num_dofs = datafile["metadata"]["num_dofs"]
+        #time = datafile["metadata"]["time"]
+
+        # Outer layer of table_dict is indexed by the hash of scheme data
         scheme_data = datafile["metadata"]["scheme"]
-        
-        refinement_level = problem_data["params"].pop("refinement_level")
-        dt = problem_data["params"].pop("dt")
-        
         scheme_hash = sha1(str(scheme_data)).hexdigest()
-        problem_hash = sha1(str(datafile["metadata"]["problem"])).hexdigest()
-        
-        num_dofs = datafile["metadata"]["num_dofs"]
-        time = datafile["metadata"]["time"]
-        
         if not scheme_hash in table_dict:
             table_dict[scheme_hash] = {}
-            table_dict[scheme_hash]["scheme"] = datafile["metadata"]["scheme"]
-        
+            table_dict[scheme_hash]["scheme"] = scheme_data
+
+        # The next layer of table_dict is indexed by the hash of problem data
+        problem_data = datafile["metadata"]["problem"]
+        problem_hash = sha1(str(problem_data)).hexdigest()
         if not problem_hash in table_dict[scheme_hash]:
             table_dict[scheme_hash][problem_hash] = {}
             table_dict[scheme_hash][problem_hash]["problem"] = problem_data
             table_dict[scheme_hash][problem_hash]["fields"] = []
-        
-        if dt not in table_dict[scheme_hash][problem_hash]:
-            table_dict[scheme_hash][problem_hash][dt] = {}
-        if refinement_level not in table_dict[scheme_hash][problem_hash][dt]:
-            table_dict[scheme_hash][problem_hash][dt][refinement_level] = {}
 
-        table_dict[scheme_hash][problem_hash][dt][refinement_level] = datafile["errors"]
+        # This gives us a dict that will contain data for this scheme/problem
+        case_data = table_dict[scheme_hash][problem_hash]
+
+        # This will be indexed as case_data[dt][refinement_level] so build that structure
+        dt = problem_data["params"].pop("dt")
+        if dt not in case_data:
+            case_data[dt] = {}
+
+        refinement_level = problem_data["params"].pop("refinement_level")
+        if refinement_level not in case_data[dt]:
+            case_data[dt][refinement_level] = {}
+
+        # Now store the test error values in this table entry
+        case_data[dt][refinement_level] = datafile["errors"]
         if datafile["errors"]:
-            table_dict[scheme_hash][problem_hash]["fields"] = list(set(table_dict[scheme_hash][problem_hash]["fields"]+datafile["errors"].keys()))
-    
-    # Print all tables
+            case_data["fields"] = list(set(case_data["fields"] + datafile["errors"].keys()))
+
+    return table_dict
+
+def print_all_tables(table_dict):
+    "Print tables from table_dict[scheme_hash][problem_hash]. NB! Deletes values from table_dict."
+
+    # For all schemes
     for scheme_hash in table_dict.keys():
         scheme_data = table_dict[scheme_hash].pop("scheme")
+
+        # For all problems
         for problem_hash in table_dict[scheme_hash]:
-            problem_data = table_dict[scheme_hash][problem_hash].pop("problem")
-            print_table(scheme_data, problem_data, table_dict[scheme_hash][problem_hash])
+            case_data = table_dict[scheme_hash][problem_hash]
+            problem_data = case_data.pop("problem")
+
+            # Print a table
+            print_table(scheme_data, problem_data, case_data)
+
+def main():
+    folder = '../cbcflow-reference-data'
+    folder = 'reference'
+    table_dict = read_tables(folder)
+    print_all_tables(table_dict)
+
+if __name__ == '__main__':
+    main()
