@@ -1,12 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env py.test
 """
 Tests of the interaction between the NSSsolver
 class and the user overloaded subclasses.
 These tests should act as a documentation of
 the control and data flow between the classes.
 """
-
-import unittest
 
 from cbcflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
 
@@ -42,23 +40,21 @@ class MockScheme(NSScheme):
         params.update(s=3)
         return params
 
-class TestNSSolver(unittest.TestCase):
-    def test_base_class_data_flow(self):
-        # TODO: Set up mock classes that validate the generic data flow
-        #       between the problem, scheme and post processor classes
+def test_base_class_data_flow():
+    # TODO: Set up mock classes that validate the generic data flow
+    #       between the problem, scheme and post processor classes
 
-        problem = MockProblem({})
-        self.assertEqual(1, problem.params.p)
+    problem = MockProblem({})
+    assert 1 == problem.params.p
 
-        postproc = MockPostProcessor({})
-        self.assertEqual(2, postproc.params.pp)
+    postproc = MockPostProcessor({})
+    assert 2 == postproc.params.pp
 
-        scheme = MockScheme({})
-        self.assertEqual(3, scheme.params.s)
+    scheme = MockScheme({})
+    assert 3 == scheme.params.s
 
-        solver = NSSolver(problem, postproc, scheme, {})
+    solver = NSSolver(problem, postproc, scheme, {})
 
-        #solver.solve()
+    #solver.solve()
 
-        self.assertEqual(1, 1)
-
+    assert 1 == 1

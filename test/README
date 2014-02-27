@@ -1,0 +1,41 @@
+
+Test organization:
+
+    unit/       - Tests of internal cbcflow components and interfaces.
+    validation/ - Tests running combinations of schemes and problems and writing
+                  values of error norms and other fields to a reference database.
+    scripts/    - Utility scripts for working with the test suite.
+    output/     - Validation tests will write output here. Should never be checked in, these are local files.
+
+    cbcflow-reference-data/  - Vetted reference data for validation tests. If missing run ./scripts/download.py.
+
+To run full default set of tests:
+
+    py.test
+
+To run unit or validation tests only:
+
+    py.test unit
+    py.test validation
+
+Example commands for running validation tests for only selected schemes and problems:
+
+    cd validation/
+    time py.test -s --testsize fast --schemes IPCS IPCS_Stable --type changed --problems Womersley2D Beltrami
+    time py.test -s --testsize debug --schemes IPCS_Stable --type changed --problems Womersley2D 
+    time py.test -s --testsize all --schemes IPCS_Stable --type changed --problems Womersley2D 
+
+To download references for comparison with validation test output:
+
+    ./scripts/download
+
+To upload new references after new tests have been run, use one of:
+
+    ./scripts/upload_incremental
+    ./scripts/upload_replace
+
+The former will only add new and changed reference files, the latter
+will delete reference files that are missing from output/.
+Both will commit a new file with the new reference data id to cbcflow
+so remember to push that one.
+
