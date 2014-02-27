@@ -93,6 +93,7 @@ class IPCS(NSScheme):
 
         # Problem coefficients
         nu = Constant(problem.params.mu/problem.params.rho)
+        rho = float(problem.params.rho)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
 
@@ -141,6 +142,9 @@ class IPCS(NSScheme):
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
+            
+            # Scale to solver pressure
+            p0.vector()[:] *= 1.0/rho
 
             # Compute tentative velocity step
             b = assemble(L_u_tent)
@@ -155,7 +159,11 @@ class IPCS(NSScheme):
             if len(bcp) == 0 or is_periodic(bcp):
                 normalize(b)
             else:
+                # Scale to physical pressure
+                b *= rho
                 for bc in bcp: bc.apply(A_p_corr, b)
+                # ... and back to solver pressure
+                b *= 1.0/rho
             timer.completed("p construct rhs")
 
             iter = solve(A_p_corr, p1.vector(), b, *solver_p_params)
@@ -174,6 +182,9 @@ class IPCS(NSScheme):
             # Rotate functions for next timestep
             u0.assign(u1)
             p0.assign(p1)
+            
+            # Scale to physical pressure
+            p0.vector()[:] *= rho
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)

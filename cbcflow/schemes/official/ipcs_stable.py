@@ -102,6 +102,7 @@ class IPCS_Stable(NSScheme):
 
         # Problem coefficients
         nu = Constant(problem.params.mu/problem.params.rho)
+        rho = float(problem.params.rho)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
 
@@ -200,6 +201,8 @@ class IPCS_Stable(NSScheme):
             # Update various functions
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
+            
+            p1.vector()[:] *= 1.0/rho
 
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
@@ -235,7 +238,11 @@ class IPCS_Stable(NSScheme):
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
-            for bc in bcp: bc.apply(b)
+            for bc in bcp:
+                b *= rho
+                
+                bc.apply(b)
+                b *= 1.0/rho
             timer.completed("p_corr construct rhs")
 
             iter = solver_p_corr.solve(p2.vector(), b)
@@ -255,6 +262,8 @@ class IPCS_Stable(NSScheme):
             for d in dims: u0[d].assign(u1[d])
             for d in dims: u1[d].assign(u2[d])
             p1.assign(p2)
+
+            p1.vector()[:] *= rho
 
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
