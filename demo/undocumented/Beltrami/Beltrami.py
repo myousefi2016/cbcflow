@@ -52,7 +52,7 @@ class Beltrami(NSProblem):
 
         # Pressure
         analytical_p = \
-            ('-(rho/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*nu))')
+            ('-(1.0/2.0)*(pow(a,2)*(pow(E,2*a*x[0]) + pow(E,2*a*x[1]) + pow(E,2*a*x[2]) + 2*pow(E,a*(x[1] + x[2]))*cos(d*x[0] + a*x[2])*sin(a*x[0] + d*x[1]) + 2*pow(E,a*(x[0] + x[1]))*cos(a*x[1] + d*x[2])*sin(d*x[0] + a*x[2]) + 2*pow(E,a*(x[0] + x[2]))*cos(a*x[0] + d*x[1])*sin(a*x[1] + d*x[2])))/(pow(E,pow(d,2)*t*nu))')
 
         # Common parameters pertinent to the functional forms above
         u_params = {'a': pi/4.0, 'd': pi/2.0, 'E': e,                         'nu': self.params.mu/self.params.rho, 't': t}
@@ -74,6 +74,7 @@ class Beltrami(NSProblem):
     def initial_conditions(self, spaces, controls):
         #exact_u, exact_p = self.analytical_solution(spaces, t=0.0)
         exact_u, exact_p = self.test_references(spaces, 0.0)
+        self.p = Function(spaces.Q)
         return (exact_u, exact_p)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
@@ -86,6 +87,7 @@ class Beltrami(NSProblem):
         bcu, bcp = bcs
         uve = bcu[0][0]
         for ue in uve: ue.t = float(t)
+        
 
     '''
     # FIXME: Change this to use the new test_functionals, test_references interface:
@@ -106,11 +108,12 @@ class Beltrami(NSProblem):
     '''
 
 def main():
+    set_log_level(100)
     problem = Beltrami()
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    plot_and_save = dict(plot=False, save=True)
+    plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),

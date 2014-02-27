@@ -80,12 +80,11 @@ class Poiseuille2D(NSProblem):
             period=0.8,
             num_periods=0.1,
             # Physical parameters
-            rho=1.0,
+            rho = 10.0,
             mu=1.0/30.0,
             )
         params.update(
             # Spatial parameters
-            #N=16,
             refinement_level=0,
             # Analytical solution parameters
             Q=1.0,
@@ -93,16 +92,21 @@ class Poiseuille2D(NSProblem):
         return params
 
     def analytical_solution(self, spaces, t):
-        ux = Expression("alpha * (radius*radius - x[1]*x[1])", alpha=1.0, radius=0.5)
-        ux.alpha = self.alpha
-        ux.radius = RADIUS
+        A = 2*RADIUS
+        Q = self.params.Q
+        mu = self.params.mu
+        
+        dpdx = 3*Q*mu/(A*RADIUS**2)
+
+        ux = Expression("(radius*radius - x[1]*x[1])/(2*mu)*dpdx", radius=RADIUS, mu=mu, dpdx=dpdx, degree=2)
         uy = Constant(0.0)
+
         u = [ux, uy]
 
-        p = Expression("-beta * x[0]", beta=1.0)
-        p.beta = self.beta
+        p = Expression("dpdx * (length-x[0])", dpdx=dpdx, length=LENGTH)
 
         return (u, p)
+
     
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
@@ -121,32 +125,30 @@ class Poiseuille2D(NSProblem):
         noslip = (u0, self.wall_boundary_id)
 
         # Create Poiseuille inflow bcs
-        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
-        #uin = poiseuille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
+        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.params.Q, self.facet_domains)
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id)
-        #outflow2 = (uin, self.right_boundary_id)
 
         # Create outflow bcs for pressure
-        pa = Constant(-self.beta*LENGTH)
+        _, pa = self.analytical_solution(spaces, t)
         outflow = (pa, self.right_boundary_id)
 
         # Return bcs in two lists
-        bcu = [noslip, inflow]#, outflow2]
+        bcu = [noslip, inflow]
         bcp = [outflow]
         return (bcu, bcp)
-
+    
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
         bcu, bcp = bcs
         uin = bcu[1][0]
         for ucomp in uin:
             ucomp.set_t(t)
-
-
+        
 def main():
-    problem = Poiseuille2D()
-    scheme = IPCS_Stable()
+    set_log_level(100)
+    problem = Poiseuille2D({"dt": 1e-4, "T": 1e-2, "num_periods": None, "refinement_level": 2})
+    scheme = IPCS({"u_degree": 2})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
@@ -159,6 +161,7 @@ def main():
 
     solver = NSSolver(problem, scheme, postproc)
     solver.solve()
+    
 
 if __name__ == "__main__":
     main()

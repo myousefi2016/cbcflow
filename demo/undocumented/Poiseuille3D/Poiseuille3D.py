@@ -47,23 +47,9 @@ class Poiseuille3D(NSProblem):
         
         # Setup analytical solution constants
         Q = self.params.Q
-        nu = self.params.mu / self.params.rho
-        self.alpha = Q / (0.5 * pi * RADIUS**4)
-        self.beta = 2.0 * nu * self.alpha
 
-        # Toggle to test using Poiseuille-shaped bcs with transient flow rate
-        if 1:
-            #print "Using stationary bcs. Analytical solution should hold."
-            #print "Expected peak velocity:", self.alpha * RADIUS**2
-            #print "Expected total pressure drop:", self.beta * LENGTH
-            self.Q_coeffs = [(0.0, Q), (1.0, Q)]
-        else:
-            print "Using transient bcs. Analytical solution will not hold."
-            T = self.params.T
-            P = self.params.period
-            tvalues = np.linspace(0.0, P)
-            Qvalues = Q * (0.3 + 0.7*np.sin(pi*((P-tvalues)/P)**2)**2)
-            self.Q_coeffs = zip(tvalues, Qvalues)
+        #print "Using stationary bcs. Analytical solution should hold."
+        self.Q_coeffs = [(0.0, Q), (1.0, Q)]
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
@@ -78,12 +64,11 @@ class Poiseuille3D(NSProblem):
             period=0.8,
             num_periods=0.1,
             # Physical parameters
-            rho=1.0,
+            rho=10.0,
             mu=1.0/30.0,
             )
         params.update(
             # Spatial parameters
-            #mesh_filename="../../../cbcflow-data/pipe_0.2.xml.gz",
             refinement_level=0,
             # Analytical solution parameters
             Q=1.0,
@@ -91,17 +76,20 @@ class Poiseuille3D(NSProblem):
         return params
 
     def analytical_solution(self, spaces, t):
-        ux = Expression("alpha * (radius*radius - x[1]*x[1] - x[2]*x[2])", alpha=1.0, radius=0.5)
-        ux.alpha = self.alpha
-        ux.radius = RADIUS
+        A = pi*RADIUS**2
+        Q = self.params.Q
+        mu = self.params.mu       
+        dpdx = 8.0*Q*mu/(A*RADIUS**2)
+        
+        ux = Expression("(radius*radius - x[1]*x[1] - x[2]*x[2])/(4*mu)*dpdx", radius=RADIUS, mu=mu, dpdx=dpdx, cell=tetrahedron, degree=2)
         uy = Constant(0.0)
+        
         uz = Constant(0.0)
         u = [ux, uy, uz]
-
-        p = Expression("-beta * x[0]", beta=1.0)
-        p.beta = self.beta
-
-        return (u, p)
+        
+        p = Expression("dpdx * (length-x[0])", dpdx=dpdx, length=LENGTH)
+        
+        return (u,p)
 
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
@@ -119,14 +107,13 @@ class Poiseuille3D(NSProblem):
         noslip = (u0, self.wall_boundary_id)
 
         # Create Poiseuille inflow bcs
-        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, None, self.facet_domains)
-        #uin = poiseuille(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id) # TODO
+        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.params.Q, self.facet_domains)
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id)
 
         # Create outflow bcs for pressure
-        pa = Constant(-self.beta*LENGTH)
+        _, pa = self.analytical_solution(spaces, t)
         outflow = (pa, self.right_boundary_id)
 
         # Return bcs in two lists
@@ -134,16 +121,9 @@ class Poiseuille3D(NSProblem):
         bcp = [outflow]
         return (bcu, bcp)
 
-    def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
-        bcu, bcp = bcs
-        uin = bcu[1][0]
-        for ucomp in uin:
-            ucomp.set_t(t)
-
-
 def main():
-    problem = Poiseuille3D()
-    scheme = IPCS_Stable()
+    problem = Poiseuille3D({"refinement_level": 2})
+    scheme = IPCS_Stable({"u_degree": 2})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
