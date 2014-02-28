@@ -147,7 +147,7 @@ class Poiseuille2D(NSProblem):
         
 def main():
     set_log_level(100)
-    problem = Poiseuille2D({"dt": 1e-4, "T": 1e-2, "num_periods": None, "refinement_level": 2})
+    problem = Poiseuille2D({"dt": 1e-3, "T": 1e-1, "num_periods": None, "refinement_level": 1})
     scheme = IPCS({"u_degree": 2})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

@@ -146,7 +146,7 @@ class Womersley3D(NSProblem):
 
 
 def main():
-    problem = Womersley3D({"refinement_level": 2})
+    problem = Womersley3D({"refinement_level": 0})
     scheme = IPCS_Stable()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

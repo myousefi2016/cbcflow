@@ -60,7 +60,7 @@ class Poiseuille3D(NSProblem):
         params.replace(
             # Time parameters
             T=None,
-            dt=1e-4,
+            dt=1e-3,
             period=0.8,
             num_periods=0.1,
             # Physical parameters
@@ -122,8 +122,8 @@ class Poiseuille3D(NSProblem):
         return (bcu, bcp)
 
 def main():
-    problem = Poiseuille3D({"refinement_level": 2})
-    scheme = IPCS_Stable({"u_degree": 2})
+    problem = Poiseuille3D({"refinement_level": 0})
+    scheme = IPCS_Stable({"u_degree": 1})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)

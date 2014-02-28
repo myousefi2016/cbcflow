@@ -28,7 +28,7 @@ class BifurcationAneurysm(NSProblem):
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
-            dt=1e-3,
+            dt=1e-2,
             #period=1.0,
             #num_periods=0.3,
             T=2,
@@ -76,7 +76,7 @@ class BifurcationAneurysm(NSProblem):
 
 def main():
     problem = BifurcationAneurysm()
-    scheme = IPCS_Stable()
+    scheme = IPCS_Stable({"theta": 1.0})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
