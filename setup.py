@@ -10,9 +10,9 @@ maintenance = 0
 
 # TODO: Add eventual commandline scripts here:
 scripts = [
-    os.path.pjoin("scripts", "cbcflow-showcase"),
-    os.path.pjoin("scripts", "cbcflow-get-data"),
-    os.path.pjoin("scripts", "cbcflow-get-demos"),
+    os.path.join("scripts", "cbcflow-showcase"),
+    os.path.join("scripts", "cbcflow-get-data"),
+    os.path.join("scripts", "cbcflow-get-demos"),
     ]
 
 if platform.system() == "Windows" or "bdist_wininst" in sys.argv:
