@@ -3,12 +3,19 @@ import sys, os, glob
 
 from commands import getstatusoutput
 
+dry_run = False
+
 def call(cmd):
     print "CALL:", cmd
+    
+    if dry_run:
+        return 0, ""
     return getstatusoutput(cmd)
 
 def call_in(path, cmd):
     print "CALL IN:", path, cmd
+    if dry_run:
+        return 0, ""
     p = os.path.abspath(os.curdir)
     os.chdir(path)
     try:
@@ -178,10 +185,11 @@ class ReferencesRepository:
         if s:
             self.info("Failed to add data commit id to main repository!")
             return s
-
+        
         # Push references to server
         s, o = call_in(self.data_dir, "git push origin master")
         if s:
             self.info("WARNING: Failed to push new reference data to server. You may have lost a race condition with another developer. Manual fix is necessary.")
         return s
+        
 

@@ -72,14 +72,14 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
     solver = NSSolver(problem, scheme, pp)
 
     # Define variables
-    values = {}
+    values = {f.name: 1e16 for f in test_fields}
     num_dofs = 0
     T = 0
 
     # Disable printing from solve
     # TODO: Move to NSSolver/set option
     original_stdout = sys.stdout
-    #sys.stdout = NoOutput()
+    sys.stdout = NoOutput()
 
     try:
         t1 = time.time()
@@ -110,7 +110,9 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
 
     print "** dofs: %d Time spent: %f" % (num_dofs , T)
 
-    assert values, "No values calculated. Solver most likely failed."
+    #assert values, "No values calculated. Solver most likely failed."
+    if all([v==1e16 for v in values.values()]):
+        print "No values calculated. Solver most likely failed."
 
     for tfname, err in values.items():
         print "**** Fieldname: %20s ** Error: %.8e" % (tfname, err)
@@ -139,30 +141,31 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
 
     # Read reference data values
     ref_metadata, ref_values = read_reference_data(filename)
+    assert ref_values != {}, "Found no reference data!"
 
     # Check each value against reference
     for key in values:
         if key in ref_values:
 
             # Compute absolute and relative errors
-            err = abs(values[key] - ref_values[key])
+            abs_err = abs(values[key] - ref_values[key])
             if abs(ref_values[key]) > 1e-12:
-                rel_err = abs_err / abs(ref_values[key])
+                err = abs_err / abs(ref_values[key])
             else:
-                rel_err = abs_err
+                err = abs_err
 
             # TODO: Find necessary condition of this check!
 
             # This one should be chosen such that it always passes when nothing has changed
             strict_tolerance = 1e-8
-            if rel_err > strict_tolerance:
+            if err > strict_tolerance:
                 msg = "Error not matching reference with tolerance %e:\n    key=%s,  error=%e,  ref_error=%e  diff=%e,  relative=%e" % (
                     strict_tolerance, key, values[key], ref_values[key], abs_err, rel_err)
                 print msg
 
             # This one should be chosen so that it passes when we're happy
             loose_tolerance = 1e-6
-            assert rel_err < loose_tolerance
+            assert err < loose_tolerance
 
     # After comparing what we can, check that we have references for everything we computed
     assert set(values.keys()) == set(ref_values.keys()), "Value keys computed and in references are different."

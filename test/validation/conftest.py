@@ -68,7 +68,7 @@ class ParseParameterized(argparse.Action):
 
 
 def pytest_addoption(parser):
-    parser.addoption("--testsize", action="store", default="all",
+    parser.addoption("--testsize", action="store", default="fast",
         choices=["all", "fast", "slow", "slowest", "debug"], dest="testsize", help="run all, slow or fast test")
 
     parser.addoption("--schemes", nargs="*", action=ParseParameterized, dest="schemes")
@@ -106,7 +106,7 @@ def create_problem_factories(cmdline_problem_args):
 def create_default_scheme_factories():
     scheme_factories = [
         lambda: IPCS(),
-        lambda: Yosida(),
+        #lambda: Yosida(),
         lambda: IPCS_Stable(ParamDict(theta=1.0)),
         lambda: IPCS_Stable(ParamDict(theta=0.5)),
         ]
@@ -159,6 +159,8 @@ def pytest_generate_tests(metafunc):
             refinements = [0],
             dts = [0.1]
             )
+    else:
+        raise ValueError("Does not recognize testsize=%s." %testsize)
 
     test_run_problem.parametrize("scheme_factory", scheme_factories)
     test_run_problem.parametrize("problem_factory", problem_factories)
