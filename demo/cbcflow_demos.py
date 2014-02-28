@@ -58,6 +58,7 @@ def list_demo_docs():
 def run_demos():
     root = abspath(os.curdir)
     demo_paths = find_demo_paths()
+    failed_cmds = []
     for parent in parents:
         for path in demo_paths[parent]:
             # Find demo python name
@@ -67,14 +68,26 @@ def run_demos():
             # Execute demo
             demoroot = abspath(join(root, path))
             os.chdir(demoroot)
+            
             try:
                 cmd = "python %s > demo.log" % pyname
                 print "In '%s', running '%s':" % (demoroot, cmd)
                 #status, output = get_status_output(cmd) # FIXME: Execute demos! Maybe move this code to the tests directory.
-                subprocess.call(cmd, shell=True)
+                subprocess.check_call(cmd, shell=True, stderr=sys.stderr)
             except:
                 print "Executing %s failed!" % fullname
+                failed_cmds.append(fullname)
+                
             os.chdir(root)
+
+    if len(failed_cmds) > 0:
+        print 
+        print "The following demos failed:"
+        for cmd in failed_cmds:
+            print "\t"+fullname
+        print
+        print
+        raise RuntimeError()
 
 def main(args):
     if '--list' in args:
