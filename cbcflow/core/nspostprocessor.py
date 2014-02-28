@@ -35,11 +35,15 @@ from shutil import rmtree
 def disable_plotting():
     "Disable all plotting if we run in parallell."
     if disable_plotting.value == "init":
-        if in_serial():
+        if in_serial() and 'DISPLAY' in os.environ:
             disable_plotting.value = False
-        else:
-            cbcflow_warning("Unable to plot dolfin plots in paralell. Disabling.")
+        elif 'DISPLAY' not in os.environ:
+            cbcflow_warning("Did not find display. Disabling plotting.")
             disable_plotting.value = True
+        else:
+            cbcflow_warning("Unable to plot in paralell. Disabling plotting.")
+            disable_plotting.value = True
+        
     return disable_plotting.value
 disable_plotting.value = "init"
 
@@ -58,20 +62,6 @@ def import_pylab():
                 import_pylab.value = None
     return import_pylab.value
 import_pylab.value = "init"
-
-def dolfin_plotting():
-    "Enable dolfin plotting if environment variable DISPLAY is set."
-    if dolfin_plotting.value == "init":
-        if disable_plotting():
-            dolfin_plotting.value = False
-        else:
-            if 'DISPLAY' in os.environ:
-                dolfin_plotting.value = True
-            else:
-                cbcflow_warning("Did not find display. Disabling dolfin plotting.")
-                dolfin_plotting.value = False
-    return dolfin_plotting.value
-dolfin_plotting.value = "init"
 
 
 class DependencyException(Exception):
@@ -709,8 +699,6 @@ class NSPostProcessor(Parameterized):
 
     def _plot_dolfin(self, field_name, data):
         "Plot field using dolfin plot command"
-        if not dolfin_plotting():
-            return
 
         # Get current time
         t = self.get("t")
