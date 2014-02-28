@@ -46,6 +46,6 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("dim", [2, 3])
 
     # TODO: Make options to select all or subset of schemes for this factory,
-    #       copy from or look at validation conftest,
+    #       copy from or look at regression conftest,
     if 'scheme_factory' in metafunc.fixturenames:
         metafunc.parametrize("scheme_factory", create_scheme_factories())
