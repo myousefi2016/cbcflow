@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 
 from cbcflow import make_poiseuille_bcs, make_womersley_bcs
-from cbcflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds
+from cbcflow.dol import Function, VectorFunctionSpace, Mesh, MeshFunction, Expression, DirichletBC, assemble, ds, SubDomain
 
 import os
 data_dir = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "..", "cbcflow-data"))
@@ -19,9 +19,17 @@ data_dir = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "..", 
 class Data:
     def __init__(self):
         # Geometry
-        self.mesh = Mesh(os.path.join(data_dir, "cylinder_4k.xml.gz"))
+        self.mesh = Mesh(os.path.join(data_dir, "pipe_3k.xml.gz"))
         self.facet_domains = MeshFunction("size_t", self.mesh, 3-1, self.mesh.domains())
+        self.facet_domains.set_all(0)
         self.indicator = 1
+        
+        class SD(SubDomain):
+            def inside(self, x, on_boundary):
+                return x[0] < 1e-8 and on_boundary
+
+        SD().mark(self.facet_domains, self.indicator)
+        assert max(self.facet_domains) == 1, "No domains set for facet domains"
 
         # Temporal profile coefficients
         ts = [0.0, 0.2, 0.3, 0.4, 0.8]
@@ -53,7 +61,7 @@ def test_womersley(data):
             bc.set_t(t)
 
         for i, bc in enumerate(expressions):
-            dbc = DirichletBC(data.V.sub(i), bc, data.indicator)
+            dbc = DirichletBC(data.V.sub(i), bc, data.facet_domains, data.indicator)
             dbc.apply(data.u.vector())
 
         assert data.u.vector().norm('l2') > 0.0
@@ -75,7 +83,7 @@ def test_poiseuille(data):
             bc.set_t(t)
 
         for i, bc in enumerate(expressions):
-            dbc = DirichletBC(data.V.sub(i), bc, data.indicator)
+            dbc = DirichletBC(data.V.sub(i), bc, data.facet_domains, data.indicator)
             dbc.apply(data.u.vector())
 
         assert data.u.vector().norm('l2') > 0.0
