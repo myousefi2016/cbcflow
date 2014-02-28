@@ -84,7 +84,7 @@ def run_demos():
         print 
         print "The following demos failed:"
         for cmd in failed_cmds:
-            print "\t"+fullname
+            print "\t"+cmd
         print
         print
         raise RuntimeError()
