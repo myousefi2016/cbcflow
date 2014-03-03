@@ -14,6 +14,62 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+r"""
+This incremental pressure correction scheme (IPCS) is an operator splitting scheme that
+follows the idea of Goda [1]_.
+This scheme preserves the exact same stability properties 
+as Navier-Stokes and hence does not introduce additional dissipation in the flow.
+
+The idea is to replace the unknown pressure with an approximation. This is chosen as 
+the pressure solution from the previous solution. 
+
+The time discretization is done using backward Euler, the diffusion term is handled with Crank-Nicholson, and the convection is handled explicitly, making the
+equations completely linear. Thus, we have a discretized version of the Navier-Stokes equations as
+
+.. math:: \frac{1}{\Delta t}\left( u^{n+1}-u^{n} \right)-\nabla\cdot\nu\nabla u^{n+\frac{1}{2}}+u^n\cdot\nabla u^{n}+\frac{1}{\rho}\nabla p^{n+1}=f^{n+1}, \\
+    \nabla \cdot u^{n+1} = 0,
+
+where :math:`\tilde{u}^{n+\frac{1}{2}} = \frac{1}{2}\tilde{u}^{n+1}+\frac{1}{2}u^n.`
+
+For the operator splitting, we use the pressure solution from the previous timestep as an estimation, giving an equation for a tentative velocity, :math:`\tilde{u}^{n+1}`:
+
+.. math:: \frac{1}{\Delta t}\left( \tilde{u}^{n+1}-u^{n} \right)-\nabla\cdot\nu\nabla \tilde{u}^{n+\frac{1}{2}}+u^n\cdot\nabla u^{n}+\frac{1}{\rho}\nabla p^{n}=f^{n+1}.
+
+This tenative velocity is not divergence free, and thus we define a velocity correction :math:`u^c=u^{n+1}-\tilde{u}^{n+1}`. Substracting the second equation from the first, we see that
+
+.. math:: 
+    \frac{1}{\Delta t}u^c-\nabla\cdot\nu\nabla u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
+    \nabla \cdot u^c = -\nabla \cdot \tilde{u}^{n+1}.
+
+The operator splitting is a first order approximation, :math:`O(\Delta t)`, so we can, without reducing the order of the approximation simplify the above to
+
+.. math:: 
+    \frac{1}{\Delta t}u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
+    \nabla \cdot u^c = -\nabla \cdot \tilde{u}^{n+1},
+
+which is reducible to a Poisson problem:
+
+.. math:: 
+   \Delta p^{n+1} = \Delta p^n+\frac{\rho}{\Delta t}\nabla \cdot \tilde{u}^{n+1}.
+
+The corrected velocity is then easily calculated from
+
+.. math:: 
+    u^{n+1} = \tilde{u}^{n+1}-\frac{\Delta t}{\rho}\left(p^{n+1}-p^n\right)
+
+The scheme can be summarized in the following steps:
+    #. Replace the pressure with a known approximation and solve for a tenative velocity :math:`u^{n+1}`.
+
+    #. Solve a Poisson equation for the pressure, :math:`p^{n+1}`
+
+    #. Use the corrected pressure to find the velocity correction and calculate :math:`u^{n+1}`
+
+    #. Update t, and repeat.
+
+.. [1] Goda, Katuhiko. *A multistep technique with implicit difference schemes for calculating two-or three-dimensional cavity flows.* Journal of Computational Physics 30.1 (1979): 76-95.
+
+"""
+
 from __future__ import division
 
 
@@ -41,7 +97,7 @@ class IPCS(NSScheme):
             # Default to P1-P1
             u_degree = 1,
             p_degree = 1,
-            theta = 0.5,
+            #theta = 0.5,
             )
         return params
 

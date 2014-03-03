@@ -14,6 +14,40 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+r"""
+This scheme follows the same logic as in :class:`.IPCS`, but with a few notable exceptions.
+
+A parameter :math:`\theta` is added to the diffusion and convection terms,
+allowing for different evaluation of these, and the convection is handled semi-implicitly:
+
+.. math::
+    \frac{1}{\Delta t}\left( \tilde{u}^{n+1}-u^{n} \right)-
+    \nabla\cdot\nu\nabla \tilde{u}^{n+\theta}+
+    u^*\cdot\nabla \tilde{u}^{n+\theta}+\nabla p^{n}=f^{n+1},
+    
+where
+
+.. math::
+    u^* = \frac{3}{2}u^n - \frac{1}{2}u^{n-1}, \\
+    \tilde{u}^{n+\theta} = \theta \tilde{u}^{n+1}+\left(1-\theta\right)u^n.
+
+This convection term is unconditionally stable, and with :math:`\theta=0.5`,
+this equation is second order in time and space [1]_.
+
+
+In addition, the solution process is significantly faster by solving for each of the
+velocity components separately, making for D number of smaller linear systems compared
+to a large system D times the size.
+
+
+
+.. [1] Simo, J. C., and F. Armero. *Unconditional stability and long-term behavior
+    of transient algorithms for the incompressible Navier-Stokes and Euler equations.*
+    Computer Methods in Applied Mechanics and Engineering 111.1 (1994): 111-154.
+
+"""
+
+
 from __future__ import division
 
 
@@ -29,7 +63,7 @@ from cbcflow.utils.core import NSSpacePoolSegregated
 
 
 class IPCS_Stable(NSScheme):
-    "Incremental pressure-correction scheme, stable version."
+    "Incremental pressure-correction scheme, fast and stable version."
 
     def __init__(self, params=None):
         NSScheme.__init__(self, params)
