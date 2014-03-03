@@ -46,7 +46,7 @@ class NSScheme(Parameterized):
             # TODO: Split these into separate parameters for solver/preconditioner?
             solver_u_tent=("gmres", "hypre_euclid"),
             solver_p_neumann=("gmres", "hypre_amg"),
-            solver_p_dirichlet=("gmres", "ml_amg"),
+            solver_p_dirichlet=("gmres", "hypre_amg"),
             solver_p=None, # overrides neumann/dirichlet if given
             solver_u_corr=("bicgstab", "hypre_euclid"),
 
