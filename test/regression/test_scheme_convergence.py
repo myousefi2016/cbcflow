@@ -160,11 +160,11 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
             strict_tolerance = 1e-8
             if err > strict_tolerance:
                 msg = "Error not matching reference with tolerance %e:\n    key=%s,  error=%e,  ref_error=%e  diff=%e,  relative=%e" % (
-                    strict_tolerance, key, values[key], ref_values[key], abs_err, rel_err)
+                    strict_tolerance, key, values[key], ref_values[key], abs_err, err)
                 print msg
 
             # This one should be chosen so that it passes when we're happy
-            loose_tolerance = 1e-6
+            loose_tolerance = 1e-3
             assert err < loose_tolerance
 
     # After comparing what we can, check that we have references for everything we computed
