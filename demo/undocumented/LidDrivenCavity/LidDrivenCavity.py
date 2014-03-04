@@ -65,8 +65,20 @@ class LidDrivenCavity(NSProblem):
 
 
 def main():
-    problem = LidDrivenCavity()
-    scheme = Yosida()
+    problem = LidDrivenCavity({"refinement_level": 1})
+    
+    
+    from imp import find_module
+    try:
+        find_module("block")
+        has_cbcblock = True
+    except:
+        has_cbcblock = False
+    
+    if has_cbcblock:
+        scheme = Yosida() # Requires cbc.block
+    else:
+        scheme = IPCS_Stable({"solver_p_neumann": ("cg", "ilu")}) # Displays pressure oscillations
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
