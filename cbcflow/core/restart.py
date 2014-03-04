@@ -20,6 +20,7 @@ from cbcflow.dol import compile_extension_module, Function, HDF5File
 import shelve
 import os
 import subprocess
+from commands import getstatusoutput
 
 from cbcflow.utils.common import cbcflow_warning
 
@@ -201,7 +202,7 @@ class Restart(object):
             }
         }
         '''
-    
+
         cpp_module = compile_extension_module(delete_from_hdf5_file)
         
         hdf5filename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+'.hdf5')
@@ -213,10 +214,14 @@ class Restart(object):
             else:
                 cpp_module.delete_from_hdf5_file(hdf5filename, v['hdf5']['dataset'])
         hdf5tmpfilename = os.path.join(self.postprocessor.get_savedir(fieldname), fieldname+'_tmp.hdf5')
-            
-        subprocess.call("h5repack %s %s" %(hdf5filename, hdf5tmpfilename), shell=True)
-        os.remove(hdf5filename)
-        os.rename(hdf5tmpfilename, hdf5filename)
+        
+        status, result = getstatusoutput("h5repack")
+        if status != 0:
+            cbcflow_warning("Unable to run h5repack. Will not repack hdf5-files before replay, which may cause bloated hdf5-files.")
+        else:
+            subprocess.call("h5repack %s %s" %(hdf5filename, hdf5tmpfilename), shell=True)
+            os.remove(hdf5filename)
+            os.rename(hdf5tmpfilename, hdf5filename)
         
         
     def _clean_files(self, fieldname, del_metadata):
