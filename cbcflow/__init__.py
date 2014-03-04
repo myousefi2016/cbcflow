@@ -21,7 +21,7 @@ To use cbcflow, do::
     from cbcflow import *
 """
 
-__version__ = "0.5"
+__version__ = "1.3.0"
 
 # Basic utilities
 from cbcflow.core.paramdict import ParamDict
