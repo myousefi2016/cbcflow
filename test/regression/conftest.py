@@ -76,7 +76,7 @@ def pytest_addoption(parser):
 
 def create_default_problem_factories():
     problem_factories = [
-            lambda refinement_level,dt: LidDrivenCavity(ParamDict(refinement_level=refinement_level, dt=dt, T=2.5, mu=1./1000., rho=1.0)),
+            #lambda refinement_level,dt: LidDrivenCavity(ParamDict(refinement_level=refinement_level, dt=dt, T=2.5, mu=1./1000., rho=1.0)),
             lambda refinement_level,dt: Poiseuille2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
             lambda refinement_level,dt: Poiseuille3D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=0.2)),
             lambda refinement_level,dt: Womersley2D(ParamDict(refinement_level=refinement_level, dt=dt, T=None, num_periods=1.0)),
