@@ -38,9 +38,6 @@ class NSScheme(Parameterized):
             u_degree = None, # Require this to be set explicitly by scheme subclass!
             p_degree = None, # Require this to be set explicitly by scheme subclass!
 
-            # TODO: Move to nssolver?
-            enable_timer=False,
-
             # TODO: These ipcs solvers are scheme specific and should maybe not be here,
             #       however they are used by most of the splitting schemes...
             # TODO: Split these into separate parameters for solver/preconditioner?

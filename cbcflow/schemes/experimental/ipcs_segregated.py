@@ -19,7 +19,7 @@ from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
+from cbcflow.utils.common import epsilon, sigma, is_periodic
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
@@ -141,7 +141,6 @@ class SegregatedIPCS(NSScheme):
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
 
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -158,8 +157,8 @@ class SegregatedIPCS(NSScheme):
                 timer.completed("u_tent construct rhs")
 
                 iter = solver_u_tent.solve(A_u_tent[d], u1[d].vector(), b)
-                timer.completed("u_tent solve (%s, %d dofs, %d iter)" % (
-                    ', '.join(self.params.solver_u_tent), b.size(), iter))
+                timer.completed("u_tent solve (%s, %d dofs)" % (
+                    ', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
 
             # Pressure correction
             b = assemble(L_p_corr)
@@ -171,8 +170,8 @@ class SegregatedIPCS(NSScheme):
 
             iter = solver_p_corr.solve(A_p_corr, p1.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            timer.completed("p_corr solve (%s, %d dofs, %d iter)" % (
-                ', '.join(solver_p_params), b.size(), iter))
+            timer.completed("p_corr solve (%s, %d dofs)" % (
+                ', '.join(solver_p_params), b.size()), {"iter": iter})
 
             # Velocity correction
             for d in dims:
@@ -181,8 +180,8 @@ class SegregatedIPCS(NSScheme):
                 timer.completed("u_corr construct rhs")
 
                 iter = solver_u_corr.solve(A_u_corr[d], u1[d].vector(), b)
-                timer.completed("u_corr solve (%s, %d dofs, %d iter)" % (
-                    ', '.join(self.params.solver_u_corr), b.size(), iter))
+                timer.completed("u_corr solve (%s, %d dofs)" % (
+                    ', '.join(self.params.solver_u_corr), b.size()), {"iter": iter})
 
             # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])

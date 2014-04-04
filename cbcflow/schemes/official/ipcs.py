@@ -75,7 +75,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
+from cbcflow.utils.common import epsilon, sigma, is_periodic
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                          assign_ics_split,
                                          make_velocity_bcs,
@@ -101,7 +101,7 @@ class IPCS(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -189,7 +189,6 @@ class IPCS(NSScheme):
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
 
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -233,7 +232,7 @@ class IPCS(NSScheme):
 
             solver_params = self.params.solver_u_corr
             iter = solve(A_u_corr, u1.vector(), b, *solver_params)
-            timer.completed("u2 solve (%s, %d, %d)"%(', '.join(solver_params), b.size(),iter))
+            timer.completed("u2 solve (%s, %d)"%(', '.join(solver_params), b.size()),{"iter": iter})
 
             # Rotate functions for next timestep
             u0.assign(u1)
@@ -244,6 +243,7 @@ class IPCS(NSScheme):
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

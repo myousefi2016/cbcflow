@@ -12,6 +12,7 @@ import inspect
 from cbcflow import ParamDict, NSProblem, all_schemes
 from cbcflow import *
 from cbcflow.dol import *
+from cbcflow.utils.common import Timer
 
 class Left(SubDomain):
     def inside(self, x, on_boundary):
@@ -136,7 +137,7 @@ def test_scheme_calls_update_properly(scheme_factory, dim):
     # Run scheme with mock problem and configured scheme
     problem = MockProblem({'d':dim})
     scheme = scheme_factory()
-    namespace = scheme.solve(problem, update)
+    namespace = scheme.solve(problem, update, Timer(0))
 
     # Check that update has been called properly and that the timesteps are as they should
     assert [r[0] for r in update_record] == [1.0,1.5,2.0]

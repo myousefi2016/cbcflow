@@ -19,7 +19,6 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                          assign_ics_segregated,
                                          make_segregated_velocity_bcs,
@@ -161,7 +160,6 @@ class SegregatedPenaltyIPCS(NSScheme):
         update(u0, p0, float(t), start_timestep, spaces)
 
         # Profiling object
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -178,8 +176,8 @@ class SegregatedPenaltyIPCS(NSScheme):
                 timer.completed("u_tent construct rhs")
 
                 iter = solver_u_tent.solve(A_u_tent[d], u1[d].vector(), b)
-                timer.completed("u_tent solve (%s, %d dofs, %d iter)" % (
-                    ', '.join(self.params.solver_u_tent), b.size(), iter))
+                timer.completed("u_tent solve (%s, %d dofs)" % (
+                    ', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
 
             # Pressure correction
             solver_p_corr.solve()
@@ -194,8 +192,8 @@ class SegregatedPenaltyIPCS(NSScheme):
                 timer.completed("u_corr construct rhs")
 
                 iter = solver_u_corr.solve(A_u_corr[d], u1[d].vector(), b)
-                timer.completed("u_corr solve (%s, %d dofs, %d iter)" % (
-                    ', '.join(self.params.solver_u_corr), b.size(), iter))
+                timer.completed("u_corr solve (%s, %d dofs)" % (
+                    ', '.join(self.params.solver_u_corr), b.size()), {"iter": iter})
 
             # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])

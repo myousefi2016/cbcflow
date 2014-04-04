@@ -45,7 +45,7 @@ class Karper(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Spatial parameters
         mesh = problem.mesh
         n  = FacetNormal(mesh)

@@ -18,7 +18,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, is_periodic, epsilon
+from cbcflow.utils.common import is_periodic, epsilon
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
@@ -172,7 +172,6 @@ class SegregatedIPCS_Optimized(NSScheme):
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
 
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -224,6 +223,7 @@ class SegregatedIPCS_Optimized(NSScheme):
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

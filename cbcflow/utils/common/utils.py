@@ -72,17 +72,87 @@ def timeit(t0=None, msg=None):
         return t
 
 class Timer:
-    def __init__(self, enabled):
-        self._enabled = enabled
+    def __init__(self, frequency):
+        self._frequency = frequency
         self._timer = time()
+        self._timings = {}
+        self._keys = []
+        self._N = 0
 
-    def completed(self, msg):
+    def completed(self, key, summables={}):
+        if self._frequency == 0:
+            return
+        
+        if key not in self._timings:
+            self._keys.append(key)
+            self._timings[key] = [0,0, {}]
+        
         t = time()
         ms = (t - self._timer)*1000
-        if self._enabled:
-            cbcflow_print("%10.0f ms: %s" % (ms, msg))
-        self._timer = t
+        self._timings[key][0] += ms
+        self._timings[key][1] += 1
+        
+        for k,v in summables.items():
+            if k not in self._timings[key][2]:
+                self._timings[key][2][k] = 0
+            self._timings[key][2][k] += v
+        
+        if self._frequency == 1:
+            s = "%10.0f ms: %s" % (ms, key)
+            ss = []
+            #if summables != {}:
+            #    s += "  ("
+            for k, v in summables.items():
+                #s += "%s: %s, " %(k,v)
+                ss.append("%s=%s" %(k,v))
+            if len(ss) > 0:
+                ss = "  ("+", ".join(ss)+")"
+            else:
+                ss = ""
+            s += ss
 
+            cbcflow_print(s)
+
+        self._timer = time()
+    
+    def _print_summary(self):
+        cbcflow_print("Timings summary: ")
+        
+        for key in self._keys:
+            tot = self._timings[key][0]
+            N = self._timings[key][1]
+            avg = int(1.0*tot/N)
+            
+            s = "%10.0f ms (avg: %8.0f ms, N: %5d): %s" %(tot, avg, N, key)
+            
+            summables = self._timings[key][2]
+            ss = []
+            #if summables != {}:
+            #    s += "("
+            for k, tot in summables.items():
+                avg = int(1.0*tot/N)
+                #s += "%s: %s (avg: %s), " %(k,tot,avg)
+                ss.append("%s=%s (avg: %s)" %(k,tot,avg))
+            #if summables != {}:
+            #    s += ")"
+            if len(ss) > 0:
+                ss = "  ("+", ".join(ss)+")"
+            else:
+                ss = ""
+            s += ss
+            cbcflow_print(s)
+    
+    def _reset(self):
+        self._timings = {}
+        self._keys = []
+        self._N = 0
+        
+    def increment(self):
+        self._N += 1
+        if self._frequency > 1 and self._N % self._frequency == 0:
+            self._print_summary()
+            self._reset()
+    
 
 # --- System inspection ---
 

@@ -18,7 +18,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
+from cbcflow.utils.common import epsilon, sigma, is_periodic
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_split,
@@ -52,7 +52,7 @@ class CoupledPreconditioned(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         #from block import *
         #from block.iterative import *
         #from block.algebraic.trilinos import *

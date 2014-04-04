@@ -20,7 +20,7 @@ from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.utils.common import Timer, epsilon, sigma, is_periodic
+from cbcflow.utils.common import epsilon, sigma, is_periodic
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                          assign_ics_split,
                                          make_velocity_bcs,
@@ -48,7 +48,7 @@ class IPCS_Stabilized(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -148,10 +148,6 @@ class IPCS_Stabilized(NSScheme):
 
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
-        print Timer
-        timer = Timer(self.params.enable_timer)
-        print timer
-        print dir(timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -169,7 +165,7 @@ class IPCS_Stabilized(NSScheme):
 
             iter = solve(A_u_tent, u1.vector(), b, *self.params.solver_u_tent)
             print "Iterations: ", iter
-            timer.completed("u1 solve (%s, %d, %d)"%(', '.join(self.params.solver_u_tent), b.size(), iter))
+            timer.completed("u1 solve (%s, %d)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
 
             # Pressure correction
             b = assemble(L_p_corr)
@@ -181,7 +177,7 @@ class IPCS_Stabilized(NSScheme):
 
             iter = solve(A_p_corr, p1.vector(), b, *solver_p_params)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
-            timer.completed("p solve (%s, %d, %d)"%(', '.join(solver_p_params), b.size(), iter))
+            timer.completed("p solve (%s, %d)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
 
             # Velocity correction
             assemble(a_u_corr, tensor=A_u_corr)
@@ -191,7 +187,7 @@ class IPCS_Stabilized(NSScheme):
 
             solver_params = self.params.solver_u_corr
             iter = solve(A_u_corr, u1.vector(), b, *solver_params)
-            timer.completed("u2 solve (%s, %d, %d)"%(', '.join(solver_params), b.size(),iter))
+            timer.completed("u2 solve (%s, %d)"%(', '.join(solver_params), b.size()),{"iter": iter})
 
             print "u-norm: ", norm(u1.vector())
             print "Pressure drop: ", max(p1.vector())-min(p1.vector())
@@ -202,6 +198,7 @@ class IPCS_Stabilized(NSScheme):
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

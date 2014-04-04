@@ -52,7 +52,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, is_periodic, cbcflow_log
+from cbcflow.utils.common import is_periodic, cbcflow_log
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
@@ -84,8 +84,7 @@ class IPCS_Stable(NSScheme):
             )
         return params
 
-    def solve(self, problem, update, restart=None):
-        timer = Timer(self.params.enable_timer)
+    def solve(self, problem, update, timer):
 
         # Get problem parameters
         mesh = problem.mesh
@@ -284,7 +283,7 @@ class IPCS_Stable(NSScheme):
                 if 'preconditioner' in solver_u_tent.parameters:
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
-                timer.completed("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(self.params.solver_u_tent), b.size(), iter))
+                timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
 
             # Pressure correction
             b = rhs_p_corr()
@@ -298,7 +297,7 @@ class IPCS_Stable(NSScheme):
 
             iter = solver_p_corr.solve(p2.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p2.vector())
-            timer.completed("p_corr solve (%s, %d dofs, %d iter)"%(', '.join(solver_p_params), b.size(), iter))
+            timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
 
             # Velocity correction
             for d in dims:
@@ -307,7 +306,7 @@ class IPCS_Stable(NSScheme):
                 timer.completed("u_corr construct rhs")
 
                 iter = solver_u_corr.solve(u2[d].vector(), b)
-                timer.completed("u_corr solve (%s, %d dofs, %d iter)"%(', '.join(self.params.solver_u_corr), b.size(), iter))
+                timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
 
              # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
@@ -315,10 +314,11 @@ class IPCS_Stable(NSScheme):
             p1.assign(p2)
 
             p1.vector()[:] *= rho
-
+            
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
             timer.completed("updated postprocessing (completed timestep)")
+            timer.increment()
 
         # Return some quantities from the local namespace
         states = (u1, p1)

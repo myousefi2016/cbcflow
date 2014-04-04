@@ -18,7 +18,6 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                       assign_ics_mixed,
                                       make_velocity_bcs,
@@ -43,7 +42,7 @@ class Stokes(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Spatial parameters
         mesh = problem.mesh
         n  = FacetNormal(mesh)
@@ -112,7 +111,6 @@ class Stokes(NSScheme):
         update(u0, p0, float(t), start_timestep, spaces)
 
         # Profiling object
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -131,6 +129,7 @@ class Stokes(NSScheme):
             # Update postprocessing
             # TODO: Pass controls and observations here?
             update(u0, p0, float(t), timestep, spaces)
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

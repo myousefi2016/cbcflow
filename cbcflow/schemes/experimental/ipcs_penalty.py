@@ -19,7 +19,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, epsilon, sigma
+from cbcflow.utils.common import epsilon, sigma
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                       assign_ics_split,
                                       make_velocity_bcs,
@@ -48,7 +48,7 @@ class PenaltyIPCS(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Get spatial parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -137,7 +137,6 @@ class PenaltyIPCS(NSScheme):
         update(u0, p0, float(t), start_timestep, spaces)
 
         # Profiling object
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -184,6 +183,7 @@ class PenaltyIPCS(NSScheme):
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

@@ -18,7 +18,7 @@ from __future__ import division
 
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import Timer, is_periodic
+from cbcflow.utils.common import is_periodic
 from cbcflow.utils.schemes import (compute_regular_timesteps,
                                          assign_ics_split,
                                          make_velocity_bcs,
@@ -43,7 +43,7 @@ class BottiPietro(NSScheme):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, update, timer):
         # Notes about the original code:
         # - used CG3 for f
         # - had udeg=1 by default
@@ -187,7 +187,6 @@ class BottiPietro(NSScheme):
         # Call update() with initial conditions
         update(u0, p0, float(t), 0, spaces)
 
-        timer = Timer(self.params.enable_timer)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -213,13 +212,14 @@ class BottiPietro(NSScheme):
             #uchange = assemble((u1-u0)**2*dx())
             #print "uchange:", uchange
 
-            # Update postprocessing
-            update(u1, p1, float(t), timestep, spaces)
-
             # Rotate functions for next timestep
             u0.assign(u1)
             #p0.assign(p1) # Must wait until the next advection-diffusion step is done
 
+            # Update postprocessing
+            update(u1, p1, float(t), timestep, spaces)
+
+            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)
