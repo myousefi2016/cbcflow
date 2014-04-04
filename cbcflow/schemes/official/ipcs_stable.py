@@ -76,6 +76,11 @@ class IPCS_Stable(NSScheme):
             u_degree = 1,
             p_degree = 1,
             theta = 0.5,
+            rebuild_prec_frequency = 1e16,
+            u_tent_prec_structure = "same_nonzero_pattern",
+            u_tent_solver_parameters = {},
+            p_corr_solver_parameters = {},
+            u_corr_solver_parameters = {},
             )
         return params
 
@@ -221,6 +226,10 @@ class IPCS_Stable(NSScheme):
             S.set_operator(A)
             if 'preconditioner' in S.parameters:
                 S.parameters['preconditioner']['structure'] = 'same'
+                
+        solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
+        solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
+        solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
 
         timer.completed("problem initialization")
 
@@ -259,6 +268,10 @@ class IPCS_Stable(NSScheme):
                 bc[0].apply(A_u_tent)
             timer.completed("u_tent assemble convection & construct lhs")
 
+            # Check if preconditioner is to be rebuilt
+            if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:
+                solver_u_tent.parameters['preconditioner']['structure'] = self.params.u_tent_prec_structure
+
             # Compute tentative velocity step
             for d in dims:
                 b = rhs_u_tent[d]()
@@ -266,6 +279,10 @@ class IPCS_Stable(NSScheme):
                 for bc in bcu: bc[d].apply(b)
                 timer.completed("u_tent construct rhs")
                 iter = solver_u_tent.solve(u2[d].vector(), b)
+                
+                # Preconditioner is the same for all three components, so don't rebuild several times
+                if 'preconditioner' in solver_u_tent.parameters:
+                    solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
                 timer.completed("u_tent solve (%s, %d dofs, %d iter)"%(', '.join(self.params.solver_u_tent), b.size(), iter))
 
@@ -301,6 +318,7 @@ class IPCS_Stable(NSScheme):
 
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
+            timer.completed("updated postprocessing (completed timestep)")
 
         # Return some quantities from the local namespace
         states = (u1, p1)
