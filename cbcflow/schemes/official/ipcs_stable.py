@@ -100,7 +100,7 @@ class IPCS_Stable(NSScheme):
 
         # Define function spaces
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
-        V = spaces.V
+        #V = spaces.V
         U = spaces.U
         Q = spaces.Q
 
@@ -180,7 +180,20 @@ class IPCS_Stable(NSScheme):
             rhs_u_tent[d] += M, f[d]
             if theta < 1.0:
                 rhs_u_tent[d] -= Kconv, u1[d]
+        
+        # Apply BCs to LHS
+        for bc in bcu:
+            bc[0].apply(A_u_tent)
 
+        # Tentative velocity solver
+        solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        solver_u_tent.set_operator(A_u_tent)
+        if 'preconditioner' in solver_u_tent.parameters:
+                solver_u_tent.parameters['preconditioner']['structure'] = 'same'
+        solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
+        
+        timer.completed("create tenative velocity solver")
+        
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx())
         rhs_p_corr = RhsGenerator(Q)
@@ -189,48 +202,63 @@ class IPCS_Stable(NSScheme):
         for d in dims:
             Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
             rhs_p_corr += Ku[d], u2[d]
-
-        # Velocity correction. Like for the tentative velocity, a single LHS is used.
-        A_u_corr = M
-        rhs_u_corr = [None]*len(dims)
-        Kp = [None]*len(dims)
-        for d in dims:
-            Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
-            rhs_u_corr[d] = RhsGenerator(U)
-            rhs_u_corr[d] += M, u2[d]
-            rhs_u_corr[d] += Kp[d], p2
-            rhs_u_corr[d] -= Kp[d], p1
-
-        # Apply BCs to LHS
-        for bc in bcu:
-            bc[0].apply(A_u_tent)
-            bc[0].apply(A_u_corr)
-
-        for bc in bcp:
-            bc.apply(A_p_corr)
-
-        # Create solvers
+            
+        # Pressure correction solver
         if self.params.solver_p:
             solver_p_params = self.params.solver_p
         elif len(bcp) == 0 or is_periodic(bcp):
             solver_p_params = self.params.solver_p_neumann
         else:
             solver_p_params = self.params.solver_p_dirichlet
-
-        solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        
+        for bc in bcp:
+            bc.apply(A_p_corr)
+        
         solver_p_corr = LinearSolver(*solver_p_params)
-        solver_u_corr = LinearSolver(*self.params.solver_u_corr)
-
-        for A,S in [(A_u_tent, solver_u_tent), (A_p_corr, solver_p_corr), (A_u_corr, solver_u_corr)]:
-            S.set_operator(A)
-            if 'preconditioner' in S.parameters:
-                S.parameters['preconditioner']['structure'] = 'same'
-                
-        solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
+        solver_p_corr.set_operator(A_p_corr)
+        if 'preconditioner' in solver_p_corr.parameters:
+                solver_p_corr.parameters['preconditioner']['structure'] = 'same'
         solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
-        solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
-
-        timer.completed("problem initialization")
+        
+        timer.completed("create pressure correction solver")
+        
+        # Velocity correction solver
+        if self.params.solver_u_corr not in ["WeightedGradient"]:
+            # Velocity correction. Like for the tentative velocity, a single LHS is used.
+            A_u_corr = M
+            rhs_u_corr = [None]*len(dims)
+            Kp = [None]*len(dims)
+            for d in dims:
+                Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
+                rhs_u_corr[d] = RhsGenerator(U)
+                rhs_u_corr[d] += M, u2[d]
+                rhs_u_corr[d] += Kp[d], p2
+                rhs_u_corr[d] -= Kp[d], p1
+            
+            # Apply BCs to LHS
+            for bc in bcu:
+                bc[0].apply(A_u_corr)
+                
+            solver_u_corr = LinearSolver(*self.params.solver_u_corr)
+            solver_u_corr.set_operator(A_u_corr)
+            if 'preconditioner' in solver_u_corr.parameters:
+                solver_u_corr.parameters['preconditioner']['structure'] = 'same'
+            solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
+            
+        elif self.params.solver_u_corr == "WeightedGradient":
+            from fenicstools.WeightedGradient import compiled_gradient_module
+            DG = spaces.DQ0
+            CG1 = spaces.get_space(1, 0)
+            C = assemble(u*v*dx())
+            G = assemble(TrialFunction(DG)*v*dx())
+            dPdX = []
+            dg = Function(DG)
+            for d in dims:
+                dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
+                compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
+                dPdX.append(C.copy())
+        
+        timer.completed("create velocity correction solver")
 
         # Call update() with initial conditions
         update(u1, p1, float(t), start_timestep, spaces)
@@ -298,15 +326,21 @@ class IPCS_Stable(NSScheme):
             iter = solver_p_corr.solve(p2.vector(), b)
             if len(bcp) == 0 or is_periodic(bcp): normalize(p2.vector())
             timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
-
-            # Velocity correction
-            for d in dims:
-                b = rhs_u_corr[d]()
-                for bc in bcu: bc[d].apply(b)
-                timer.completed("u_corr construct rhs")
-
-                iter = solver_u_corr.solve(u2[d].vector(), b)
-                timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
+            if self.params.solver_u_corr not in ["WeightedGradient"]:
+                # Velocity correction
+                for d in dims:
+                    b = rhs_u_corr[d]()
+                    for bc in bcu: bc[d].apply(b)
+                    timer.completed("u_corr construct rhs")
+    
+                    iter = solver_u_corr.solve(u2[d].vector(), b)
+                    timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
+            elif self.params.solver_u_corr == "WeightedGradient":
+                for d in dims:
+                    u2[d].vector().axpy(-dt, dPdX[d]*(p2.vector()-p1.vector()))
+                    for bc in bcu: bc[d].apply(u2[d].vector())
+                    timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u2[d].vector().size())
+                    
 
              # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
