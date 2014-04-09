@@ -77,6 +77,7 @@ class NSSolver(Parameterized):
         Returns: namespace dict returned from scheme.solve
         """
         self.timer = Timer(self.params.timer_frequency)
+        self.timer._N = -1
         
         self._reset()
         
