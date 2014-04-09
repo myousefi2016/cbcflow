@@ -75,19 +75,31 @@ class BifurcationAneurysm(NSProblem):
 
 
 def main():
-    problem = BifurcationAneurysm()
-    scheme = IPCS_Stable({"theta": 1.0})
+    set_log_level(60)
+    dt = 1e-1
+    problem = BifurcationAneurysm(dict(refinement_level=0, dt=dt, T=20*dt))
+    scheme = IPCS_Stable(dict(
+        rebuild_prec_frequency = 1,
+        u_tent_prec_structure = "same_nonzero_pattern",
+        p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),
+        u_degree=2,
+        solver_u_tent=("gmres", "additive_schwarz"),
+        #solver_u_corr=("cg", "additive_schwarz"),
+        solver_u_corr = "WeightedGradient",
+        theta=1.0,
+        ))
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
+        WSS(plot_and_save),
         ]
     postproc = NSPostProcessor({"casedir": casedir})
     postproc.add_fields(fields)
 
-    solver = NSSolver(problem, scheme, postproc)
+    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=10))
     solver.solve()
 
 if __name__ == "__main__":
