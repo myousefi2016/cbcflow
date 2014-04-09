@@ -352,7 +352,6 @@ class IPCS_Stable(NSScheme):
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
             timer.completed("updated postprocessing (completed timestep)")
-            timer.increment()
 
         # Return some quantities from the local namespace
         states = (u1, p1)

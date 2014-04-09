@@ -183,7 +183,6 @@ class PenaltyIPCS(NSScheme):
 
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
-            timer.increment()
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

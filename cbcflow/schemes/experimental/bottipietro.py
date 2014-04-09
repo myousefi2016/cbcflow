@@ -219,8 +219,6 @@ class BottiPietro(NSScheme):
             # Update postprocessing
             update(u1, p1, float(t), timestep, spaces)
 
-            timer.increment()
-
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)
 
