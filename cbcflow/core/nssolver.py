@@ -47,7 +47,7 @@ class NSSolver(Parameterized):
 
         Explanation of parameters:
           - debug: bool, debug mode
-          - check_mem_frequency: int, timestep frequency to check memory consumption
+          - check_memory_frequency: int, timestep frequency to check memory consumption
           - restart: bool, turn restart mode on or off
           - restart_time: float, time to search for restart data
           - restart_timestep: int, timestep to search for restart data
@@ -58,7 +58,7 @@ class NSSolver(Parameterized):
         # TODO: Insert generic nssolver params here
         params = ParamDict(
             debug=False,
-            check_mem_frequency=0,
+            check_memory_frequency=0,
             restart = False, 
             restart_time = -1.0,
             restart_timestep = -1,
@@ -115,7 +115,7 @@ class NSSolver(Parameterized):
         self._time = time()
         self._accumulated_time = 0
 
-        if self.params.check_mem_frequency > 0:
+        if self.params.check_memory_frequency > 0:
             self._initial_memory = get_memory_usage()
 
     def _summarize(self):
@@ -124,7 +124,7 @@ class NSSolver(Parameterized):
         msg = "Total time spent in NSSolver: %s" % time_to_string(final_time - self._initial_time)
         cbcflow_print(msg)
 
-        if self.params.check_mem_frequency > 0:
+        if self.params.check_memory_frequency > 0:
             final_memory = get_memory_usage()
             msg = "Memory usage before solve: %s\nMemory usage after solve: %s" % (
                 self._initial_memory, final_memory)
@@ -170,7 +170,7 @@ class NSSolver(Parameterized):
         cbcflow_print(msg)
 
     def _update_memory(self, timestep):
-        fr = self.params.check_mem_frequency
+        fr = self.params.check_memory_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
             cbcflow_print('Memory usage is: %s' % get_memory_usage())       

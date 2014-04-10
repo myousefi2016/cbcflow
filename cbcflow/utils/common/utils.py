@@ -159,9 +159,15 @@ class Timer:
 from os import getpid
 from commands import getoutput
 def get_memory_usage():
-    mypid = getpid()
-    mymemory = getoutput("ps -o rss %s" % mypid).split()[1]
-    return mymemory
+    """Return memory usage in MB"""
+    try:
+        from fenicstools import getMemoryUsage
+        return getMemoryUsage()
+    except:
+        cbcflow_warning("Unable to load fenicstools to check memory usage. Falling back to unsafe memory check.")
+        mypid = getpid()
+        mymemory = getoutput("ps -o rss %s" % mypid).split()[1]
+        return int(mymemory)/1024
 
 
 # --- Parallel hacks on top of dolfin ---
