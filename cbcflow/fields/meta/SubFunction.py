@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
-from dolfin import Function, VectorFunctionSpace, FunctionSpace, project, as_vector
+from dolfin import Function, VectorFunctionSpace, FunctionSpace, project, as_vector, MPI
 
 def import_fenicstools():
     import fenicstools
@@ -58,9 +58,7 @@ class SubFunction(PPField):
         if u.rank() == 1:
             FS = VectorFunctionSpace(self.submesh, family, degree)
             FS_scalar = FS.sub(0).collapse()
-            self.u0 = Function(FS_scalar)
-            self.u1 = Function(FS_scalar)
-            self.u2 = Function(FS_scalar)
+            self.us = Function(FS_scalar)
 
         elif u.rank() == 0:
             FS = FunctionSpace(self.submesh, family, degree)
@@ -69,19 +67,17 @@ class SubFunction(PPField):
         
         self.u = Function(FS, name=self.name)
 
-    def compute(self, pp, spaces, problem):       
+    def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
 
-        # FIXME: This is broken for e.g. 2D, and with latest fenicstools
-        
         if u.rank() == 1:
-            u0, u1, u2 = u.split()
-            self.u0.assign(self._ft.interpolate_nonmatching_mesh(u0, self.u0))
-            self.u1.assign(self._ft.interpolate_nonmatching_mesh(u1, self.u1))
-            self.u2.assign(self._ft.interpolate_nonmatching_mesh(u2, self.u2))
-            self.u.assign(project(as_vector([self.u0, self.u1, self.u2])))
+            u = u.split()
+            U = []
+            for _u in u:
+                U.append(self._ft.interpolate_nonmatching_mesh(_u, self.us))
+
+            self.u.assign(project(as_vector(U)))
 
         elif u.rank() == 0:
             self.u.assign(self._ft.interpolate_nonmatching_mesh(u, self.u))
-
         return self.u
