@@ -100,7 +100,6 @@ class IPCS_Stable(NSScheme):
 
         # Define function spaces
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
-        #V = spaces.V
         U = spaces.U
         Q = spaces.Q
 
@@ -111,12 +110,11 @@ class IPCS_Stable(NSScheme):
         p = TrialFunction(Q)
 
         # Functions
-        u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^{n-1}
-        u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^n
-        u2 = as_vector([Function(U, name="u2_%d"%d) for d in dims]) # u^{n+1}
+        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
+        u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
+        u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
-        p2 = Function(Q, name="p2")
 
         # Get functions for data assimilation
         observations = problem.observations(spaces, t)
@@ -126,9 +124,8 @@ class IPCS_Stable(NSScheme):
         ics = problem.initial_conditions(spaces, controls)
         assign_ics_segregated(u0, p0, spaces, ics)
         for d in dims: u1[d].assign(u0[d])
-        for d in dims: u2[d].assign(u1[d])
+        #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
-        p2.assign(p1)
 
         # Make scheme-specific representation of bcs
         bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
@@ -149,7 +146,8 @@ class IPCS_Stable(NSScheme):
         a2 = inner(grad(v), nu*grad(u)) * dx()
 
         # Convection linearized as in Simo/Armero (1994)
-        a_conv = v * sum((1.5*u1[r] - 0.5*u0[r]) * u.dx(r) for r in dims) * dx()
+        # Will set u_ab = 1.5*u1[r] - 0.5*u0[r]
+        a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
         if theta < 1.0:
             # Set a_conv to match rhs theta-weighting for RHSGenerator
             a_conv = Constant(1-theta)*a_conv
@@ -175,11 +173,11 @@ class IPCS_Stable(NSScheme):
         for d in dims:
             C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
             rhs_u_tent[d] = RhsGenerator(U)
-            rhs_u_tent[d] += B, u1[d]
-            rhs_u_tent[d] += C, p1
+            rhs_u_tent[d] += B, u0[d]
+            rhs_u_tent[d] += C, p0
             rhs_u_tent[d] += M, f[d]
             if theta < 1.0:
-                rhs_u_tent[d] -= Kconv, u1[d]
+                rhs_u_tent[d] -= Kconv, u0[d]
         
         # Apply BCs to LHS
         for bc in bcu:
@@ -197,11 +195,11 @@ class IPCS_Stable(NSScheme):
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx())
         rhs_p_corr = RhsGenerator(Q)
-        rhs_p_corr += A_p_corr, p1
+        rhs_p_corr += A_p_corr, p0
         Ku = [None]*len(dims)
         for d in dims:
             Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
-            rhs_p_corr += Ku[d], u2[d]
+            rhs_p_corr += Ku[d], u1[d]
             
         # Pressure correction solver
         if self.params.solver_p:
@@ -231,9 +229,9 @@ class IPCS_Stable(NSScheme):
             for d in dims:
                 Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
                 rhs_u_corr[d] = RhsGenerator(U)
-                rhs_u_corr[d] += M, u2[d]
-                rhs_u_corr[d] += Kp[d], p2
-                rhs_u_corr[d] -= Kp[d], p1
+                rhs_u_corr[d] += M, u1[d]
+                rhs_u_corr[d] += Kp[d], p1
+                rhs_u_corr[d] -= Kp[d], p0
             
             # Apply BCs to LHS
             for bc in bcu:
@@ -272,8 +270,15 @@ class IPCS_Stable(NSScheme):
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
             
-            p1.vector()[:] *= 1.0/rho
+            p0.vector()[:] *= 1.0/rho
 
+            # Update Adams-Bashford term
+            for d in dims:
+                u_ab[d].vector().zero()
+                u_ab[d].vector().axpy(1.5, u1[d].vector())
+                u_ab[d].vector().axpy(-0.5, u0[d].vector())
+                print u_ab[d].vector().norm('l2')    
+            
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
             # also stored in rhs. (And it's faster).
@@ -305,7 +310,7 @@ class IPCS_Stable(NSScheme):
 
                 for bc in bcu: bc[d].apply(b)
                 timer.completed("u_tent construct rhs")
-                iter = solver_u_tent.solve(u2[d].vector(), b)
+                iter = solver_u_tent.solve(u1[d].vector(), b)
                 
                 # Preconditioner is the same for all three components, so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
@@ -323,8 +328,8 @@ class IPCS_Stable(NSScheme):
                 b *= 1.0/rho
             timer.completed("p_corr construct rhs")
 
-            iter = solver_p_corr.solve(p2.vector(), b)
-            if len(bcp) == 0 or is_periodic(bcp): normalize(p2.vector())
+            iter = solver_p_corr.solve(p1.vector(), b)
+            if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
             timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
             if self.params.solver_u_corr not in ["WeightedGradient"]:
                 # Velocity correction
@@ -333,28 +338,27 @@ class IPCS_Stable(NSScheme):
                     for bc in bcu: bc[d].apply(b)
                     timer.completed("u_corr construct rhs")
     
-                    iter = solver_u_corr.solve(u2[d].vector(), b)
+                    iter = solver_u_corr.solve(u1[d].vector(), b)
                     timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
             elif self.params.solver_u_corr == "WeightedGradient":
                 for d in dims:
-                    u2[d].vector().axpy(-dt, dPdX[d]*(p2.vector()-p1.vector()))
-                    for bc in bcu: bc[d].apply(u2[d].vector())
-                    timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u2[d].vector().size())
+                    u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
+                    for bc in bcu: bc[d].apply(u1[d].vector())
+                    timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
                     
 
              # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
-            for d in dims: u1[d].assign(u2[d])
-            p1.assign(p2)
+            p0.assign(p1)
 
-            p1.vector()[:] *= rho
+            p0.vector()[:] *= rho
             
             # Update postprocessing
-            update(u1, p1, float(t), timestep, spaces)
+            update(u0, p0, float(t), timestep, spaces)
             timer.completed("updated postprocessing (completed timestep)")
 
         # Return some quantities from the local namespace
-        states = (u1, p1)
+        states = (u0, p0)
         namespace = {
             "spaces": spaces,
             "observations": observations,
