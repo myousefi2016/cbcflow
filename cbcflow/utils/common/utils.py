@@ -72,7 +72,7 @@ def timeit(t0=None, msg=None):
         return t
 
 class Timer:
-    def __init__(self, frequency):
+    def __init__(self, frequency=0):
         self._frequency = frequency
         self._timer = time()
         self._timings = {}

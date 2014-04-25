@@ -18,7 +18,7 @@
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.utils.core.strip_code import strip_code
-from cbcflow.utils.common import cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial
+from cbcflow.utils.common import cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial, Timer
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
@@ -123,6 +123,8 @@ class NSPostProcessor(Parameterized):
         self._problem = None
         self._spaces = None
         self._solution = None
+        
+        self._timer = Timer()
 
     @classmethod
     def default_params(cls):
@@ -314,6 +316,7 @@ class NSPostProcessor(Parameterized):
                     init_data = field.before_first_compute(self, spaces, problem)
                     if init_data is not None and field.params["save"]:
                         self._init_metadata_file(name, init_data)
+                    self._timer.completed("PP: before first compute %s" %name)
 
                 # Compute value
                 t0 = timeit()
@@ -322,8 +325,7 @@ class NSPostProcessor(Parameterized):
                 elif self._solution[name]:
                     data = field.convert(self, spaces, problem)
                 self._compute_counts[field.name] += 1
-                if self.params.enable_timer:
-                    timeit(t0, "time to compute %s" % (name,))
+                self._timer.completed("PP: compute %s" %name)
 
                 # Copy functions to avoid storing references to the same function objects at each timestep
                 # NB! In other cases we assume that the fields return a new object for every compute!
@@ -359,8 +361,6 @@ class NSPostProcessor(Parameterized):
 
         else:
             error("Unknown action %s." % action)
-        if self.params.enable_timer:
-            timeit(t0, "time to %s %s" % (action, field.name))
 
     def _action_callback(self, field, data):
         "Apply the 'callback' action to computed field data."
@@ -544,8 +544,10 @@ class NSPostProcessor(Parameterized):
         # Write vector to file
         # TODO: Link vector when function has been written to hash
         datafile.write(data.vector(), field_name+str(timestep)+"/vector")
-        del datafile
-
+        
+        datafile.flush()
+        datafile.close()
+        del datafile        
         # Link information about function space from hash-dataset
         hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(timestep)+"/x_cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(timestep)+"/cell_dofs")
@@ -679,6 +681,7 @@ class NSPostProcessor(Parameterized):
                 metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, timestep, t)
             else:
                 error("Unknown save format %s." % (saveformat,))
+            self._timer.completed("PP: save %s %s" %(field_name, saveformat))
 
         # Write new data to metadata file
         self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
@@ -696,6 +699,7 @@ class NSPostProcessor(Parameterized):
             self._plot_pylab(field.name, data)
         else:
             cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
+        self._timer.completed("PP: plot %s" %name)
 
     def _plot_dolfin(self, field_name, data):
         "Plot field using dolfin plot command"

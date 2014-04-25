@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-from cbcflow.dol import parameters, Mesh
+from cbcflow.dol import parameters, Mesh, MPI
 
 from time import time
 
@@ -76,34 +76,44 @@ class NSSolver(Parameterized):
         
         Returns: namespace dict returned from scheme.solve
         """
+        params = ParamDict(solver=self.params,
+                           problem=self.problem.params,
+                           scheme=self.scheme.params)
+        
+        
         self.timer = Timer(self.params.timer_frequency)
         self.timer._N = -1
         
         self._reset()
         
-        if self.params.restart:
-            Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
-            self.timer.completed("set up restart")
-        else:
-            # If no restart, remove any existing data coming from cbcflow
-            self.postprocessor._clean_casedir()
-            self.timer.completed("cleaned casedir")
+        if self.postprocessor != None:
+            self.postprocessor._timer = self.timer
         
-        params = ParamDict(solver=self.params,
-                           problem=self.problem.params,
-                           scheme=self.scheme.params,
-                           postprocessor=self.postprocessor.params)
-        self.postprocessor.store_params(params)
-        assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
-        self.postprocessor.store_mesh(self.problem.mesh)
-        self.timer.completed("stored mesh")
-        
+            if self.params.restart:
+                Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
+                self.timer.completed("set up restart")
+            else:
+                # If no restart, remove any existing data coming from cbcflow
+                self.postprocessor._clean_casedir()
+                self.timer.completed("cleaned casedir")
+            
+            params = ParamDict(solver=self.params,
+                               problem=self.problem.params,
+                               scheme=self.scheme.params,
+                               postprocessor=self.postprocessor.params)
+            self.postprocessor.store_params(params)
+            assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
+            self.postprocessor.store_mesh(self.problem.mesh)
+            self.timer.completed("stored mesh")
+            
         # FIXME: Pick other details to reuse from old ns script, here or other places
 
         scheme_namespace = self.scheme.solve(self.problem, self.update, self.timer)
 
         spaces = scheme_namespace["spaces"]
-        self.postprocessor.finalize_all(spaces, self.problem)
+        
+        if self.postprocessor != None:
+            self.postprocessor.finalize_all(spaces, self.problem)
 
         self._summarize()
         
@@ -173,7 +183,7 @@ class NSSolver(Parameterized):
         fr = self.params.check_memory_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            cbcflow_print('Memory usage is: %s' % get_memory_usage())       
+            cbcflow_print('Memory usage is: %s' % MPI.sum(get_memory_usage()))       
 
     def update(self, u, p, t, timestep, spaces):
         """Callback from scheme.solve after each timestep to handle update of
