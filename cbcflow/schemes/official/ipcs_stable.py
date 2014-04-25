@@ -140,6 +140,8 @@ class IPCS_Stable(NSScheme):
         rho = float(problem.params.rho)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
+        
+        timer.completed("create function spaces, functions and boundary conditions")
 
         # Tentative velocity step. Crank-Nicholson time-stepping is used for diffusion and convection.
         a1 = (1/k) * inner(v, u) * dx()
@@ -277,7 +279,6 @@ class IPCS_Stable(NSScheme):
                 u_ab[d].vector().zero()
                 u_ab[d].vector().axpy(1.5, u1[d].vector())
                 u_ab[d].vector().axpy(-0.5, u0[d].vector())
-                print u_ab[d].vector().norm('l2')    
             
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
