@@ -699,7 +699,7 @@ class NSPostProcessor(Parameterized):
             self._plot_pylab(field.name, data)
         else:
             cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
-        self._timer.completed("PP: plot %s" %name)
+        self._timer.completed("PP: plot %s" %field.name)
 
     def _plot_dolfin(self, field_name, data):
         "Plot field using dolfin plot command"
