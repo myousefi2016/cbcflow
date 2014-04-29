@@ -32,10 +32,10 @@ The original NSbench was written by
 Licence
 -------
 
-cbcflow is licensed under the GNU GPL, version 3 or (at your option) any
+cbcflow is licensed under the GNU LGPL, version 3 or (at your option) any
 later version.
 
-cbcflow is Copyright (2011-2013) by the authors and Simula Research Laboratory.
+cbcflow is Copyright (2011-2014) by the authors and Simula Research Laboratory.
 
 Documentation
 -------------
