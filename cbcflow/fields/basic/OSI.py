@@ -26,23 +26,11 @@ class OSI(PPField):
         self.osi = Function(tau.sub(0).function_space().collapse())
 
     def compute(self, pp, spaces, problem):
-        #pp.get("")
-        #try:
-        #    pp.get("TimeIntegral")
+        # Requires the fields Magnitude(TimeIntegral("WSS", label="OSI")) and
+        # TimeIntegral(Magnitude("WSS"), label="OSI")
         mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
         ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
         
         self.osi.assign(project(Constant(0.5)-Constant(0.5)*(mag_ta_wss/ta_mag_wss), self.osi.function_space()))
-        """
-        #import ipdb; ipdb.set_trace()
-        N = 1099
-        mesh = self.osi.function_space().mesh()
-        from dolfin import Vertex
-        from cbcflow.utils.common.utils import cbcflow_print
-        v = Vertex(mesh, N)
-        #print v.point().x(), v.point().y(), v.point().z()
-        
-        cbcflow_print("OSI: "+str(self.osi(v.point())))
-        """
         
         return self.osi
