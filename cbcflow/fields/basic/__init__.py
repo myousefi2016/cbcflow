@@ -73,5 +73,6 @@ basic_fields = [
     "Q",
     "Delta",
     "Lambda2",
+    "OSI",
     ]
 
