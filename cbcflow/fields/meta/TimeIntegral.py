@@ -19,27 +19,26 @@ from dolfin import Function
 
 class TimeIntegral(MetaPPField):
     def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+        u1 = pp.get(self.valuename)
+        u0 = pp.get(self.valuename, -1)
 
         t1 = pp.get("t")
         t0 = pp.get("t", -1)
         dt = t1 - t0
 
-        if isinstance(u, Function):
+        if isinstance(u0, Function):
             # Create placeholder for sum the first time
             if not hasattr(self, "_sum"):
-                self._sum = Function(u.function_space())
-            # Accumulate using backward euler integration
-            self._sum.vector().axpy(dt, u.vector()) # FIXME: Validate this, not tested!
+                self._sum = Function(u0.function_space())
+            # Accumulate using trapezoidal integration
+            self._sum.vector().axpy(dt/2.0, u0.vector()) # FIXME: Validate this, not tested!
+            self._sum.vector().axpy(dt/2.0, u1.vector()) 
         else:
             # Create placeholder for sum the first time
             if not hasattr(self, "_sum"):
                 self._sum = 0.0
-            # Accumulate using backward euler integration
-            self._sum += u
+            # Accumulate using trapezoidal integration
+            self._sum += dt/2.0*u0
+            self._sum += dt/2.0*u1
 
-        # Increase count and return sum
-        if not hasattr(self, "_count"):
-            self._count = 0
-        self._count += 1
         return self._sum
