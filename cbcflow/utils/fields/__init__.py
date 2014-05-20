@@ -17,6 +17,7 @@
 """Utility functions used by postprocessing fields."""
 
 from Slice import Slice
+from mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
 
 __all__ = [k for k,v in globals().items()
            if hasattr(v, "__module__")

@@ -25,6 +25,7 @@ meta_fields = [
     # Inspecting parts of fields
     "SubFunction",
     "PointEval",
+    "Boundary",
 
     # Spatial analysis of other fields
     "FlowRate",
