@@ -52,9 +52,12 @@ def mesh_to_boundarymesh_dofmap(boundary, V, Vb):
         
         if V_dm.num_entity_dofs(0) > 0:
             for v_idx in boundary_cell.entities(0):
-                if v_idx in boundary.topology().shared_entities(0):
-                    if boundary.topology().shared_entities(0)[v_idx] == MPI.process_number():
-                        continue
+                #if v_idx in boundary.topology().shared_entities(0):
+                    #print boundary.topology().shared_entities(0)[v_idx]
+                    #if boundary.topology().shared_entities(0)[v_idx] == MPI.process_number():
+                    #if MPI.process_number() in boundary.topology().shared_entities(0)[v_idx]:
+                        #print "hei"
+                        #continue
                 
                 mesh_v_idx = vertex_map[int(v_idx)]
 
