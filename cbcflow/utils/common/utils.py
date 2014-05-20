@@ -284,6 +284,7 @@ def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
 # --- I/O stuff ---
 def hdf5_link(hdf5filename, link_from, link_to):
     "Create internal link in hdf5 file"
+
     cpp_code = '''
     #include <hdf5.h>
     void link_dataset(const std::string hdf5_filename,

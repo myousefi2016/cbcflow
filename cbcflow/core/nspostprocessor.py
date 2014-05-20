@@ -528,6 +528,12 @@ class NSPostProcessor(Parameterized):
         # Global hash (same on all processes), 10 digits long
         hash = str(int(MPI.sum(int(local_hash.hexdigest(), 16))%1e10)).zfill(10)
         
+        #key = (field_name, saveformat)
+        #datafile = self._datafile_cache.get(key)
+        #if datafile is None:
+        #    datafile = HDF5File(fullname, 'w')
+        #    self._datafile_cache[key] = datafile
+        
         # Open HDF5File
         if not os.path.isfile(fullname):
             datafile = HDF5File(fullname, 'w')
@@ -544,15 +550,13 @@ class NSPostProcessor(Parameterized):
         # Write vector to file
         # TODO: Link vector when function has been written to hash
         datafile.write(data.vector(), field_name+str(timestep)+"/vector")
-        
-        datafile.flush()
-        datafile.close()
+
         del datafile        
         # Link information about function space from hash-dataset
         hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(timestep)+"/x_cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(timestep)+"/cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(timestep)+"/cells")
-
+        
         return metadata
 
     def _update_xml_file(self, field_name, saveformat, data, timestep, t):
