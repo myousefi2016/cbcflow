@@ -17,6 +17,7 @@
 """Utility functions common across cbcflow. """
 
 from utils import *
+from mpi_utils import *
 
 __all__ = [k for k,v in globals().items()
            if hasattr(v, "__module__")
