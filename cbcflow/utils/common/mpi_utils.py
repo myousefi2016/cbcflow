@@ -26,14 +26,15 @@ def broadcast(array, from_process):
         {
             int this_process = dolfin::MPI::process_number();
     
-            static std::vector<double> outvector(inarray.size());
+            std::vector<double> outvector(inarray.size());
     
             if(this_process == from_process) {
                 for(int i=0; i<inarray.size(); i++)
                 {
                     outvector[i] = inarray[i];
                 }
-            }    
+            }
+            dolfin::MPI::barrier();
             
             dolfin::MPI::broadcast(outvector, from_process);
             
@@ -160,10 +161,10 @@ def distribute_meshdata(cells, vertices):
                     vertices.pop(max(vertices))
             
             cells.pop(0)
-            
+        MPI.barrier()
         # Broadcast vertices in cell[0] on from_process
         v_in = broadcast(v_out, from_process)
-
+        MPI.barrier()
         # Create cell and vertices on to_process
         if MPI.process_number() == to_process:
             for i in xrange(v_per_cell):
