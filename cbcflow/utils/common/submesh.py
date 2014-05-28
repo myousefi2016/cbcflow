@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.utils.common.mpi_utils import (broadcast, distribute_meshdata,
                                             distribution, gather)
-from dolfin import MPI, Mesh, MeshEditor
+from dolfin import MPI, Mesh, MeshEditor, LocalMeshData
 import numpy as np  
 
 def create_submesh(mesh, markers, marker):
@@ -45,7 +45,9 @@ def create_submesh(mesh, markers, marker):
     # Gather all shared process on process 0 and assign global index
     all_shared_global_indices = gather(shared_global_indices, on_process=0, flatten=True)
     all_shared_global_indices = np.unique(all_shared_global_indices)
-
+    
+    
+    
     shared_base_to_sub_global_indices = {}
     idx = int(MPI.max(float(max(base_to_sub_global_indices.values()+[-1e16])))+1)
     if MPI.process_number() == 0:
@@ -107,6 +109,10 @@ def create_submesh(mesh, markers, marker):
 
     submesh.topology().init_global(0, global_num_vertices)
     submesh.topology().init_global(mesh.ufl_cell().topological_dimension(), global_num_cells)
+    
+    # FIXME: Set up shared entities
+    # What damage does this do?
+    submesh.topology().shared_entities(0)[0] = []
 
     return submesh
         
@@ -153,7 +159,7 @@ if __name__ == '__main__':
     #File("submesh.xdmf") << submesh
     
     
-    V = FunctionSpace(submesh, "CG", 1)
+    V = FunctionSpace(submesh, "CG", 2)
     expr = Expression("x[0]*x[1]*x[1]+4*x[2]")
     u = project(expr, V)
     
