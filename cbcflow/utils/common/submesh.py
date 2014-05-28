@@ -20,15 +20,17 @@ from dolfin import MPI, Mesh, MeshEditor
 import numpy as np  
 
 def create_submesh(mesh, markers, marker):
-    "This function allows for SubMesh to be created in parallel"
+    "This function allows for a SubMesh-equivalent to be created in parallel"
+
     base_cell_indices = np.where(markers.array() == marker)[0]
     base_cells = mesh.cells()[base_cell_indices]
     base_vertex_indices = np.unique(base_cells.flatten())
     
     base_global_vertex_indices = sorted([mesh.topology().global_indices(0)[vi] for vi in base_vertex_indices])
     
-    shared_global_indices = [mesh.topology().global_indices(0)[vi] for vi in base_vertex_indices
-                             if vi in mesh.topology().shared_entities(0)]
+    gi = mesh.topology().global_indices(0)
+    shared_global_indices = set(base_vertex_indices).intersection(set(mesh.topology().shared_entities(0).keys()))
+    shared_global_indices = [gi[vi] for vi in shared_global_indices]
     
     unshared_global_indices = list(set(base_global_vertex_indices)-set(shared_global_indices))
     unshared_vertices_dist = distribution(len(unshared_global_indices))
@@ -43,7 +45,7 @@ def create_submesh(mesh, markers, marker):
     # Gather all shared process on process 0 and assign global index
     all_shared_global_indices = gather(shared_global_indices, on_process=0, flatten=True)
     all_shared_global_indices = np.unique(all_shared_global_indices)
-    
+
     shared_base_to_sub_global_indices = {}
     idx = int(MPI.max(float(max(base_to_sub_global_indices.values()+[-1e16])))+1)
     if MPI.process_number() == 0:
@@ -72,11 +74,11 @@ def create_submesh(mesh, markers, marker):
     for base_local, sub_local in base_to_sub_local_indices.items():
         sub_vertices[sub_local] = (base_to_sub_global_indices[mesh.topology().global_indices(0)[base_local]],
                                mesh.coordinates()[base_local])
-
+    
     ## Done with base mesh
 
     # Distribute meshdata on (if any) empty processes
-    sub_cells, sub_vertices = distribute_meshdata(sub_cells, sub_vertices)    
+    sub_cells, sub_vertices = distribute_meshdata(sub_cells, sub_vertices)
     global_cell_distribution = distribution(len(sub_cells))
     global_vertex_distribution = distribution(len(sub_vertices))
 
@@ -98,6 +100,7 @@ def create_submesh(mesh, markers, marker):
         mesh_editor.add_cell(index, *cell)
 
     for local_index, (global_index, coordinates) in sub_vertices.items():
+        #print coordinates
         mesh_editor.add_vertex_global(int(local_index), int(global_index), coordinates)
 
     mesh_editor.close()
