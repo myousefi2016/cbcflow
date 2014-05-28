@@ -16,7 +16,9 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np  
 from cbcflow.utils.common.mpi_utils import broadcast
+from cbcflow.utils.common.utils import cbcflow_warning
 from scipy.spatial.ckdtree import cKDTree as KDTree
+from dolfin import MPI
 
 def restriction_map(V, Vb):
     "Return a map between dofs in Vb to dofs in V. Vb's mesh should be a submesh of V's Mesh."
@@ -25,7 +27,7 @@ def restriction_map(V, Vb):
         cbcflow_warning("This function is only tested for CG-spaces. \
                         Will not work if several dofs are associated with same point (e.g. DG-spaces).")
     
-    assert V.ufl_element() == Vb.ufl_element()
+    assert V.ufl_element() == Vb.ufl_element(), "ufl elements differ in the two spaces"
     
     # Recursively call this function if V has sub-spaces
     if V.num_sub_spaces() > 0:

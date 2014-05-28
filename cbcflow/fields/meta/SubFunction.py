@@ -23,7 +23,8 @@ def import_fenicstools():
     return fenicstools
 
 class SubFunction(PPField):
-    def __init__(self, field, submesh, params=None, label=None):
+    "SubFunction is used to interpolate a PPField on a non-matching mesh"
+    def __init__(self, field, mesh, params=None, label=None):
         PPField.__init__(self, params, label)
         
         import imp
@@ -34,7 +35,7 @@ class SubFunction(PPField):
 
         self._ft = import_fenicstools()
 
-        self.submesh = submesh
+        self.mesh = mesh
 
         # Store only name, don't need the field
         if isinstance(field, PPField):
@@ -56,12 +57,12 @@ class SubFunction(PPField):
         degree = element.degree()
         
         if u.rank() == 1:
-            FS = VectorFunctionSpace(self.submesh, family, degree)
+            FS = VectorFunctionSpace(self.mesh, family, degree)
             FS_scalar = FS.sub(0).collapse()
             self.us = Function(FS_scalar)
 
         elif u.rank() == 0:
-            FS = FunctionSpace(self.submesh, family, degree)
+            FS = FunctionSpace(self.mesh, family, degree)
         else:
             raise Exception("Does not support TensorFunctionSpace yet")
         
@@ -74,10 +75,11 @@ class SubFunction(PPField):
             u = u.split()
             U = []
             for _u in u:
-                U.append(self._ft.interpolate_nonmatching_mesh(_u, self.us))
+                U.append(self._ft.interpolate_nonmatching_mesh(_u, self.us.function_space()))
 
-            self.u.assign(project(as_vector(U)))
+            self.u.assign(project(as_vector(U), self.u.function_space()))
 
         elif u.rank() == 0:
-            self.u.assign(self._ft.interpolate_nonmatching_mesh(u, self.u))
+            U = self._ft.interpolate_nonmatching_mesh(u, self.u.function_space())
+            self.u.assign(project(U, self.u.function_space()))
         return self.u
