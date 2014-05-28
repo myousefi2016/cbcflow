@@ -40,5 +40,11 @@ class TimeIntegral(MetaPPField):
             # Accumulate using trapezoidal integration
             self._sum += dt/2.0*u0
             self._sum += dt/2.0*u1
-
-        return self._sum
+            
+        ts = pp.get("timestep")
+        if (t1+dt > self.params.end_time
+            or ts == self.params.end_timestep
+            or t1+dt > problem.params.T):
+            return self._sum
+        else:
+            return None
