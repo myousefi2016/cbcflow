@@ -24,6 +24,8 @@ class Maximum(MetaPPField):
         
         if isinstance(u, Function):
             return MPI.max(numpy.max(u.vector().array()))
-        else:
+        elif u != None:
             return MPI.max(max(u))
+        else:
+            return None
         

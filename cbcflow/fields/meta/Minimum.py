@@ -24,6 +24,8 @@ class Minimum(MetaPPField):
         
         if isinstance(u, Function):
             return MPI.min(numpy.min(u.vector().array()))
-        else:
+        elif u != None:
             return MPI.min(min(u))
+        else:
+            return None
         
