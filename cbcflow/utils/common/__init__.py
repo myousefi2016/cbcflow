@@ -18,6 +18,8 @@
 
 from utils import *
 from mpi_utils import *
+from submesh import *
+from restriction_map import *
 
 __all__ = [k for k,v in globals().items()
            if hasattr(v, "__module__")
