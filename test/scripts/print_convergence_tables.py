@@ -20,16 +20,20 @@ def print_table(scheme_data, problem_data, case_data, write=sys.stdout.write):
     print "Problem: ", problem_data["name"]
     print "Problem parameters:"
     print problem_data["params"]
-
+    
     # Loop over fields
     fields = case_data.pop("fields")
     for f in fields:
         print
         print f
+        
+        
 
         # Get row and column values
-        dts = reversed(sorted(case_data.keys()))
+        dts = list(reversed(sorted(case_data.keys())))
         refinement_levels = sorted(set(chain(*(case_data[dt].keys() for dt in dts))))
+        
+        #print dts, refinement_levels
 
         # Write column headers
         if dts:
@@ -42,7 +46,7 @@ def print_table(scheme_data, problem_data, case_data, write=sys.stdout.write):
             # Row header
             write(align.format(dt))
             # Row values
-            for refinement_level in refinement_level:
+            for refinement_level in refinement_levels:
                 value = case_data[dt][refinement_level].get(f)
                 err = "N/A" if value is None else ("%.4e"  % value)
                 write(align.format(err))
@@ -56,6 +60,7 @@ def read_tables(folder):
     table_dict = {}
     for f in glob.glob(os.path.join(folder, "*.db")):
         datafile = dict(shelve.open(f, 'r'))
+        #import ipdb; ipdb.set_trace()
 
         # Unused:
         #num_dofs = datafile["metadata"]["num_dofs"]
@@ -70,6 +75,8 @@ def read_tables(folder):
 
         # The next layer of table_dict is indexed by the hash of problem data
         problem_data = datafile["metadata"]["problem"]
+        dt = problem_data["params"].pop("dt")
+        refinement_level = problem_data["params"].pop("refinement_level")
         problem_hash = sha1(str(problem_data)).hexdigest()
         if not problem_hash in table_dict[scheme_hash]:
             table_dict[scheme_hash][problem_hash] = {}
@@ -80,11 +87,9 @@ def read_tables(folder):
         case_data = table_dict[scheme_hash][problem_hash]
 
         # This will be indexed as case_data[dt][refinement_level] so build that structure
-        dt = problem_data["params"].pop("dt")
         if dt not in case_data:
             case_data[dt] = {}
-
-        refinement_level = problem_data["params"].pop("refinement_level")
+        
         if refinement_level not in case_data[dt]:
             case_data[dt][refinement_level] = {}
 
@@ -111,7 +116,8 @@ def print_all_tables(table_dict):
             print_table(scheme_data, problem_data, case_data)
 
 def main():
-    folder = 'cbcflow-reference-data'
+    #folder = 'cbcflow-reference-data'
+    folder = 'output'
     table_dict = read_tables(folder)
     print_all_tables(table_dict)
 
