@@ -20,6 +20,9 @@ from dolfin import assemble, dx, Function, Constant
 class DomainAvg(MetaPPField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
+        
+        if u == None:
+            return
 
         # Find mesh/domain
         if isinstance(u, Function):

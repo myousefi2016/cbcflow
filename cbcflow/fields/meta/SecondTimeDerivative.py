@@ -27,7 +27,10 @@ class SecondTimeDerivative(MetaPPField):
         t1 = pp.get("t", -1)
         t0 = pp.get("t", -2)
         dt1 = t2 - t1
+        if dt1 == 0: dt1 = 1e-14 # Avoid zero-division
+            
         dt0 = t1 - t0
+        if dt0 == 0: dt0 = 1e-14 # Avoid zero-division
 
         # Computing d2u/dt2 as if t1 = 0.5*(t2+t0), i.e. assuming fixed timesteps
         # TODO: Find a more accurate formula if dt1 != dt0?

@@ -34,31 +34,9 @@ class Restrict(MetaPPField):
         
     @property
     def name(self):
-        n = "Restriction_%s" % self.valuename
+        n = "Restrict_%s" % self.valuename
         if self.label: n += "_"+self.label
         return n
-    
-    def before_first_compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
-        
-        if not isinstance(u, Function):
-            cbcflow_warning("Do not understand how to handle datatype %s" %str(type(u)))
-            return None
-        
-        V = u.function_space()
-        element = V.ufl_element()        
-        family = element.family()
-        degree = element.degree()
-        
-        if u.rank() == 0: FS = FunctionSpace(self.submesh, family, degree)
-        elif u.rank() == 1: FS = VectorFunctionSpace(self.submesh, family, degree)
-        elif u.rank() == 2: FS = TensorFunctionSpace(self.submesh, family, degree)
-        
-        self.u = Function(FS)
-            
-        self.restriction_map = restriction_map(V, FS)
-        
-        
     
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
@@ -66,6 +44,21 @@ class Restrict(MetaPPField):
         if not isinstance(u, Function):
             cbcflow_warning("Do not understand how to handle datatype %s" %str(type(u)))
             return None
+        
+        if not hasattr(self, "restriction_map"):
+            V = u.function_space()
+            element = V.ufl_element()        
+            family = element.family()
+            degree = element.degree()
+            
+            if u.rank() == 0: FS = FunctionSpace(self.submesh, family, degree)
+            elif u.rank() == 1: FS = VectorFunctionSpace(self.submesh, family, degree)
+            elif u.rank() == 2: FS = TensorFunctionSpace(self.submesh, family, degree)
+            
+            self.u = Function(FS)
+                
+            self.restriction_map = restriction_map(V, FS)
+            
         
         self.u.vector()[self.restriction_map.keys()] = u.vector()[self.restriction_map.values()]
         
