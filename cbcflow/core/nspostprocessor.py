@@ -18,7 +18,8 @@
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.utils.core.strip_code import strip_code
-from cbcflow.utils.common import cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process, in_serial, Timer
+from cbcflow.utils.common import (cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process,
+                                  in_serial, Timer, cbcflow_log)
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
@@ -72,7 +73,7 @@ class DependencyException(Exception):
         if dependency:
             message += ["Dependency %s not functioning." % dependency]
         if timestep:
-            message += ["Relative timestep is %d. Are you trying to calculate time-derivatives at t=0?" % (fieldname, timestep)]
+            message += ["Relative timestep is %d. Are you trying to calculate time-derivatives at t=0?" % (timestep)]
         if original_exception_msg:
             message += ["\nOriginal exception was: " + original_exception_msg]
         message = ' '.join(message)
@@ -99,12 +100,18 @@ class NSPostProcessor(Parameterized):
 
         # Plan of what to compute now and in near future
         self._plan = defaultdict(lambda: defaultdict(int))
+        
+        # Keep track of which fields have been finalized
+        self._finalized = {}
 
         # Cache of computed values needed for planned computations
         self._cache = defaultdict(dict)
 
         # Keep track of how many times .get has called each field.compute, for administration:
         self._compute_counts = defaultdict(int) # Actually only used for triggering "before_first_compute"
+        
+        # Keep track of how many times update_all has been called
+        self._update_all_count = 0
 
         # Keep track of last (time, timestep) computation of each field was triggered directly
         self._last_trigger_time = defaultdict(lambda: (-1e16,-1e16))
@@ -131,6 +138,7 @@ class NSPostProcessor(Parameterized):
         params = ParamDict(
             casedir=".",
             enable_timer=False,
+            extrapolate=True,
             )
         return params
 
@@ -151,8 +159,9 @@ class NSPostProcessor(Parameterized):
     def find_dependencies(self, field):
         "Read dependencies from source code in field.compute function"
         
-        # Get source
+        # Get source of compute and after_last_compute
         s = inspect.getsource(field.compute)
+        s += inspect.getsource(field.after_last_compute)
         s = strip_code(s) # Removes all comments, empty lines etc.
 
         # Remove comment blocks
@@ -202,7 +211,7 @@ class NSPostProcessor(Parameterized):
 
             # Append to dependencies
             deps.append(tuple(dep))
-
+            
         # Make unique (can happen that deps are repeated in rare cases)
         return sorted(set(deps))
 
@@ -216,9 +225,9 @@ class NSPostProcessor(Parameterized):
                 # Field of this name already exists, no need to add it again
                 return self._fields[field]
             elif field in basic_fields:
-                # Create a proper field object from known field name with default params
-                #field = field_classes[field](params=None)
-                field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) # ?Why not None?
+                # Create a proper field object from known field name with negative end time,
+                # so that it is never triggered directly
+                field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) 
             elif field in meta_fields:
                 error("Meta field %s cannot be constructed by name because the field instance requires parameters." % field)
             else:
@@ -229,8 +238,11 @@ class NSPostProcessor(Parameterized):
         # This is a bit unsafe though, the user might add a field twice with different parameters...
         # Check that at least the same name is not used for different field classes:
         assert type(field) == type(self._fields.get(field.name,field))
+        
+        # Add fields explicitly specified by field
+        self.add_fields(field.add_fields())
 
-        # Analyse dependencies of field through magic
+        # Analyze dependencies of field through source inspection
         deps = self.find_dependencies(field)
 
         # Add dependent fields to self._fields (this will add known fields by name)
@@ -243,12 +255,16 @@ class NSPostProcessor(Parameterized):
         for dep in deps:
             depname, ts = dep
             for fdep in self._full_dependencies[depname]:
+                # Sort out correct (relative) timestep of dependency
+                fdepname, fts = fdep
+                fts += ts
+                fdep = (fdepname, fts)
                 if fdep not in existing_full_deps:
                     existing_full_deps.add(fdep)
                     full_deps.append(fdep)
             existing_full_deps.add(dep)
             full_deps.append(dep)
-
+        
         # Add field to internal data structures
         self._fields[field.name] = field
         self._dependencies[field.name] = deps
@@ -266,19 +282,18 @@ class NSPostProcessor(Parameterized):
         "Check if field is to be computed at current time"
         # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
         # it's easy to swap here with e.g. fp = self._field_params[field.name]
+        
         fp = field.params
 
         # Limit by timestep interval
         s = fp.start_timestep
         e = fp.end_timestep
-        #if s > timestep or timestep > e:
         if not (s <= timestep <= e):
             return False
 
         # Limit by time interval
         s = fp.start_time
         e = fp.end_time
-        #if s > t or t > e:
         eps = 1e-10
         if not (s-eps <= t <= e+eps):
             return False
@@ -293,22 +308,65 @@ class NSPostProcessor(Parameterized):
         # Accept!
         return True
 
-    def get(self, name, timestep=0):
-        """Get the value of a named field at a particular.
+    def _should_finalize_at_this_time(self, field, t, timestep):
+        "Check if field is completed"
+        # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
+        # it's easy to swap here with e.g. fp = self._field_params[field.name]
+        fp = field.params
+        
+        if not fp["finalize"]:
+            return False
+
+        e = fp.end_timestep
+        if e <= timestep:
+            return True
+
+        # Limit by time interval
+        e = fp.end_time
+        eps = 1e-10
+        if e-eps < t:
+            return True
+        
+        # Not completed
+        return False
+
+    def get(self, name, timestep=0, compute=True, finalize=False):
+        """Get the value of a named field at a particular timestep.
 
         The timestep is relative to now.
         Values are computed at first request and cached.
         """
+        # Check cache
+        c = self._cache[timestep]
+        data = c.get(name, "N/A")
+        
+        # Check if field has been finalized, and if so,
+        # return finalized value
+        if name in self._finalized and data == "N/A":
+            if compute:
+                cbcflow_warning("Field %s has already been finalized. Will not call compute on field." %name)
+            return self._finalized[name]
+        
         # Hack to access the spaces and problem arguments to update()
         spaces = self._spaces
         problem = self._problem
-
-        # Check cache
-        c = self._cache[timestep]
-        data = c.get(name)
-
+        
+        # Are we attempting to get value from before update was started?
+        # Use constant extrapolation if allowed.
+        if abs(timestep) > self._update_all_count:
+            assert data == "N/A", "Should not be able to get data from before simulation was started"
+            if self.params.extrapolate:
+                cbcflow_log(20, "Extrapolating %s from %d to %d" %(name, timestep, -self._update_all_count))
+                data = self.get(name, -self._update_all_count, compute, finalize)
+                c[name] = data
+            else:
+                raise RuntimeError("Unable to get data from before update was started. \
+                                   (%s, timestep: %d, update_all_count: %d)" %(name, timestep, self._update_all_count))
+        t = c.get("t")
+        #if t >= 1.9 and name == "Magnitude_WSS":
+        #    import ipdb; ipdb.set_trace()
         # Cache miss?
-        if data is None:
+        if data == "N/A":
             if timestep == 0:
                 # Ensure before_first_compute is always called once initially
                 field = self._fields[name]
@@ -319,13 +377,19 @@ class NSPostProcessor(Parameterized):
                     self._timer.completed("PP: before first compute %s" %name)
 
                 # Compute value
-                t0 = timeit()
-                if not name in self._solution:
-                    data = field.compute(self, spaces, problem)
-                elif self._solution[name]:
+                if name in self._solution:
                     data = field.convert(self, spaces, problem)
-                self._compute_counts[field.name] += 1
-                self._timer.completed("PP: compute %s" %name)
+                else:
+                    if compute:
+                        data = field.compute(self, spaces, problem)
+                        self._compute_counts[field.name] += 1
+                        self._timer.completed("PP: compute %s" %name)
+                    if finalize:
+                        finalized_data = field.after_last_compute(self, spaces, problem)
+                        if finalized_data not in [None, "N/A"]:
+                            data = finalized_data
+                        self._finalized[name] = data
+                        self._timer.completed("PP: finalize %s" %name)
 
                 # Copy functions to avoid storing references to the same function objects at each timestep
                 # NB! In other cases we assume that the fields return a new object for every compute!
@@ -340,7 +404,7 @@ class NSPostProcessor(Parameterized):
             else:
                 # Cannot compute missing value from previous timestep,
                 # dependency handling must have failed
-                raise DependencyException(name, timestep)
+                raise DependencyException(name, timestep=timestep)
 
         return data
 
@@ -368,6 +432,9 @@ class NSPostProcessor(Parameterized):
             self._callback(field, data, self.get("t"), self.get("timestep"))
 
     def _get_save_formats(self, field, data):
+        if data == None:
+            return []
+        
         if field.params.save_as == PPField.default_save_as():
             # Determine proper file formats from data type if not specifically provided
             if isinstance(data, Function):
@@ -408,7 +475,6 @@ class NSPostProcessor(Parameterized):
                         if os.path.isfile(os.path.join(self.get_casedir(), f)):
                             os.remove(os.path.join(self.get_casedir(), f))
 
-
     def _create_casedir(self):
         casedir = self.params.casedir
         safe_mkdir(casedir)
@@ -447,7 +513,7 @@ class NSPostProcessor(Parameterized):
             metadata_file = shelve.open(metadata_filename)
 
             # Store some data the first time
-            if "type" not in metadata_file:
+            if "type" not in metadata_file and data != None:
                 # Data about type and formats
                 metadata_file["type"] = type(data).__name__
                 metadata_file["saveformats"] = list(set(save_as+metadata_file.get("saveformats", [])))
@@ -650,9 +716,6 @@ class NSPostProcessor(Parameterized):
         t = self.get("t")
         timestep = self.get('timestep')
 
-        # Get list of file formats
-        save_as = self._get_save_formats(field, data)
-
         # Collect metadata shared between data types
         metadata = {
             'timestep': timestep,
@@ -665,7 +728,10 @@ class NSPostProcessor(Parameterized):
         # object like we do for plotting, or?
         if isinstance(data, Function):
             data.rename(field_name, "Function produced by cbcflow postprocessing.")
-
+        
+        # Get list of file formats
+        save_as = self._get_save_formats(field, data)
+        
         # Write data to file for each filetype
         for saveformat in save_as:
             # Write data to file depending on type
@@ -692,9 +758,11 @@ class NSPostProcessor(Parameterized):
         
         self._fill_play_log(field, timestep, save_as)
 
-
     def _action_plot(self, field, data):
         "Apply the 'plot' action to computed field data."
+        if data == None:
+            return
+        
         if disable_plotting():
             return
         if isinstance(data, Function):
@@ -816,35 +884,51 @@ class NSPostProcessor(Parameterized):
 
         self._rollback_plan(t, timestep)
 
-        # Loop over all fields that are triggered for computation at this timestep
-        triggered_fields = [(name, field) for name, field in self._fields.iteritems()
-                            if self._should_compute_at_this_time(field, t, timestep)]
+        # TODO: Allow for varying timestep
+        #min_dt_factor = 0.5
+        #max_dt_factor = 2.0
+        dt = self._problem.params.dt
+        
+        # Loop over all fields that and trigger for computation
+        for name, field in self._fields.iteritems():
+            full_deps = self._full_dependencies[name]
+            offset = abs(min([ts for depname, ts in full_deps]+[0]))
+            
+            # Check if field should be computed in this or the next timesteps,
+            # and plan dependency computations accordingly
+            # TODO: Allow for varying timestep
+            for i in range(offset+1):
+                ti = t+i*dt
+                if self._should_compute_at_this_time(field, ti, timestep+i):
+                    if i == 0:
+                        # Store compute trigger times to keep track of compute intervals
+                        self._last_trigger_time[field.name] = (t, timestep)
+                        
+                    self._insert_deps_in_plan(name, i)
+                    
+                    oldttk = self._plan[0].get(name, 0)
+                    ttk = max(oldttk, i)
+                    self._plan[i][name] = ttk
 
-        for name, field in triggered_fields:
-            deps = self._full_dependencies[name]
-            if deps:
-                # Need to plan ahead this many steps (ts is non-positive)
-                offset = abs(min(ts for depname, ts in deps))
-                # Plan computation of dependenices:
-                for depname, ts in deps:
-                    # Store how long we need to cache this computation, highest of offset and old plan
-                    oldttk = self._plan[ts+offset].get(depname, 0)
-                    ttk = max(oldttk, offset)
-                    self._plan[ts+offset][depname] = ttk
-            else:
-                # No planning ahead, compute right away
-                offset = 0
-
-            # Plan computation of this field:
-            oldttk = self._plan[offset].get(name, 0)
+    def _insert_deps_in_plan(self, name, offset):
+        "Insert dependencies recursively in plan"
+        deps = self._dependencies[name]
+        for depname, ts in deps:
+            # Find time-to-keep
+            oldttk = self._plan[ts+offset].get(depname, 0)
+            #ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname]))+ts
             ttk = max(oldttk, offset)
-            self._plan[offset][name] = ttk
 
-            # Store compute trigger times to keep track of compute intervals
-            self._last_trigger_time[field.name] = (t, timestep)
+            # Insert in plan if able to compute
+            if offset+ts >= 0:
+                self._plan[offset+ts][depname] = ttk
+            
+                new_offset = offset+ts
+                self._insert_deps_in_plan(depname, new_offset)
 
     def _execute_plan(self, t, timestep):
         "Check plan and compute fields in plan."
+        
         # Initialize cache for current timestep
         assert not self._cache[0], "Not expecting cached computations at this timestep before plan execution!"
         self._cache[0] = {
@@ -852,48 +936,39 @@ class NSPostProcessor(Parameterized):
             "timestep": timestep,
             }
         # Loop over all planned field computations
-        fields_to_compute = [name for name in self._sorted_fields_keys if name in self._plan[0]]
-        for name in fields_to_compute:
-            field = self._fields[name]
-            # Execute computation through get call
-            try:
-                data = self.get(name)
-            except DependencyException as e:
-                cbcflow_warning(e.message)
-                data = None
+        fields_to_get = [name for name in self._sorted_fields_keys
+                         if name in self._plan[0]
+                         or self._should_finalize_at_this_time(self._fields[name], t, timestep)]
 
+        #for name in fields_to_get:
+        for name in self._sorted_fields_keys:
+            if name in self._plan[0]:
+                compute = True
+            else:
+                compute = False
+            
+            field = self._fields[name]    
+            if self._should_finalize_at_this_time(field, t, timestep):
+                finalize = True
+            else:
+                finalize = False
+            
+            # If neither finalize or compute triggers, continue
+            if not (finalize or compute):
+                continue
+            
+            # Execute computation through get call
+            data = self.get(name, compute=compute, finalize=finalize)
+            
             # Apply action if it was triggered directly this timestep (not just indirectly)
-            if (data is not None) and (self._last_trigger_time[name][1] == timestep):
+            #if (data is not None) and (self._last_trigger_time[name][1] == timestep):
+            if self._last_trigger_time[name][1] == timestep:
                 for action in ["save", "plot", "callback"]:
                     if field.params[action]:
                         self._apply_action(action, field, data)
 
-        if 0: # Debugging:
-            s1 = set(fields_to_compute)
-            s2 = set(self._cache[0])
-            s2.remove("t")
-            s2.remove("timestep")
-            s2m1 = s2 - s1
-            s1m2 = s1 - s2
-            if s2m1 or s1m2:
-                print "\nCompute lists differ:"
-                print sorted(s2m1) #s2-s1 = fields in s2 but not in s1, that is in expected cache but not in computation list
-                print sorted(s1m2)
-                print "Plan is:"
-                print self._plan[0]
-                print "Sorted field keys:"
-                print self._sorted_fields_keys
-                print "fields_to_compute:"
-                print fields_to_compute
-                print "cache[0]:"
-                print self._cache[0]
-                print
-        
-        # Wrong: Try adding e.g. TimeDerivative("Stress") only to a postprocessor. This check fails, but planning algorithm seems correct
-        #assert len(fields_to_compute) == len(self._cache[0])-2, "This should hold if planning algorithm works properly?"
-        
-
     def _update_cache(self):
+        "Update cache, remove what can be removed"
         new_cache = defaultdict(dict)
         # Loop over cache plans for each timestep
         for ts, plan in self._plan.iteritems():
@@ -904,8 +979,8 @@ class NSPostProcessor(Parameterized):
             for name, ttk in plan.iteritems():
                 if ttk > 0:
                     # Cache should contain old cached values at ts<0 and newly computed values at ts=0
-                    data = self._cache[ts].get(name)
-                    assert data is not None, "Missing cache data!"
+                    data = self._cache[ts].get(name, "N/A")
+                    assert data is not "N/A", "Missing cache data!"
                     # Insert data in new cache at position ts-1
                     new_cache[ts-1][name] = data
         self._cache = new_cache
@@ -929,6 +1004,8 @@ class NSPostProcessor(Parameterized):
 
         # Compute what's needed according to plan
         self._execute_plan(t, timestep)
+        
+        self._update_all_count += 1
 
         # Reset hack to make these objects available throughout during update, to
         # make sure these objects are not referenced after this update call is over
@@ -948,6 +1025,9 @@ class NSPostProcessor(Parameterized):
         "Finalize all PPFields after last timestep has been computed."
         for name in self._sorted_fields_keys:
             field = self._fields[name]
-            finalize_data = field.after_last_compute(self, spaces, problem)
-            if finalize_data is not None and field.params["save"]:
-                self._finalize_metadata_file(name, finalize_data)
+            if field.params.finalize and name not in self._finalized:
+                self.get(name, compute=False, finalize=True)
+                
+            #finalize_data = field.after_last_compute(self, spaces, problem)
+            #if finalize_data is not None and field.params["save"]:
+            #    self._finalize_metadata_file(name, finalize_data)
