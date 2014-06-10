@@ -18,6 +18,9 @@ set_log_level(100)
 class NoOutput():
     def write(self, s):
         pass
+    
+    def flush(self):
+        pass
 
 def l2norm(val, ref):
     if isinstance(val, (float, int)):
