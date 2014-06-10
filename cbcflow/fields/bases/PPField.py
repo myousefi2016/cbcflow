@@ -67,6 +67,9 @@ class PPField(Parameterized):
             
             # Solution switch
             is_solution = False,
+            
+            # Finalize field?
+            finalize = False,
             )
         return params
 
@@ -78,6 +81,9 @@ class PPField(Parameterized):
         return n
 
     # --- Main interface
+    def add_fields(self):
+        "Specify any specific fields used in this field. Could be e.g. definite integrals."
+        return []
 
     def before_first_compute(self, pp, spaces, problem):
         "Called prior to the simulation timeloop."
@@ -85,7 +91,7 @@ class PPField(Parameterized):
 
     def after_last_compute(self, pp, spaces, problem):
         "Called after the simulation timeloop."
-        pass
+        return "N/A"
 
     def compute(self, pp, spaces, problem):
         "Called each time the quantity should be computed."
