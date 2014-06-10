@@ -16,21 +16,71 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcflow.fields.bases.PPField import PPField
+from cbcflow.fields.meta.Magnitude import Magnitude
+from cbcflow.fields.meta.TimeIntegral import TimeIntegral
 
 from dolfin import Function, project, Constant
 
-class OSI(PPField):    
+class OSI(PPField):
+    @classmethod
+    def default_params(cls):
+        params = PPField.default_params()
+        params.update(
+            finalize=True,
+            )
+        return params
+    
+    def add_fields(self):
+        params = self.params.copy_recursive()
+        params["save"] = False
+        params["plot"] = False
+        params["callback"] = False
+        #params.pop("finalize")
+
+        fields = []
+        #return fields
+        f = TimeIntegral("WSS", params=params, label="OSI")
+        fields.append(f)
+        fields.append(Magnitude(f, params=params))
+        f = Magnitude("WSS", params=params)
+        fields.append(f)
+        fields.append(TimeIntegral(f, params=params, label="OSI"))
+        
+        #f = TimeIntegral("WSS", label="OSI")
+        #fields.append(f)
+        #fields.append(Magnitude(f))
+        #f = Magnitude("WSS")
+        #fields.append(f)
+        #fields.append(TimeIntegral(f, label="OSI"))
+                
+        return fields
+        
     def before_first_compute(self, pp, spaces, problem):
         tau = pp.get("WSS")
-        
         self.osi = Function(tau.sub(0).function_space().collapse())
 
     def compute(self, pp, spaces, problem):
         # Requires the fields Magnitude(TimeIntegral("WSS", label="OSI")) and
         # TimeIntegral(Magnitude("WSS"), label="OSI")
-        mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
-        ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
+        #self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
+        #self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
+        self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
+        self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
         
-        self.osi.assign(project(Constant(0.5)-Constant(0.5)*(mag_ta_wss/ta_mag_wss), self.osi.function_space()))
+        if not self.params.finalize:
+            self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))
+            return self.osi
+        else:
+            return None
+        
+        #if mag_ta_wss == None or ta_mag_wss == None:
+        #    return None
+    
+    def after_last_compute(self, pp, spaces, problem):
+        self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
+        self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
+        #print self.name, " Calling after_last_compute"
+
+        self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))
         
         return self.osi
