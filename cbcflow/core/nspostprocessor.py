@@ -353,8 +353,7 @@ class NSPostProcessor(Parameterized):
         
         # Are we attempting to get value from before update was started?
         # Use constant extrapolation if allowed.
-        if abs(timestep) > self._update_all_count:
-            assert data == "N/A", "Should not be able to get data from before simulation was started"
+        if abs(timestep) > self._update_all_count and data == "N/A":
             if self.params.extrapolate:
                 cbcflow_log(20, "Extrapolating %s from %d to %d" %(name, timestep, -self._update_all_count))
                 data = self.get(name, -self._update_all_count, compute, finalize)
@@ -363,8 +362,7 @@ class NSPostProcessor(Parameterized):
                 raise RuntimeError("Unable to get data from before update was started. \
                                    (%s, timestep: %d, update_all_count: %d)" %(name, timestep, self._update_all_count))
         t = c.get("t")
-        #if t >= 1.9 and name == "Magnitude_WSS":
-        #    import ipdb; ipdb.set_trace()
+
         # Cache miss?
         if data == "N/A":
             if timestep == 0:
