@@ -116,7 +116,7 @@ def main():
         T1 = problem.params.T
         fields = []
         
-        plot = False
+        plot = True
         
         # Basic fields
         fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
@@ -135,17 +135,24 @@ def main():
         from cbcflow.utils.fields.Slice import Slice
         
         submesh = create_submesh(problem.mesh, problem.cell_domains, 1)
-        fields.append(Restrict("Velocity", submesh, dict(save=True)))
+        fields.append(Restrict("Velocity", submesh, dict(save=True, plot=plot)))
+
+        # Need mpi4py for SubFunction        
+        try:
+            import mpi4py
+        except:
+            mpi4py = None
         
-        slicemesh = Slice(problem.mesh, (54.8, 44.0, 33.1), (-0.23, -0.10, 0.97))
-        fields.append(SubFunction("Velocity", slicemesh, dict(save=True)))
-        fields.append(SubFunction("Pressure", slicemesh, dict(save=True)))
-        
+        if mpi4py != None:          
+            slicemesh = Slice(problem.mesh, (54.8, 44.0, 33.1), (-0.23, -0.10, 0.97))
+            fields.append(SubFunction("Velocity", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
+            fields.append(SubFunction("Pressure", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
+            
         # Point evaluation
         fields.append(PointEval("Velocity", ((54.8, 44.0, 33.1), (53.6, 43.6, 37.9)), dict(save=True)))
         
         # Derivatives
-        fields.append(TimeDerivative("Pressure", dict(save=True)))
+        fields.append(TimeDerivative("Pressure", dict(save=True, plot=plot)))
         
         return fields
 
