@@ -110,9 +110,10 @@ class IPCS_Stable(NSScheme):
         p = TrialFunction(Q)
 
         # Functions
-        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
         u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
         u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
+        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
+        
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
 
@@ -124,6 +125,13 @@ class IPCS_Stable(NSScheme):
         ics = problem.initial_conditions(spaces, controls)
         assign_ics_segregated(u0, p0, spaces, ics)
         for d in dims: u1[d].assign(u0[d])
+        
+        # Update Adams-Bashford term for first timestep
+        for d in dims:
+            u_ab[d].vector().zero()
+            u_ab[d].vector().axpy(1.5, u1[d].vector())
+            u_ab[d].vector().axpy(-0.5, u0[d].vector())
+        
         #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
 
@@ -133,7 +141,7 @@ class IPCS_Stable(NSScheme):
         bcp = make_pressure_bcs(problem, spaces, bcs)
 
         # Remove boundary stress term is problem is periodic
-        beta = 0 if is_periodic(bcp) else 1
+        #beta = 0 if is_periodic(bcp) else 1
 
         # Problem coefficients
         nu = Constant(problem.params.mu/problem.params.rho)
@@ -149,13 +157,15 @@ class IPCS_Stable(NSScheme):
 
         # Convection linearized as in Simo/Armero (1994)
         # Will set u_ab = 1.5*u1[r] - 0.5*u0[r]
-        a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
+        #a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
+        a_conv  = inner(v, dot(u_ab, nabla_grad(u)))*dx()
         if theta < 1.0:
             # Set a_conv to match rhs theta-weighting for RHSGenerator
             a_conv = Constant(1-theta)*a_conv
             Kconv_axpy_factor = theta/(1-theta)
         else:
             Kconv_axpy_factor = 1.0
+        
         Kconv = Matrix() # assembled from a_conv in the time loop
 
         # Create the static part of the coefficient matrix for the tentative
@@ -174,6 +184,7 @@ class IPCS_Stable(NSScheme):
         rhs_u_tent = [None]*len(dims)
         for d in dims:
             C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
+            #C = assemble(-v*p.dx(d)*dx())
             rhs_u_tent[d] = RhsGenerator(U)
             rhs_u_tent[d] += B, u0[d]
             rhs_u_tent[d] += C, p0
@@ -273,12 +284,6 @@ class IPCS_Stable(NSScheme):
             timer.completed("problem update")
             
             p0.vector()[:] *= 1.0/rho
-
-            # Update Adams-Bashford term
-            for d in dims:
-                u_ab[d].vector().zero()
-                u_ab[d].vector().axpy(1.5, u1[d].vector())
-                u_ab[d].vector().axpy(-0.5, u0[d].vector())
             
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
@@ -297,6 +302,7 @@ class IPCS_Stable(NSScheme):
             #    bc[0].zero(Kconv)
 
             A_u_tent.axpy(Kconv_axpy_factor, Kconv, True)
+            
             for bc in bcu:
                 bc[0].apply(A_u_tent)
             timer.completed("u_tent assemble convection & construct lhs")
@@ -312,13 +318,13 @@ class IPCS_Stable(NSScheme):
                 for bc in bcu: bc[d].apply(b)
                 timer.completed("u_tent construct rhs")
                 iter = solver_u_tent.solve(u1[d].vector(), b)
-                
+
                 # Preconditioner is the same for all three components, so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
                 timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
-
+            
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
@@ -346,8 +352,13 @@ class IPCS_Stable(NSScheme):
                     u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
                     for bc in bcu: bc[d].apply(u1[d].vector())
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
-                    
 
+            # Update Adams-Bashford term for next timestep
+            for d in dims:
+                u_ab[d].vector().zero()
+                u_ab[d].vector().axpy(1.5, u1[d].vector())
+                u_ab[d].vector().axpy(-0.5, u0[d].vector())
+            
              # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
             p0.assign(p1)
