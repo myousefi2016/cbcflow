@@ -18,19 +18,14 @@ from cbcflow.fields.bases.MetaPPField import MetaPPField
 from cbcflow.utils.common.restriction_map import restriction_map
 from cbcflow.utils.common.utils import cbcflow_warning
 from cbcflow.fields import PPField
-from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
+from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, tic, toc
 
 class Restrict(MetaPPField):
     "Restrict is used to restrict a PPField to a submesh of the mesh associated with the PPField."
     def __init__(self, field, submesh, params={}, label=None):
-        PPField.__init__(self, params, label)
+        MetaPPField.__init__(self, field, params, label)
         
         self.submesh = submesh
-        
-        # Store only name, don't need the field
-        if isinstance(field, PPField):
-            field = field.name
-        self.valuename = field
         
     @property
     def name(self):
@@ -40,6 +35,9 @@ class Restrict(MetaPPField):
     
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
+        
+        if u == None:
+            return None
         
         if not isinstance(u, Function):
             cbcflow_warning("Do not understand how to handle datatype %s" %str(type(u)))
@@ -59,7 +57,6 @@ class Restrict(MetaPPField):
                 
             self.restriction_map = restriction_map(V, FS)
             
-        
         self.u.vector()[self.restriction_map.keys()] = u.vector()[self.restriction_map.values()]
         
         return self.u

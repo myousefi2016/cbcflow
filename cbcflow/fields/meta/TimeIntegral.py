@@ -37,10 +37,7 @@ class TimeIntegral(MetaPPField):
         u1 = pp.get(self.valuename)
         u0 = pp.get(self.valuename, -1)
         
-        #if u0 == "N/A" or u1 == "N/A":
-        #    import ipdb; ipdb.set_trace()
-        
-        assert u0 != "N/A" and u1 != "N/A"
+        assert u0 != "N/A" and u1 != "N/A", "u0=%s, u1=%s" %(str(u0), str(u1))
         
         # Interpolate to integration limits, if t1 or t0 is outside
         if t0 < self.params.start_time:
@@ -63,7 +60,7 @@ class TimeIntegral(MetaPPField):
         
         dt = t1 - t0
         if dt == 0: dt = 1e-14 # Avoid zero-division
-        
+
         # Add to sum
         if isinstance(u0, Function):
             # Create placeholder for sum the first time
@@ -88,6 +85,8 @@ class TimeIntegral(MetaPPField):
             # Accumulate using trapezoidal integration
             self._sum += dt/2.0*start
             self._sum += dt/2.0*end
+            
+        #print "Integrating %s from %f to %f (start=%s, end=%s). sum=%s" %(self.valuename, t0, t1, start, end, str(self._sum))
         
         # Store bounds for sanity check
         if not hasattr(self, "T0"):
@@ -105,10 +104,9 @@ class TimeIntegral(MetaPPField):
             return None
         
         # Integrate last timestep if integration not completed
-        if self.T1 <= self.params.end_time + EPS:
+        if self.T1 <= self.params.end_time - EPS:
             self.compute(pp, spaces, problem)
-        
-        #print "Integrated %s from %f to %f" %(self.valuename, self.T0, self.T1)
-        #print self._sum
+
+        #print "Integrated %s from %f (start_time=%f) to %f (end_time=%f) (result=%s)" %(self.valuename, self.T0, self.params.start_time, self.T1, self.params.end_time,  str(self._sum))
 
         return self._sum

@@ -45,6 +45,7 @@ meta_fields = [
 
     # Transient analysis of other fields
     "TimeIntegral",
+    "TimeAverage",
     "TimeDerivative",
     "SecondTimeDerivative",
     "RunningAvg",

@@ -27,4 +27,9 @@ class MetaPPField(PPField):
         n = "%s_%s" % (self.__class__.__name__, self.valuename)
         if self.label: n += "_"+self.label
         return n
+    
+    def after_last_compute(self, pp, spaces, problem):
+        u = pp.get(self.valuename)
+        if u != "N/A":
+            return self.compute(pp, spaces, problem)
 

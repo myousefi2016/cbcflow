@@ -35,7 +35,7 @@ class OSI(PPField):
         params["save"] = False
         params["plot"] = False
         params["callback"] = False
-        #params.pop("finalize")
+        params.pop("finalize")
 
         fields = []
         #return fields
