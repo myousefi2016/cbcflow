@@ -18,7 +18,7 @@
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.utils.core.strip_code import strip_code
-from cbcflow.utils.common import (cbcflow_warning, hdf5_link, safe_mkdir, timeit, on_master_process,
+from cbcflow.utils.common import (cbcflow_warning, hdf5_link, safe_mkdir, on_master_process,
                                   in_serial, Timer, cbcflow_log)
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
@@ -314,7 +314,12 @@ class NSPostProcessor(Parameterized):
         # it's easy to swap here with e.g. fp = self._field_params[field.name]
         fp = field.params
         
+        # Should never be finalized
         if not fp["finalize"]:
+            return False
+        
+        # Already finalized
+        if field.name in self._finalized:
             return False
 
         e = fp.end_timestep
@@ -336,6 +341,8 @@ class NSPostProcessor(Parameterized):
         The timestep is relative to now.
         Values are computed at first request and cached.
         """
+        cbcflow_log(20, "Getting: %s, %d (compute=%s, finalize=%s)" %(name, timestep, compute, finalize))
+        
         # Check cache
         c = self._cache[timestep]
         data = c.get(name, "N/A")
@@ -361,7 +368,6 @@ class NSPostProcessor(Parameterized):
             else:
                 raise RuntimeError("Unable to get data from before update was started. \
                                    (%s, timestep: %d, update_all_count: %d)" %(name, timestep, self._update_all_count))
-        t = c.get("t")
 
         # Cache miss?
         if data == "N/A":
@@ -380,7 +386,6 @@ class NSPostProcessor(Parameterized):
                 else:
                     if compute:
                         data = field.compute(self, spaces, problem)
-                        self._compute_counts[field.name] += 1
                         self._timer.completed("PP: compute %s" %name)
                     if finalize:
                         finalized_data = field.after_last_compute(self, spaces, problem)
@@ -388,6 +393,7 @@ class NSPostProcessor(Parameterized):
                             data = finalized_data
                         self._finalized[name] = data
                         self._timer.completed("PP: finalize %s" %name)
+                self._compute_counts[field.name] += 1
 
                 # Copy functions to avoid storing references to the same function objects at each timestep
                 # NB! In other cases we assume that the fields return a new object for every compute!
@@ -411,7 +417,6 @@ class NSPostProcessor(Parameterized):
         if not field.name in self._cache[0]:
             error("Field '%s' is not in cache, this should not be possible." % field.name)
 
-        t0 = timeit()
         if action == "save":
             self._action_save(field, data)
 
@@ -440,7 +445,7 @@ class NSPostProcessor(Parameterized):
             elif isinstance(data, (float, int, list, tuple, dict)):
                 save_as = ['txt', 'shelve']
             else:
-                error("Unknown data type %s, cannot determine file type automatically." % type(data).__name__)
+                error("Unknown data type %s for field %s, cannot determine file type automatically." % (type(data).__name__, field.name))
         else:
             if isinstance(field.params.save_as, (list, tuple)):
                 save_as = list(field.params.save_as)
@@ -912,10 +917,10 @@ class NSPostProcessor(Parameterized):
         "Insert dependencies recursively in plan"
         deps = self._dependencies[name]
         for depname, ts in deps:
-            # Find time-to-keep
+            # Find time-to-keep (FIXME: Is this correct? Optimal?)
             oldttk = self._plan[ts+offset].get(depname, 0)
-            #ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname]))+ts
-            ttk = max(oldttk, offset)
+            ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname]))+ts
+            #ttk = max(oldttk, offset)
 
             # Insert in plan if able to compute
             if offset+ts >= 0:
@@ -933,12 +938,8 @@ class NSPostProcessor(Parameterized):
             "t": t,
             "timestep": timestep,
             }
-        # Loop over all planned field computations
-        fields_to_get = [name for name in self._sorted_fields_keys
-                         if name in self._plan[0]
-                         or self._should_finalize_at_this_time(self._fields[name], t, timestep)]
 
-        #for name in fields_to_get:
+        # Loop over all planned field computations
         for name in self._sorted_fields_keys:
             if name in self._plan[0]:
                 compute = True
@@ -960,7 +961,7 @@ class NSPostProcessor(Parameterized):
             
             # Apply action if it was triggered directly this timestep (not just indirectly)
             #if (data is not None) and (self._last_trigger_time[name][1] == timestep):
-            if self._last_trigger_time[name][1] == timestep:
+            if self._last_trigger_time[name][1] == timestep or finalize:
                 for action in ["save", "plot", "callback"]:
                     if field.params[action]:
                         self._apply_action(action, field, data)
