@@ -26,6 +26,7 @@ lack the testing and validation of the *official* schemes.
 from cbcflow.schemes.experimental.ipcs_opt_seg import SegregatedIPCS_Optimized
 from cbcflow.schemes.experimental.ipcs_segregated import SegregatedIPCS
 from cbcflow.schemes.experimental.ipcs_stabilized import IPCS_Stabilized
+from cbcflow.schemes.experimental.ipcs_abi_cn import IPCS_ABI_CN
 
 # Schemes with support for penalty pressure BCs
 from cbcflow.schemes.experimental.ipcs_penalty import PenaltyIPCS
