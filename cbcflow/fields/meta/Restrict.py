@@ -18,7 +18,8 @@ from cbcflow.fields.bases.MetaPPField import MetaPPField
 from cbcflow.utils.common.restriction_map import restriction_map
 from cbcflow.utils.common.utils import cbcflow_warning
 from cbcflow.fields import PPField
-from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, tic, toc
+from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
+from numpy import array, uint
 
 class Restrict(MetaPPField):
     "Restrict is used to restrict a PPField to a submesh of the mesh associated with the PPField."
@@ -43,7 +44,8 @@ class Restrict(MetaPPField):
             cbcflow_warning("Do not understand how to handle datatype %s" %str(type(u)))
             return None
         
-        if not hasattr(self, "restriction_map"):
+        #if not hasattr(self, "restriction_map"):
+        if not hasattr(self, "keys"):
             V = u.function_space()
             element = V.ufl_element()        
             family = element.family()
@@ -54,10 +56,15 @@ class Restrict(MetaPPField):
             elif u.rank() == 2: FS = TensorFunctionSpace(self.submesh, family, degree)
             
             self.u = Function(FS)
-                
-            self.restriction_map = restriction_map(V, FS)
             
-        self.u.vector()[self.restriction_map.keys()] = u.vector()[self.restriction_map.values()]
-        
+            
+            #self.restriction_map = restriction_map(V, FS)
+            rmap = restriction_map(V, FS)
+            self.keys = array(rmap.keys(), dtype=uint)
+            self.values = array(rmap.values(), dtype=uint)
+            
+            
+        #self.u.vector()[self.restriction_map.keys()] = u.vector()[self.restriction_map.values()]
+        self.u.vector()[self.keys] = u.vector()[self.values]
         return self.u
         
