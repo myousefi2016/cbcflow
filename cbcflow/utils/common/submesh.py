@@ -85,7 +85,7 @@ def create_submesh(mesh, markers, marker):
     global_vertex_distribution = distribution(len(sub_vertices))
 
     global_num_cells = MPI.sum(len(sub_cells))
-    global_num_vertices = int(MPI.max(max(base_to_sub_global_indices.values())))+1
+    global_num_vertices = sum(unshared_vertices_dist)+MPI.sum(len(all_shared_global_indices))
 
     # Build mesh
     submesh = Mesh()
