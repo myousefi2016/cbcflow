@@ -27,6 +27,7 @@ from cbcflow.schemes.experimental.ipcs_opt_seg import SegregatedIPCS_Optimized
 from cbcflow.schemes.experimental.ipcs_segregated import SegregatedIPCS
 from cbcflow.schemes.experimental.ipcs_stabilized import IPCS_Stabilized
 from cbcflow.schemes.experimental.ipcs_abi_cn import IPCS_ABI_CN
+from cbcflow.schemes.experimental.ipcs_stable_nonnewtonian import IPCS_Stable_NonNewtonian
 
 # Schemes with support for penalty pressure BCs
 from cbcflow.schemes.experimental.ipcs_penalty import PenaltyIPCS
