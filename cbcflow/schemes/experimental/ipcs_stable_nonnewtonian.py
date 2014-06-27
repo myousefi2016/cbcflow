@@ -1,0 +1,448 @@
+# Copyright (C) 2010-2014 Simula Research Laboratory
+#
+# This file is part of CBCFLOW.
+#
+# CBCFLOW is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# CBCFLOW is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+r"""
+This scheme follows the same logic as in :class:`.IPCS`, but with a few notable exceptions.
+
+A parameter :math:`\theta` is added to the diffusion and convection terms,
+allowing for different evaluation of these, and the convection is handled semi-implicitly:
+
+.. math::
+    \frac{1}{\Delta t}\left( \tilde{u}^{n+1}-u^{n} \right)-
+    \nabla\cdot\nu\nabla \tilde{u}^{n+\theta}+
+    u^*\cdot\nabla \tilde{u}^{n+\theta}+\nabla p^{n}=f^{n+1},
+    
+where
+
+.. math::
+    u^* = \frac{3}{2}u^n - \frac{1}{2}u^{n-1}, \\
+    \tilde{u}^{n+\theta} = \theta \tilde{u}^{n+1}+\left(1-\theta\right)u^n.
+
+This convection term is unconditionally stable, and with :math:`\theta=0.5`,
+this equation is second order in time and space [1]_.
+
+
+In addition, the solution process is significantly faster by solving for each of the
+velocity components separately, making for D number of smaller linear systems compared
+to a large system D times the size.
+
+
+
+.. [1] Simo, J. C., and F. Armero. *Unconditional stability and long-term behavior
+    of transient algorithms for the incompressible Navier-Stokes and Euler equations.*
+    Computer Methods in Applied Mechanics and Engineering 111.1 (1994): 111-154.
+
+"""
+
+
+from __future__ import division
+
+
+from cbcflow.core.nsscheme import *
+from cbcflow.utils.common import is_periodic, cbcflow_log
+from cbcflow.utils.schemes import (RhsGenerator,
+                                   compute_regular_timesteps,
+                                   assign_ics_segregated,
+                                   make_segregated_velocity_bcs,
+                                   make_pressure_bcs,
+                                   make_penalty_pressure_bcs)
+from cbcflow.utils.core import NSSpacePoolSegregated
+
+
+class ModifiedCross:
+    def __init__(self, mesh, problem, spaces):
+       self.l = 3.7365
+       self.m = 2.406
+       self.a = 0.254
+       
+       self.mu_0 = 0.056
+       self.mu_inf = 0.00345
+       
+       self.DU0 = spaces.DU0
+
+       self.rho = problem.params.rho
+       
+    def __call__(self, u):
+        
+        gamma = pow(0.5*inner(grad(u)+transpose(grad(u)), grad(u)+transpose(grad(u))), 0.5)
+        mu = 1.0/((1.0+(self.l*gamma)**self.m)**self.a)*(self.mu_0-self.mu_inf)+self.mu_inf
+        #nu = mu/self.rho
+        
+        # Reusing projection matrix and solver, subfunction->vectorfunction assign with be better TODO
+        if not hasattr(self, "_mu"):
+            self._mu = Function(self.DU0)
+            self._te = TestFunction(self.DU0)
+            self._tr = TrialFunction(self.DU0)
+            self._a = dot(self._tr,self._te)*dx()
+            L = dot(mu, self._te)*dx()
+            self._A = assemble(self._a)
+            self._b = assemble(L)
+            self._solver = KrylovSolver("cg", "default")
+            self._solver.set_operator(self._A)
+        else:
+            L = dot(mu, self._te)*dx()
+            assemble(L, tensor=self._b)
+        self._solver.solve(self._mu.vector(), self._b)
+        
+        return self._mu
+
+
+
+class IPCS_Stable_NonNewtonian(NSScheme):
+    "Incremental pressure-correction scheme, fast and stable version."
+
+    def __init__(self, params=None):
+        NSScheme.__init__(self, params)
+
+    @classmethod
+    def default_params(cls):
+        params = NSScheme.default_params()
+        params.update(
+            # Default to P1-P1
+            u_degree = 1,
+            p_degree = 1,
+            theta = 0.5,
+            rebuild_prec_frequency = 1e16,
+            u_tent_prec_structure = "same_nonzero_pattern",
+            u_tent_solver_parameters = {},
+            p_corr_solver_parameters = {},
+            u_corr_solver_parameters = {},
+            )
+        return params
+
+    def solve(self, problem, update, timer):
+
+        # Get problem parameters
+        mesh = problem.mesh
+        dx = problem.dx
+        ds = problem.ds
+        n  = FacetNormal(mesh)
+        dims = range(mesh.topology().dim())
+        theta = self.params.theta
+
+        # Timestepping
+        dt, timesteps, start_timestep = compute_regular_timesteps(problem)
+        t = Time(t0=timesteps[start_timestep])
+
+        # Define function spaces
+        spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
+        U = spaces.U
+        Q = spaces.Q
+
+        # Test and trial functions
+        v = TestFunction(U)
+        q = TestFunction(Q)
+        u = TrialFunction(U)
+        p = TrialFunction(Q)
+
+        # Functions
+        u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
+        u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
+        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
+        
+        p0 = Function(Q, name="p0")
+        p1 = Function(Q, name="p1")
+
+        # Get functions for data assimilation
+        observations = problem.observations(spaces, t)
+        controls = problem.controls(spaces)
+
+        # Apply initial conditions and use it as initial guess
+        ics = problem.initial_conditions(spaces, controls)
+        assign_ics_segregated(u0, p0, spaces, ics)
+        for d in dims: u1[d].assign(u0[d])
+        
+        # Update Adams-Bashford term for first timestep
+        for d in dims:
+            u_ab[d].vector().zero()
+            u_ab[d].vector().axpy(1.5, u1[d].vector())
+            u_ab[d].vector().axpy(-0.5, u0[d].vector())
+        
+        #for d in dims: u2[d].assign(u1[d])
+        p1.assign(p0)
+
+        # Make scheme-specific representation of bcs
+        bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
+        bcu = make_segregated_velocity_bcs(problem, spaces, bcs)
+        bcp = make_pressure_bcs(problem, spaces, bcs)
+
+        # Remove boundary stress term is problem is periodic
+        #beta = 0 if is_periodic(bcp) else 1
+
+        # Problem coefficients
+        #nu = Constant(problem.params.mu/problem.params.rho)
+        modifiedcross = ModifiedCross(mesh, problem, spaces)
+        mu = modifiedcross(u1)
+        problem.params.mu = mu
+        
+        rho = float(problem.params.rho)
+        #rho = Constant(problem.params.rho)
+        k  = Constant(dt)
+        f  = as_vector(problem.body_force(spaces, t))
+        
+        timer.completed("create function spaces, functions and boundary conditions")
+
+        # Tentative velocity step. Crank-Nicholson time-stepping is used for diffusion and convection.
+        a1 = (1/k) * inner(v, u) * dx()
+        a2 = inner(grad(v), mu/Constant(rho)*grad(u)) * dx()
+
+        # Convection linearized as in Simo/Armero (1994)
+        # Will set u_ab = 1.5*u1[r] - 0.5*u0[r]
+        #a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
+        a_conv  = inner(v, dot(u_ab, nabla_grad(u)))*dx()
+        if theta < 1.0:
+            # Set a_conv to match rhs theta-weighting for RHSGenerator
+            a_conv = Constant(1-theta)*a_conv
+            Kconv_axpy_factor = theta/(1-theta)
+        else:
+            Kconv_axpy_factor = 1.0
+        
+        Kconv = Matrix() # assembled from a_conv in the time loop
+
+        # Create the static part of the coefficient matrix for the tentative
+        # velocity step. The convection is added in the time loop. We use a
+        # single matrix for all dimensions, which means that the BCs must match
+        # (they must apply to the full vector space at the vertex, not a
+        # subspace.
+        A2 = assemble(a2)
+        A_u_tent = assemble(a1)
+        A_u_tent.axpy(theta, A2, True)
+
+        # Create matrices for generating the RHS
+        B = assemble(a1)
+        B.axpy(-(1-theta), A2, True)
+        
+        M = assemble(v*u*dx())
+        
+        # Define how to create the RHS for the tentative velocity. The RHS is
+        # (of course) different for each dimension.
+        rhs_u_tent = [None]*len(dims)
+        for d in dims:
+            C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
+            #C = assemble(-v*p.dx(d)*dx())
+            rhs_u_tent[d] = RhsGenerator(U)
+            rhs_u_tent[d] += B, u0[d]
+            rhs_u_tent[d] += C, p0
+            rhs_u_tent[d] += M, f[d]
+            if theta < 1.0:
+                rhs_u_tent[d] -= Kconv, u0[d]
+        
+        # Apply BCs to LHS
+        for bc in bcu:
+            bc[0].apply(A_u_tent)
+
+        # Tentative velocity solver
+        solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        solver_u_tent.set_operator(A_u_tent)
+        if 'preconditioner' in solver_u_tent.parameters:
+                solver_u_tent.parameters['preconditioner']['structure'] = 'same'
+        solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
+        
+        timer.completed("create tenative velocity solver")
+        
+        # Pressure correction
+        A_p_corr = assemble(inner(grad(q), grad(p))*dx())
+        rhs_p_corr = RhsGenerator(Q)
+        rhs_p_corr += A_p_corr, p0
+        Ku = [None]*len(dims)
+        for d in dims:
+            Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
+            rhs_p_corr += Ku[d], u1[d]
+            
+        # Pressure correction solver
+        if self.params.solver_p:
+            solver_p_params = self.params.solver_p
+        elif len(bcp) == 0 or is_periodic(bcp):
+            solver_p_params = self.params.solver_p_neumann
+        else:
+            solver_p_params = self.params.solver_p_dirichlet
+        
+        for bc in bcp:
+            bc.apply(A_p_corr)
+        
+        solver_p_corr = LinearSolver(*solver_p_params)
+        solver_p_corr.set_operator(A_p_corr)
+        if 'preconditioner' in solver_p_corr.parameters:
+                solver_p_corr.parameters['preconditioner']['structure'] = 'same'
+        solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
+        
+        timer.completed("create pressure correction solver")
+        
+        # Velocity correction solver
+        if self.params.solver_u_corr not in ["WeightedGradient"]:
+            # Velocity correction. Like for the tentative velocity, a single LHS is used.
+            A_u_corr = M
+            rhs_u_corr = [None]*len(dims)
+            Kp = [None]*len(dims)
+            for d in dims:
+                Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
+                rhs_u_corr[d] = RhsGenerator(U)
+                rhs_u_corr[d] += M, u1[d]
+                rhs_u_corr[d] += Kp[d], p1
+                rhs_u_corr[d] -= Kp[d], p0
+            
+            # Apply BCs to LHS
+            for bc in bcu:
+                bc[0].apply(A_u_corr)
+                
+            solver_u_corr = LinearSolver(*self.params.solver_u_corr)
+            solver_u_corr.set_operator(A_u_corr)
+            if 'preconditioner' in solver_u_corr.parameters:
+                solver_u_corr.parameters['preconditioner']['structure'] = 'same'
+            solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
+            
+        elif self.params.solver_u_corr == "WeightedGradient":
+            from fenicstools.WeightedGradient import compiled_gradient_module
+            DG = spaces.DQ0
+            CG1 = spaces.get_space(1, 0)
+            C = assemble(u*v*dx())
+            G = assemble(TrialFunction(DG)*v*dx())
+            dPdX = []
+            dg = Function(DG)
+            for d in dims:
+                dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
+                compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
+                dPdX.append(C.copy())
+        
+        timer.completed("create velocity correction solver")
+
+        # Call update() with initial conditions
+        update(u1, p1, float(t), start_timestep, spaces)
+        timer.completed("initial postprocessor update")
+
+        # Time loop
+        for timestep in xrange(start_timestep+1,len(timesteps)):
+            assign_time(t, timesteps[timestep])
+
+            # Update various functions
+            problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
+            timer.completed("problem update")
+            
+            p0.vector()[:] *= 1.0/rho
+            
+            # Update viscosity
+            mu.assign(modifiedcross(u1))
+            problem.params.mu.assign(mu)
+            timer.completed("viscosity update")
+            
+            # Reassemble viscous term
+            A_u_tent.axpy(-theta, A2, True)
+            B.axpy(1-theta, A2, True)
+            assemble(a2, tensor=A2, reset_sparsity=False)
+            
+            A_u_tent.axpy(theta, A2, True)
+            B.axpy(-(1-theta), A2, True)
+            timer.completed("reassemble viscous term")
+            
+            #print norm(A_u_tent)
+            #print A_u_tent.norm('frobenius')
+            #print B.norm('frobenius')
+            
+            # Assemble the u-dependent convection matrix. It is important that
+            # it is assembled into the same tensor, because the tensor is
+            # also stored in rhs. (And it's faster).
+            if Kconv.size(0) == 0:
+                # First time, just assemble normally
+                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+            else:
+                # Subtract the convection for previous time step before re-assembling Kconv
+                A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
+                assemble(a_conv, tensor=Kconv, reset_sparsity=False)
+
+            # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
+            # the axpy (it doesn't matter which)
+            #for bc in bcu:
+            #    bc[0].zero(Kconv)
+
+            A_u_tent.axpy(Kconv_axpy_factor, Kconv, True)
+            
+            for bc in bcu:
+                bc[0].apply(A_u_tent)
+            timer.completed("u_tent assemble convection & construct lhs")
+
+            # Check if preconditioner is to be rebuilt
+            if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:
+                solver_u_tent.parameters['preconditioner']['structure'] = self.params.u_tent_prec_structure
+
+            # Compute tentative velocity step
+            for d in dims:
+                b = rhs_u_tent[d]()
+
+                for bc in bcu: bc[d].apply(b)
+                timer.completed("u_tent construct rhs")
+                iter = solver_u_tent.solve(u1[d].vector(), b)
+
+                # Preconditioner is the same for all three components, so don't rebuild several times
+                if 'preconditioner' in solver_u_tent.parameters:
+                    solver_u_tent.parameters['preconditioner']['structure'] = "same"
+
+                timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
+            
+            # Pressure correction
+            b = rhs_p_corr()
+            if len(bcp) == 0 or is_periodic(bcp): normalize(b)
+            for bc in bcp:
+                b *= rho
+                
+                bc.apply(b)
+                b *= 1.0/rho
+            timer.completed("p_corr construct rhs")
+
+            iter = solver_p_corr.solve(p1.vector(), b)
+            if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
+            timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
+            if self.params.solver_u_corr not in ["WeightedGradient"]:
+                # Velocity correction
+                for d in dims:
+                    b = rhs_u_corr[d]()
+                    for bc in bcu: bc[d].apply(b)
+                    timer.completed("u_corr construct rhs")
+    
+                    iter = solver_u_corr.solve(u1[d].vector(), b)
+                    timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
+            elif self.params.solver_u_corr == "WeightedGradient":
+                for d in dims:
+                    u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
+                    for bc in bcu: bc[d].apply(u1[d].vector())
+                    timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
+
+            # Update Adams-Bashford term for next timestep
+            for d in dims:
+                u_ab[d].vector().zero()
+                u_ab[d].vector().axpy(1.5, u1[d].vector())
+                u_ab[d].vector().axpy(-0.5, u0[d].vector())
+            
+             # Rotate functions for next timestep
+            for d in dims: u0[d].assign(u1[d])
+            p0.assign(p1)
+
+            p0.vector()[:] *= rho
+            
+            # Update postprocessing
+            update(u0, p0, float(t), timestep, spaces)
+            timer.completed("updated postprocessing (completed timestep)")
+
+        # Return some quantities from the local namespace
+        states = (u0, p0)
+        namespace = {
+            "spaces": spaces,
+            "observations": observations,
+            "controls": controls,
+            "states": states,
+            "t": t,
+            "timesteps": timesteps,
+            }
+        return namespace
