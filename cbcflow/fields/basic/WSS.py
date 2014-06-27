@@ -58,7 +58,10 @@ class WSS(PPField):
 
         u = pp.get("Velocity")
         
-        mu = Constant(problem.params.mu)
+        if isinstance(problem.params.mu, (float, int)):
+            mu = Constant(problem.params.mu)
+        else:
+            mu = problem.params.mu
 
         T = -mu*dot((grad(u) + grad(u).T), n)
         Tn = dot(T, n)
