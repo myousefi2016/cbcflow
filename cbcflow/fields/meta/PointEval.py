@@ -110,8 +110,10 @@ class PointEval(MetaPPField):
         self.probes(u)
 
         # Fetch array with probe values at this timestep
-        results = self.probes.array(self._probetimestep)
-        self._probetimestep += 1
+        #results = self.probes.array(self._probetimestep)
+        results = self.probes.array()
+        self.probes.clear()
+        #self._probetimestep += 1
 
         # Return as list to store without 'array(...)' text.
         # Probes give us no data if not on master node, so we just
