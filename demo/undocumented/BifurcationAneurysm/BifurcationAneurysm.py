@@ -88,7 +88,7 @@ class BifurcationAneurysm(NSProblem):
 def main():
     set_log_level(60)
     dt = 1e-2
-    problem = BifurcationAneurysm(dict(refinement_level=0, dt=dt, T=2.0))
+    problem = BifurcationAneurysm(dict(refinement_level=1, dt=dt, T=2.0))
     print problem.mesh
     scheme = IPCS_Stable(dict(
         rebuild_prec_frequency = 1,
@@ -116,16 +116,17 @@ def main():
         T1 = problem.params.T
         fields = []
         
-        plot = True
+        plot = False
         
         # Basic fields
-        fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
-        fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
-    
-        # On boundary
-        fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
-        fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
+        fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=1)))
+        fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=1)))
         
+        
+        # On boundary
+        #fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
+        #fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
+        """
         # Time-integrated fields
         fields.append(TimeIntegral("WSS", dict(save=True, start_time=T0, end_time=T1)))
         fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
@@ -153,12 +154,12 @@ def main():
         
         # Derivatives
         fields.append(TimeDerivative("Pressure", dict(save=True, plot=plot)))
-        
+        """
         return fields
 
     postproc.add_fields(set_up_fields(problem))
     
-    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=10))
+    solver = NSSolver(problem, scheme, postproc, dict(check_memory_frequency=10))
     solver.solve()
     
 

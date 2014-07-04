@@ -19,7 +19,8 @@ from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.utils.core.strip_code import strip_code
 from cbcflow.utils.common import (cbcflow_warning, hdf5_link, safe_mkdir, on_master_process,
-                                  in_serial, Timer, cbcflow_log)
+                                  in_serial, Timer, cbcflow_log, hdf5_close)
+from cbcflow.utils.common.utils import get_memory_usage, cbcflow_print
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
@@ -341,6 +342,7 @@ class NSPostProcessor(Parameterized):
         The timestep is relative to now.
         Values are computed at first request and cached.
         """
+        #mem_at_get_start = get_memory_usage()
         cbcflow_log(20, "Getting: %s, %d (compute=%s, finalize=%s)" %(name, timestep, compute, finalize))
         
         # Check cache
@@ -409,6 +411,10 @@ class NSPostProcessor(Parameterized):
                 # Cannot compute missing value from previous timestep,
                 # dependency handling must have failed
                 raise DependencyException(name, timestep=timestep)
+        #mem_at_get_end = get_memory_usage()
+        #mem_leak_in_get = mem_at_get_end-mem_at_get_start
+        #mem_leak_in_get = MPI.sum(mem_leak_in_get)
+        #cbcflow_print("Memory leak in get ("+name+"): "+str(mem_leak_in_get))
 
         return data
 
@@ -526,6 +532,7 @@ class NSPostProcessor(Parameterized):
                     metadata_file["element_degree"] = repr(data.element().degree(),)
                     metadata_file["element_family"] = repr(data.element().family(),)
                     metadata_file["element_value_shape"] = repr(data.element().value_shape(),)
+
             # Store some data each timestep
             metadata_file[str(timestep)] = metadata
             metadata_file[str(timestep)]["t"] = t
@@ -583,6 +590,8 @@ class NSPostProcessor(Parameterized):
         return metadata
 
     def _update_hdf5_file(self, field_name, saveformat, data, timestep, t):
+        
+        mem_at_start = get_memory_usage()
         assert saveformat == "hdf5"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
         
@@ -596,12 +605,14 @@ class NSPostProcessor(Parameterized):
         
         # Global hash (same on all processes), 10 digits long
         hash = str(int(MPI.sum(int(local_hash.hexdigest(), 16))%1e10)).zfill(10)
-        
-        #key = (field_name, saveformat)
-        #datafile = self._datafile_cache.get(key)
-        #if datafile is None:
-        #    datafile = HDF5File(fullname, 'w')
-        #    self._datafile_cache[key] = datafile
+
+        """
+        key = (field_name, saveformat)
+        datafile = self._datafile_cache.get(key)
+        if datafile is None:
+            datafile = HDF5File(fullname, 'w')
+            self._datafile_cache[key] = datafile
+        """
         
         # Open HDF5File
         if not os.path.isfile(fullname):
@@ -616,15 +627,38 @@ class NSPostProcessor(Parameterized):
         if not datafile.has_dataset("Mesh"):
             datafile.write(data.function_space().mesh(), "Mesh")
         
+        mem_before_write = get_memory_usage()
         # Write vector to file
         # TODO: Link vector when function has been written to hash
+            
         datafile.write(data.vector(), field_name+str(timestep)+"/vector")
+            
+        mem_after_write = get_memory_usage()
 
-        del datafile        
+        del datafile
+        mem_after_del = get_memory_usage()
+    
         # Link information about function space from hash-dataset
+        
         hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(timestep)+"/x_cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(timestep)+"/cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(timestep)+"/cells")
+        mem_after_linking = get_memory_usage()
+        
+        mem_leak_from_init = mem_before_write-mem_at_start
+        mem_leak_from_write = mem_after_write-mem_before_write
+        mem_leak_from_del = mem_after_del-mem_after_write
+        mem_leak_from_link = mem_after_linking-mem_after_del
+        
+        mem_leak_from_init = MPI.sum(mem_leak_from_init)
+        mem_leak_from_write = MPI.sum(mem_leak_from_write)
+        mem_leak_from_del = MPI.sum(mem_leak_from_del)
+        mem_leak_from_link = MPI.sum(mem_leak_from_link)
+        
+        cbcflow_print("Memory leak from init: "+str(mem_leak_from_init))
+        cbcflow_print("Memory leak from write: "+str(mem_leak_from_write))
+        cbcflow_print("Memory leak from del: "+str(mem_leak_from_del))
+        cbcflow_print("Memory leak from link: "+str(mem_leak_from_link))
         
         return metadata
 
@@ -709,6 +743,7 @@ class NSPostProcessor(Parameterized):
 
     def _action_save(self, field, data):
         "Apply the 'save' action to computed field data."
+        mem_at_start_save = get_memory_usage()
         field_name = field.name
 
         # Create save folder first time
@@ -731,12 +766,13 @@ class NSPostProcessor(Parameterized):
         # object like we do for plotting, or?
         if isinstance(data, Function):
             data.rename(field_name, "Function produced by cbcflow postprocessing.")
-        
+            
         # Get list of file formats
         save_as = self._get_save_formats(field, data)
         
         # Write data to file for each filetype
         for saveformat in save_as:
+            mem_before_save = get_memory_usage()
             # Write data to file depending on type
             if saveformat == 'pvd':
                 metadata[saveformat] = self._update_pvd_file(field_name, saveformat, data, timestep, t)
@@ -755,11 +791,31 @@ class NSPostProcessor(Parameterized):
             else:
                 error("Unknown save format %s." % (saveformat,))
             self._timer.completed("PP: save %s %s" %(field_name, saveformat))
-
-        # Write new data to metadata file
-        self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
+            mem_after_save = get_memory_usage()
+            mem_leak_from_save = MPI.sum(mem_after_save-mem_before_save)
+            cbcflow_print("Memory leak from save ("+field_name+", "+saveformat+"): "+str(mem_leak_from_save))
         
+        # Write new data to metadata file
+        mem_before_metadata_update = get_memory_usage()
+        self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
+        mem_after_metadata_update = get_memory_usage()
+        mem_leak_at_metadata_update = mem_after_metadata_update-mem_before_metadata_update
+        mem_leak_at_metadata_update = MPI.sum(mem_leak_at_metadata_update)
+        cbcflow_print("Memory leak at metadata update: "+str(mem_leak_at_metadata_update))
+        
+        mem_before_play_log_update = get_memory_usage()
         self._fill_play_log(field, timestep, save_as)
+        mem_after_play_log_update = get_memory_usage()
+        mem_leak_at_play_log_update = mem_after_play_log_update-mem_before_play_log_update
+        mem_leak_at_play_log_update = MPI.sum(mem_leak_at_play_log_update)
+        cbcflow_print("Memory leak at play log update: "+str(mem_leak_at_play_log_update))
+        
+        
+        
+        mem_at_end_save = get_memory_usage()
+        mem_leak_in_save = mem_at_end_save-mem_at_start_save
+        mem_leak_in_save = MPI.sum(mem_leak_in_save)
+        cbcflow_print("Memory leak in _action_save ("+field_name+"): "+str(mem_leak_in_save))
 
     def _action_plot(self, field, data):
         "Apply the 'plot' action to computed field data."
