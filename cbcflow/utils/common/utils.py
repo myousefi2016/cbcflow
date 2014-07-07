@@ -280,27 +280,33 @@ def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
     "Check if boundary conditions are periodic."
     return False # FIXME: all(isinstance(bc, PeriodicBC) for bc in bcs)
 
-
 # --- I/O stuff ---
-def hdf5_link(hdf5filename, link_from, link_to):
-    "Create internal link in hdf5 file"
+class HDF5Link:
+    cpp_link_module = None
+    def compile(self):
+        cpp_link_code = '''
+        #include <hdf5.h>
+        void link_dataset(const std::string hdf5_filename,
+                                  const std::string link_from,
+                                  const std::string link_to)
+        {
+            hid_t hdf5_file_id = HDF5Interface::open_file(hdf5_filename, "a", true);
+        
+            herr_t status;
+            hid_t link_id = H5Lcreate_hard(hdf5_file_id, link_from.c_str(), H5L_SAME_LOC,
+                                link_to.c_str(), H5P_DEFAULT, H5P_DEFAULT);
+            dolfin_assert(status != HDF5_FAIL);
+            
+            H5Oclose(link_id);
+            HDF5Interface::close_file(hdf5_file_id);        
+        }
+        '''
+        
+        self.cpp_link_module = compile_extension_module(cpp_link_code, additional_system_headers=["dolfin/io/HDF5Interface.h"])
+    
+    def link(self, hdf5filename, link_from, link_to):
+        if self.cpp_link_module == None:
+            self.compile()
+        self.cpp_link_module.link_dataset(hdf5filename, link_from, link_to)
 
-    cpp_code = '''
-    #include <hdf5.h>
-    void link_dataset(const std::string hdf5_filename,
-                              const std::string link_from,
-                              const std::string link_to)
-    {
-        hid_t hdf5_file_id = HDF5Interface::open_file(hdf5_filename, "a", true);
-
-        herr_t status;
-        H5Lcreate_hard(hdf5_file_id, link_from.c_str(), H5L_SAME_LOC,
-                       link_to.c_str(), H5P_DEFAULT, H5P_DEFAULT);
-        dolfin_assert(status != HDF5_FAIL);
-        HDF5Interface::close_file(hdf5_file_id);
-
-    }
-    '''
-
-    cpp_module = compile_extension_module(cpp_code, additional_system_headers=["dolfin/io/HDF5Interface.h"])
-    cpp_module.link_dataset(hdf5filename, link_from, link_to)
+hdf5_link = HDF5Link().link
