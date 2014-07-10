@@ -21,8 +21,10 @@ from cbcflow.utils.core import NSSpacePoolMixed, NSSpacePoolSegregated
 class Velocity(PPField):
     def convert(self, pp, spaces, problem):
         # Hack to get given u in whatever format it has,
-        # avoiding circular reference to this field
+        # avoiding circular reference to this field      
         u = super(Velocity, self).convert(pp, spaces, problem)
+        if u == None:
+            return None
         d = spaces.d
 
         if not isinstance(u, Function):

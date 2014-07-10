@@ -208,14 +208,49 @@ class NSReplay(Parameterized):
 
         # Set up for replay
         replay_plan = self._fetch_history()
-        postprocessors = [] 
+        postprocessors = []
         for fieldname, field in self.postproc._fields.items():
+            if not (field.params.save
+                    or field.params.plot
+                    or field.params.callback):
+                continue
+            
+            keys = self._check_field_coverage(replay_plan, fieldname)
+            # Check timesteps covered by current field
+            keys = self._check_field_coverage(replay_plan, fieldname)
+            print fieldname#, keys
+            
+            # Get the time dependency for the field
+            t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
+            
+            pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
+            dep_fields = []
+            for dep in self.postproc._full_dependencies[fieldname]:
+                if dep[0] in ["t", "timestep"]:
+                    continue
+                
+                if dep[0] in dep_fields:
+                    continue
+                
+                dep_fields.append(self.postproc._fields[dep[0]])
+            #dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
+            fields = dep_fields + [field]
+            
+            
+            
+            #import ipdb; ipdb.set_trace()
+            pp.add_fields(fields)
+            postprocessors.append([keys, t_dep, pp])
+        
+        """
+        for fieldname in self.postproc._sorted_fields_keys:
+            field = self.postproc._fields[fieldname]
             if not field.params.save:
                 continue
 
             # Check timesteps covered by current field
             keys = self._check_field_coverage(replay_plan, fieldname)
-            print fieldname, keys
+            print fieldname#, keys
             
             # Get the time dependency for the field
             t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
@@ -240,9 +275,12 @@ class NSReplay(Parameterized):
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
                 pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
-                pp.add_field(field)
+                dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
+                fields = dep_fields + [field]
+                #import ipdb; ipdb.set_trace()
+                pp.add_fields(fields)
                 postprocessors.append([keys, t_dep, pp])
-                
+        """
         # Run replay
         for timestep in sorted(replay_plan.keys()):
             cbcflow_print("Processing timestep %d of %d. %.3f%% complete." %(timestep, max(replay_plan.keys()), 100.0*(timestep)/(max(replay_plan.keys()))))
@@ -250,6 +288,7 @@ class NSReplay(Parameterized):
             # Load solution at this timestep (all available fields)
             solution = replay_plan[timestep]
             t = solution.pop("t")
+            
 
             # Cycle through postprocessors and update if required
             for ppkeys, ppt_dep, pp in postprocessors:
@@ -262,7 +301,7 @@ class NSReplay(Parameterized):
                         for dep in reversed(pp._dependencies[field]):
                             if not have_necessary_deps(solution, pp, dep[0]):
                                 solution[dep[0]] = None
-
+                    #print solution
                     pp.update_all(solution, t, timestep, self._get_spaces(), problem)
                     
                     # Clear None-objects from solution
@@ -270,5 +309,7 @@ class NSReplay(Parameterized):
 
                     # Update solution to avoid re-reading data
                     solution = pp._solution
-   
+                    
+        for ppkeys, ppt_dep, pp in postprocessors:
+            pp.finalize_all(pp._spaces, problem)
 

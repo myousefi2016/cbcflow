@@ -22,6 +22,8 @@ class Pressure(PPField):
     def convert(self, pp, spaces, problem):
         # Hack to get given p in whatever format it has
         p = super(Pressure, self).convert(pp, spaces, problem)
+        if p == None:
+            return None
 
         if not isinstance(p, Function):
             if not hasattr(self, "_p"):
