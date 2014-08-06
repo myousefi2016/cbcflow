@@ -19,7 +19,7 @@ from cbcflow.fields.bases.PPField import PPField
 from cbcflow.fields.meta.Magnitude import Magnitude
 from cbcflow.fields.meta.TimeIntegral import TimeIntegral
 
-from dolfin import Function, project, Constant
+from dolfin import Function, project, Constant, conditional
 
 class OSI(PPField):
     @classmethod
@@ -35,7 +35,7 @@ class OSI(PPField):
         params["save"] = False
         params["plot"] = False
         params["callback"] = False
-        params.pop("finalize")
+        #params.pop("finalize")
 
         fields = []
         #return fields
@@ -67,20 +67,20 @@ class OSI(PPField):
         self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
         self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
         
-        if not self.params.finalize:
-            self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))
-            return self.osi
-        else:
+        if self.params.finalize:
             return None
-        
-        #if mag_ta_wss == None or ta_mag_wss == None:
-        #    return None
+        elif self.mag_ta_wss == None or self.ta_mag_wss == None:
+            return None
+        else:
+            self.osi.assign(project(conditional(self.ta_mag_wss<1e-15, 0.0, Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss)), self.osi.function_space()))
+            return self.osi
     
     def after_last_compute(self, pp, spaces, problem):
         self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
         self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
         #print self.name, " Calling after_last_compute"
 
-        self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))
+        #self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))
+        self.osi.assign(project(conditional(self.ta_mag_wss<1e-15, 0.0, Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss)), self.osi.function_space()))
         
         return self.osi
