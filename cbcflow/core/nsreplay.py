@@ -24,7 +24,7 @@ from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor
 from cbcflow.utils.core import NSSpacePoolSplit
-from cbcflow.utils.common import cbcflow_print
+from cbcflow.utils.common import cbcflow_print, Timer
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 
@@ -56,9 +56,14 @@ class NSReplay(Parameterized):
         self.postproc = postprocessor
         self._functions = {}
         
+        self.timer = Timer(self.params.timer_frequency)
+        self.timer._N = 0
+        
     @classmethod
     def default_params(cls):
-        params = ParamDict()
+        params = ParamDict(
+            timer_frequency=0,
+        )
         return params
 
     def _fetch_history(self):
@@ -223,7 +228,6 @@ class NSReplay(Parameterized):
             # Get the time dependency for the field
             t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
             
-            pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
             dep_fields = []
             for dep in self.postproc._full_dependencies[fieldname]:
                 if dep[0] in ["t", "timestep"]:
@@ -233,15 +237,34 @@ class NSReplay(Parameterized):
                     continue
                 
                 dep_fields.append(self.postproc._fields[dep[0]])
-            #dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
             fields = dep_fields + [field]
             
+            added_to_postprocessor = False
+            for i, (ppkeys, ppt_dep, pp) in enumerate(postprocessors):
+                if t_dep == 0 and set(keys).issubset(set(ppkeys)):
+                    # TODO: Check this extend
+                    ppkeys.extend(keys)
+                    pp.add_fields(fields)
+                    added_to_postprocessor = True
+                    break
+                elif t_dep == ppt_dep and keys == ppkeys:
+                    pp.add_fields(fields)
+                    added_to_postprocessor = True
+                    break
+                else:
+                    continue
+                    
+            # Create new postprocessor if no suitable postprocessor found
+            if not added_to_postprocessor:
+                pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
+                pp._timer = self.timer
+                #dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
+                fields = dep_fields + [field]
+                #import ipdb; ipdb.set_trace()
+                pp.add_fields(fields)
+                postprocessors.append([keys, t_dep, pp])
             
             
-            #import ipdb; ipdb.set_trace()
-            pp.add_fields(fields)
-            postprocessors.append([keys, t_dep, pp])
-        
         """
         for fieldname in self.postproc._sorted_fields_keys:
             field = self.postproc._fields[fieldname]
@@ -289,7 +312,6 @@ class NSReplay(Parameterized):
             solution = replay_plan[timestep]
             t = solution.pop("t")
             
-
             # Cycle through postprocessors and update if required
             for ppkeys, ppt_dep, pp in postprocessors:
                 if timestep in ppkeys:
@@ -297,11 +319,10 @@ class NSReplay(Parameterized):
                     # We know this should work, because it has already been established that
                     # the fields to be computed at this timestep can be computed from stored
                     # solutions.
-                    for field in pp._fields:
+                    for field in pp._sorted_fields_keys:
                         for dep in reversed(pp._dependencies[field]):
                             if not have_necessary_deps(solution, pp, dep[0]):
                                 solution[dep[0]] = None
-                    #print solution
                     pp.update_all(solution, t, timestep, self._get_spaces(), problem)
                     
                     # Clear None-objects from solution
@@ -310,6 +331,8 @@ class NSReplay(Parameterized):
                     # Update solution to avoid re-reading data
                     solution = pp._solution
                     
+            self.timer.increment()
+        
         for ppkeys, ppt_dep, pp in postprocessors:
             pp.finalize_all(pp._spaces, problem)
 

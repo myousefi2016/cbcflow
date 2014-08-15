@@ -383,6 +383,7 @@ class NSPostProcessor(Parameterized):
                 # Compute value
                 if name in self._solution:
                     data = field.convert(self, spaces, problem)
+                    self._timer.completed("PP: convert %s" %name)
                 else:
                     if compute:
                         data = field.compute(self, spaces, problem)
@@ -1000,6 +1001,7 @@ class NSPostProcessor(Parameterized):
 
         # Plan what we need to compute now and in near future based on action triggers and dependencies
         self._update_plan(t, timestep)
+        self._timer.completed("PP: updated plan.")
 
         # Compute what's needed according to plan
         self._execute_plan(t, timestep)
