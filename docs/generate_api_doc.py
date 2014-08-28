@@ -20,12 +20,12 @@
 # Utility script for generating .rst documentation for DOLFIN
 
 import os, sys
-'''
+
 dolfin_import_error_msg = """
 Unable to import the %s module
 Error: %s
 Did you forget to update your PYTHONPATH variable?"""
-
+'''
 try:
     import dolfin_utils
 except Exception as what:
