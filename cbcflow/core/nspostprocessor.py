@@ -282,7 +282,6 @@ class NSPostProcessor(Parameterized):
         "Check if field is to be computed at current time"
         # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
         # it's easy to swap here with e.g. fp = self._field_params[field.name]
-        
         fp = field.params
 
         # Limit by timestep interval
@@ -897,7 +896,7 @@ class NSPostProcessor(Parameterized):
         for name, field in self._fields.iteritems():
             full_deps = self._full_dependencies[name]
             offset = abs(min([ts for depname, ts in full_deps]+[0]))
-            
+                        
             # Check if field should be computed in this or the next timesteps,
             # and plan dependency computations accordingly
             # TODO: Allow for varying timestep
@@ -920,7 +919,7 @@ class NSPostProcessor(Parameterized):
         for depname, ts in deps:
             # Find time-to-keep (FIXME: Is this correct? Optimal?)
             oldttk = self._plan[ts+offset].get(depname, 0)
-            ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname]))+ts
+            ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname])+ts)
             #ttk = max(oldttk, offset)
 
             # Insert in plan if able to compute
