@@ -18,7 +18,8 @@ from __future__ import division
 
 
 from cbcflow.dol import as_vector, project, FacetNormal, DirichletBC, Constant, dot, Dn
-from numpy import linspace, zeros, append
+from cbcflow.utils.common import cbcflow_warning
+from numpy import linspace, zeros, append, arange
 
 # --- Functions for timestepping
 
@@ -38,9 +39,12 @@ def compute_regular_timesteps(problem):
     dt = problem.params.dt
 
     # Compute regular timesteps, not including t0
-    num_intervals = iround((T-T0)/dt)
-    timesteps = linspace(T0, T, num_intervals+1)
-    timesteps = append(zeros(problem.params.start_timestep), timesteps)
+    timesteps = arange(T0, T+dt, dt)
+    assert abs( (timesteps[1]-timesteps[0]) - dt) < 1e-8, "Timestep size does not match specified dt."
+    assert timesteps[-1] >= T-dt/1e6, "Timestep range not including end time."
+    
+    if timesteps[-1] > T+dt/1e6:
+        cbcflow_warning("End time for simulation does not match end time set for problem (T-T0 not a multiple of dt).")
     
     return dt, timesteps, problem.params.start_timestep
 
