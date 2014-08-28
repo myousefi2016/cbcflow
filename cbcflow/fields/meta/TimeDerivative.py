@@ -38,6 +38,10 @@ class TimeDerivative(MetaPPField):
             self._du.vector().axpy(+1.0/dt, u1.vector())
             self._du.vector().axpy(-1.0/dt, u0.vector())
             return self._du
+        elif hasattr(u0, "__len__"):
+            du = [(x1-x0) / dt for x0,x1 in zip(u0,u1)]
+            du = type(u0)(du)
+            return du
         else:
             # Assuming scalar value
             du = (u1 - u0) / dt

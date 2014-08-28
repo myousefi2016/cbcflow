@@ -42,7 +42,7 @@ class TimeIntegral(MetaPPField):
         # Interpolate to integration limits, if t1 or t0 is outside
         if t0 < self.params.start_time:
             if isinstance(u0, Function): start = u0.vector() + (u1.vector()-u0.vector())/(t1-t0)*(self.params.start_time-t0)
-            elif hasattr(u0, "__iter__"): start = [u0[i]+(u1[i]-u0[i])/(t1-t0)*self.params.start_time-t0]
+            elif hasattr(u0, "__len__"): start = [u0[i]+(u1[i]-u0[i])/(t1-t0)*(self.params.start_time-t0) for i in range(len(u0))]
             else: start = u0 + (u1-u0)/(t1-t0)*(self.params.start_time-t0)
             t0 = self.params.start_time
         else:
@@ -51,7 +51,7 @@ class TimeIntegral(MetaPPField):
             
         if t1 > self.params.end_time:
             if isinstance(u0, Function): end = u0.vector() + (u1.vector()-u0.vector())/(t1-t0)*(self.params.end_time-t0)
-            elif hasattr(u0, "__iter__"): end = [u0[i]+(u1[i]-u0[i])/(t1-t0)*self.params.end_time-t0]
+            elif hasattr(u0, "__len__"): end = [u0[i]+(u1[i]-u0[i])/(t1-t0)*(self.params.end_time-t0) for i in range(len(u0))]
             else: end = u0 + (u1-u0)/(t1-t0)*(self.params.end_time-t0)
             t1 = self.params.end_time
         else:
@@ -69,7 +69,7 @@ class TimeIntegral(MetaPPField):
             # Accumulate using trapezoidal integration
             self._sum.vector().axpy(dt/2.0, start) # FIXME: Validate this, not tested!
             self._sum.vector().axpy(dt/2.0, end)
-        elif hasattr(u0, "__iter__"):
+        elif hasattr(u0, "__len__"):
             # Create placeholder for sum the first time
             if not hasattr(self, "_sum"):
                 self._sum = [0.0]*len(u0)
