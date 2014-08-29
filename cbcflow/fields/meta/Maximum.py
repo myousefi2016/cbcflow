@@ -22,10 +22,15 @@ class Maximum(MetaPPField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
         
+        if u == None:
+            return None
+        
         if isinstance(u, Function):
             return MPI.max(numpy.max(u.vector().array()))
-        elif u != None:
+        elif hasattr(u, "__len__"):
             return MPI.max(max(u))
+        elif isinstance(u, (float,int)):
+            return MPI.max(u)
         else:
-            return None
+            raise Exception("Unable to take max of %s" %str(u))
         

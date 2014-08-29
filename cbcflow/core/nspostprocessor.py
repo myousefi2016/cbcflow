@@ -314,8 +314,14 @@ class NSPostProcessor(Parameterized):
         fp = field.params
         
         # Should never be finalized
-        if not fp["finalize"]:
+        #if not fp["finalize"]:
+        #    return False
+        
+        # Finalize if that is default for field
+        if not field.__class__.default_params()["finalize"] and not fp["finalize"]:
             return False
+        
+        
         
         # Already finalized
         if field.name in self._finalized:

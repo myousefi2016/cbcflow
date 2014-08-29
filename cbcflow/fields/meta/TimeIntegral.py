@@ -30,7 +30,7 @@ class TimeIntegral(MetaPPField):
     def compute(self, pp, spaces, problem):
         t1 = pp.get("t")
         t0 = pp.get("t", -1)
-
+        
         assert t0 <= self.params.end_time+EPS and t1 >= self.params.start_time-EPS, "Trying to compute integral outside the integration limits!"
 
         # Get integrand
@@ -102,7 +102,7 @@ class TimeIntegral(MetaPPField):
     def after_last_compute(self, pp, spaces, problem):
         if not hasattr(self, "_sum"):
             return None
-        
+               
         # Integrate last timestep if integration not completed
         if self.T1 <= self.params.end_time - EPS:
             self.compute(pp, spaces, problem)
