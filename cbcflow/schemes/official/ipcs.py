@@ -55,7 +55,7 @@ which is reducible to a Poisson problem:
 The corrected velocity is then easily calculated from
 
 .. math:: 
-    u^{n+1} = \tilde{u}^{n+1}-\frac{\Delta t}{\rho}\left(p^{n+1}-p^n\right)
+    u^{n+1} = \tilde{u}^{n+1}-\frac{\Delta t}{\rho}\nabla\left(p^{n+1}-p^n\right)
 
 The scheme can be summarized in the following steps:
     #. Replace the pressure with a known approximation and solve for a tenative velocity :math:`u^{n+1}`.
