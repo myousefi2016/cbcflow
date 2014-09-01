@@ -30,13 +30,8 @@ meta_fields = [
 
     # Spatial analysis of other fields
     "FlowRate",
-    "L2norm",
-    "H1norm",
-    "H1seminorm",
-    "Linfnorm",
-    "DiffL2norm",
-    "DiffH1norm",
-    "DiffH1seminorm",
+    "Norm",
+    "ErrorNorm",
     "DomainAvg",
     "BoundaryAvg",
     "Magnitude",
