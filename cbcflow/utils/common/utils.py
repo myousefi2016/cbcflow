@@ -56,13 +56,13 @@ def safe_mkdir(dir):
 
     # Wait for all processes to finish, hopefully somebody
     # managed to create the directory...
-    MPI.barrier()
+    MPI.barrier(mpi_comm_world())
 
     # Warn if this failed
     if not os.path.isdir(dir):
         #warning("FAILED TO CREATE DIRECTORY %s" % (dir,))
         Exception("FAILED TO CREATE DIRECTORY %s" % (dir,))
-    
+
 
 def timeit(t0=None, msg=None):
     if t0 is None:
@@ -83,21 +83,21 @@ class Timer:
     def completed(self, key, summables={}):
         if self._frequency == 0:
             return
-        
+
         if key not in self._timings:
             self._keys.append(key)
             self._timings[key] = [0,0, {}]
-        
+
         t = time()
         ms = (t - self._timer)*1000
         self._timings[key][0] += ms
         self._timings[key][1] += 1
-        
+
         for k,v in summables.items():
             if k not in self._timings[key][2]:
                 self._timings[key][2][k] = 0
             self._timings[key][2][k] += v
-        
+
         if self._frequency == 1:
             s = "%10.0f ms: %s" % (ms, key)
             ss = []
@@ -115,17 +115,17 @@ class Timer:
             cbcflow_print(s)
 
         self._timer = time()
-    
+
     def _print_summary(self):
         cbcflow_print("Timings summary: ")
-        
+
         for key in self._keys:
             tot = self._timings[key][0]
             N = self._timings[key][1]
             avg = int(1.0*tot/N)
-            
+
             s = "%10.0f ms (avg: %8.0f ms, N: %5d): %s" %(tot, avg, N, key)
-            
+
             summables = self._timings[key][2]
             ss = []
             #if summables != {}:
@@ -142,18 +142,18 @@ class Timer:
                 ss = ""
             s += ss
             cbcflow_print(s)
-    
+
     def _reset(self):
         self._timings = {}
         self._keys = []
         self._N = 0
-        
+
     def increment(self):
         self._N += 1
         if self._frequency > 1 and self._N % self._frequency == 0:
             self._print_summary()
             self._reset()
-    
+
 
 # --- System inspection ---
 
@@ -183,18 +183,18 @@ def parallel_eval(func, point, gather=True):
         M = 0
     try:
         M = func(point)
-        N = MPI.sum(1) # Succeeding processors participate in the MPI collective here
+        N = MPI.sum(mpi_comm_world(), 1) # Succeeding processors participate in the MPI collective here
     except RuntimeError:
-        N = MPI.sum(0) # Failing processors participate in the MPI collective here
+        N = MPI.sum(mpi_comm_world(), 0) # Failing processors participate in the MPI collective here
         if N == 0:
             raise      # All processors failed
     if on_master_process() and N > 1:
         warning("%d processors returned function value, which is unexpected (but probably ok)"%N)
     if hasattr(M, '__iter__'):
         for i in range(len(M)):
-            M[i] = MPI.sum(M[i])/N
+            M[i] = MPI.sum(mpi_comm_world(), M[i])/N
     else:
-        M = MPI.sum(M)/N
+        M = MPI.sum(mpi_comm_world(), M)/N
     return M
 
 # --- String formatting ---
@@ -292,17 +292,17 @@ class HDF5Link:
                                   const std::string link_to)
         {
             hid_t hdf5_file_id = HDF5Interface::open_file(hdf5_filename, "a", true);
-        
+
             herr_t status = H5Lcreate_hard(hdf5_file_id, link_from.c_str(), H5L_SAME_LOC,
                                 link_to.c_str(), H5P_DEFAULT, H5P_DEFAULT);
             dolfin_assert(status != HDF5_FAIL);
-            
-            HDF5Interface::close_file(hdf5_file_id);        
+
+            HDF5Interface::close_file(hdf5_file_id);
         }
         '''
-        
+
         self.cpp_link_module = compile_extension_module(cpp_link_code, additional_system_headers=["dolfin/io/HDF5Interface.h"])
-    
+
     def link(self, hdf5filename, link_from, link_to):
         if self.cpp_link_module == None:
             self.compile()

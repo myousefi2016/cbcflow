@@ -14,30 +14,30 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from dolfin import MPI, compile_extension_module
+from dolfin import MPI, mpi_comm_world, compile_extension_module
 import numpy as np
 
 def broadcast(array, from_process):
     "Broadcast array to all processes"
     cpp_code = '''
-    
+
     namespace dolfin {
         std::vector<double> broadcast(const Array<double>& inarray, int from_process)
         {
-            int this_process = dolfin::MPI::process_number();
-    
+            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+
             std::vector<double> outvector(inarray.size());
-    
+
             if(this_process == from_process) {
                 for(int i=0; i<inarray.size(); i++)
                 {
                     outvector[i] = inarray[i];
                 }
             }
-            dolfin::MPI::barrier();
-            
-            dolfin::MPI::broadcast(outvector, from_process);
-            
+            dolfin::MPI::barrier(MPI_COMM_WORLD);
+
+            dolfin::MPI::broadcast(MPI_COMM_WORLD, outvector, from_process);
+
             return outvector;
         }
     }
@@ -54,23 +54,23 @@ def distribution(number):
         std::vector<unsigned int> distribution(int number)
         {
             // Variables to help in synchronization
-            int num_processes = dolfin::MPI::num_processes();
-            int this_process = dolfin::MPI::process_number();
-            
+            int num_processes = dolfin::MPI::num_processes(MPI_COMM_WORLD);
+            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+
             static std::vector<uint> distribution(num_processes);
-        
+
             for(uint i=0; i<num_processes; i++) {
                 if(i==this_process) {
                     distribution[i] = number;
                 }
-                dolfin::MPI::barrier();
-                dolfin::MPI::broadcast(distribution, i);    
+                dolfin::MPI::barrier(MPI_COMM_WORLD);
+                dolfin::MPI::broadcast(MPI_COMM_WORLD, distribution, i);
             }
             return distribution;
       }
     }
     '''
-    
+
     cpp_module = compile_extension_module(cpp_code, additional_system_headers=["dolfin/common/MPI.h"])
     return cpp_module.distribution(number)
 
@@ -81,33 +81,33 @@ def gather(array, on_process=0, flatten=False):
     namespace dolfin {
         std::vector<double> gather(const Array<double>& inarray, int on_process)
         {
-            int this_process = dolfin::MPI::process_number();
-    
-            static std::vector< std::vector<double> > outvector(dolfin::MPI::num_processes());
-            
+            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+
+            static std::vector< std::vector<double> > outvector(dolfin::MPI::num_processes(MPI_COMM_WORLD));
+
             static std::vector<double> invector(inarray.size());
-            
+
             for(int i=0; i<inarray.size(); i++)
             {
                 invector[i] = inarray[i];
             }
 
-            dolfin::MPI::gather(invector, outvector, on_process);
+            dolfin::MPI::gather(MPI_COMM_WORLD, invector, outvector, on_process);
 
             std::vector<double> flat_outvector;
-            for(int i=0; i<dolfin::MPI::num_processes(); i++)
+            for(int i=0; i<dolfin::MPI::num_processes(MPI_COMM_WORLD); i++)
             {
                 for(int j=0; j<outvector[i].size(); j++)
                 {
                     flat_outvector.push_back(outvector[i][j]);
-                    
+
                 }
             }
             return flat_outvector;
         }
     }
     '''
-    
+
     cpp_module = compile_extension_module(cpp_code, additional_system_headers=["dolfin/common/MPI.h"])
     array = np.array(array, dtype=np.float)
     out_array = cpp_module.gather(array, on_process)
@@ -118,7 +118,7 @@ def gather(array, on_process=0, flatten=False):
     dist = distribution(len(array))
     cumsum = [0]+[sum(dist[:i+1]) for i in range(len(dist))]
     out_array = [[out_array[cumsum[i]:cumsum[i+1]]] for i in range(len(cumsum)-1)]
-    
+
     return out_array
 
 
@@ -129,22 +129,22 @@ def distribute_meshdata(cells, vertices):
     global_cell_distribution = distribution(len(cells))
 
     x_per_v = 0
-    v_per_cell = 0    
+    v_per_cell = 0
     if len(vertices.values()) > 0:
         x_per_v = len(vertices.values()[0][1])
         v_per_cell = len(cells[0])
 
-    x_per_v = int(MPI.max(x_per_v))
-    v_per_cell = int(MPI.max(v_per_cell))
-    
+    x_per_v = int(MPI.max(mpi_comm_world(), x_per_v))
+    v_per_cell = int(MPI.max(mpi_comm_world(), v_per_cell))
+
     # Move a single cell to process with no cells
     while 0 in global_cell_distribution:
         to_process = list(global_cell_distribution).index(0)
         from_process = list(global_cell_distribution).index(max(global_cell_distribution))
-        
+
         # Extract vertices and remove cells[0] on from_process
         v_out = np.zeros((1+x_per_v)*v_per_cell)
-        if MPI.process_number() == from_process:
+        if MPI.process_number(mpi_comm_world()) == from_process:
             # Structure v_out as (ind0, x0, y0, .., ind1, x1, .., )
             for i, v in enumerate(cells[0]):
                 v_out[i*(x_per_v+1)] = vertices[v][0]
@@ -152,29 +152,29 @@ def distribute_meshdata(cells, vertices):
 
             # Remove vertices no longer used in remaining cells.
             for i,v in enumerate(cells[0]):
-                if not any([v in c for c in cells[1:]]):                   
+                if not any([v in c for c in cells[1:]]):
                     for j in xrange(len(cells)):
                         cells[j] = [vi-1 if vi > v else vi for vi in cells[j]]
 
                     for vi in range(v, max(vertices)):
                         vertices[vi] = vertices[vi+1]
                     vertices.pop(max(vertices))
-            
+
             cells.pop(0)
-        MPI.barrier()
+        MPI.barrier(mpi_comm_world())
         # Broadcast vertices in cell[0] on from_process
         v_in = broadcast(v_out, from_process)
-        MPI.barrier()
+        MPI.barrier(mpi_comm_world())
         # Create cell and vertices on to_process
-        if MPI.process_number() == to_process:
+        if MPI.process_number(mpi_comm_world()) == to_process:
             for i in xrange(v_per_cell):
                 vertices[i] = (int(v_in[i*(x_per_v+1)]), v_in[i*(x_per_v+1)+1:(i+1)*(x_per_v+1)])
 
             assert len(cells) == 0
             cells = [range(v_per_cell)]
 
-        MPI.barrier()
-        
+        MPI.barrier(mpi_comm_world())
+
         # Update distribution
         global_cell_distribution = distribution(len(cells))
 

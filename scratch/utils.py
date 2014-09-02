@@ -1,5 +1,7 @@
 # --- Network mesh retrieval ---
 
+from dolfin import MPI, mpi_comm_world
+
 import urllib
 class DataURLOpener(urllib.FancyURLopener):
     def __init__(self, url, filename):
@@ -42,5 +44,5 @@ def retrieve(filename, urlbase='http://simula.no/~jobh/cbcflow'):
         del progress[0]
         set_log_level(log_level)
 
-    MPI.barrier()
+    MPI.barrier(mpi_comm_world())
     return filename
