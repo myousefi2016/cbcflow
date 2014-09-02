@@ -22,10 +22,15 @@ class Minimum(MetaPPField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
         
+        if u == None:
+            return None
+        
         if isinstance(u, Function):
             return MPI.min(numpy.min(u.vector().array()))
-        elif u != None:
+        elif hasattr(u, "__len__"):
             return MPI.min(min(u))
+        elif isinstance(u, (float,int,long)):
+            return MPI.min(u)
         else:
-            return None
+            raise Exception("Unable to take min of %s" %str(u))
         

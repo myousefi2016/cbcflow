@@ -29,7 +29,7 @@ class Maximum(MetaPPField):
             return MPI.max(numpy.max(u.vector().array()))
         elif hasattr(u, "__len__"):
             return MPI.max(max(u))
-        elif isinstance(u, (float,int)):
+        elif isinstance(u, (float,int,long)):
             return MPI.max(u)
         else:
             raise Exception("Unable to take max of %s" %str(u))

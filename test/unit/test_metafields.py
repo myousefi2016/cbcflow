@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from cbcflow import (ParamDict, NSProblem, NSPostProcessor, NSScheme,
     PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
-    TimeDerivative, SecondTimeDerivative, TimeIntegral, L2norm)
+    TimeDerivative, SecondTimeDerivative, TimeIntegral)
 from cbcflow.fields import *
 
 from cbcflow.utils.core import NSSpacePoolSplit
@@ -36,6 +36,8 @@ class MockProblem(NSProblem):
             mesh = UnitSquareMesh(6,6)
         elif D == 3:
             mesh = UnitCubeMesh(3,3,3)
+        elif D == 'complex':
+            mesh = Mesh("../cbcflow-data/dog_mesh_37k.xml.gz")
         self.initialize_geometry(mesh)
 
     @classmethod
@@ -61,6 +63,10 @@ def set_problem_params(request, problem):
 @pytest.fixture(scope="module")
 def spaces(problem):
     return NSSpacePoolSplit(problem.mesh, 1, 1)
+
+@pytest.fixture(scope="module")
+def spaces2(problem):
+    return NSSpacePoolSplit(problem.mesh, 2, 2)
 
 @pytest.fixture(scope="function")
 def pp():
@@ -315,7 +321,7 @@ def test_TimeIntegral_of_TimeDerivative(problem, spaces, pp, start_time, end_tim
     assert abs( abs(pp.get("TimeIntegral_TimeDerivative_MockTupleField")[2] - 5*I) - err_MockTupleField[2])  < 1e-8
 
 def test_Maximum(problem, spaces, pp, start_time, end_time, dt):
-        # Setup some mock scheme state
+    # Setup some mock scheme state
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
@@ -359,8 +365,187 @@ def test_Maximum(problem, spaces, pp, start_time, end_time, dt):
         assert abs(pp.get("Maximum_MockVectorFunctionField") - (10+zmax*t)) < 1e-8
     assert abs(pp.get("Maximum_MockTupleField") - (1+5*t)) < 1e-8
     
+def test_Minimum(problem, spaces, pp, start_time, end_time, dt):
+    # Setup some mock scheme state
+    dt, timesteps, start_timestep = compute_regular_timesteps(problem)
+    
+    pp.add_fields([
+        MockFunctionField(),
+        MockVectorFunctionField(),
+        MockTupleField(),
+    ])
+
+    pp.add_fields([
+        Minimum("t"),
+        Minimum("MockFunctionField"),
+        Minimum("MockVectorFunctionField"),
+        Minimum("MockTupleField"),
+        ])
+    
+    xmin = MPI.min(min(problem.mesh.coordinates()[:,0]))
+    ymin = MPI.min(min(problem.mesh.coordinates()[:,1]))
+    if problem.D > 2:
+        zmin = MPI.min(min(problem.mesh.coordinates()[:,2]))
+    
+     # Update postprocessor for a number of timesteps, this is where the main code under test is
+    for timestep, t in enumerate(timesteps, start_timestep):
+        # Run postprocessing step
+        pp.update_all({}, t, timestep, spaces, problem)
+        if start_time < t < end_time:
+            assert abs(pp.get("Minimum_t") - t) < 1e-8
+            assert abs(pp.get("Minimum_MockFunctionField") - (1+xmin*ymin*t)) < 1e-8
+            assert abs(pp.get("Minimum_MockVectorFunctionField") - (1+xmin*t)) < 1e-8
+            assert abs(pp.get("Minimum_MockTupleField") - t) < 1e-8
+    
+    pp.finalize_all(spaces, problem)
+    
+    assert abs(pp.get("Minimum_t") - t) < 1e-8
+    assert abs(pp.get("Minimum_MockFunctionField") - (1+xmin*ymin*t)) < 1e-8
+    assert abs(pp.get("Minimum_MockVectorFunctionField") - (1+xmin*t)) < 1e-8
+    assert abs(pp.get("Minimum_MockTupleField") - t) < 1e-8
+    
+def test_Norm(problem, spaces, pp, start_time, end_time, dt):
+    # Setup some mock scheme state
+    dt, timesteps, start_timestep = compute_regular_timesteps(problem)
+    
+    pp.add_fields([
+        MockFunctionField(),
+        MockVectorFunctionField(),
+        MockTupleField(),
+    ])
+
+    pp.add_fields([
+        Norm("t"),
+        Norm("t", dict(norm_type='l2')),
+        Norm("t", dict(norm_type='linf')),
+        Norm("MockFunctionField"),
+        Norm("MockFunctionField", dict(norm_type='L2')),
+        Norm("MockFunctionField", dict(norm_type='H10')),
+        Norm("MockVectorFunctionField"),
+        Norm("MockVectorFunctionField", dict(norm_type='L2')),
+        Norm("MockVectorFunctionField", dict(norm_type='H10')),
+        Norm("MockTupleField"),
+        Norm("MockTupleField", dict(norm_type='l4')),
+        Norm("MockTupleField", dict(norm_type='linf')),
+        ])
+    
+    D = problem.mesh.geometry().dim()
+    
+    # Update postprocessor for a number of timesteps, this is where the main code under test is
+    for timestep, t in enumerate(timesteps, start_timestep):
+        # Run postprocessing step
+        pp.update_all({}, t, timestep, spaces, problem)
+        
+        if start_time < t < end_time:
+            assert abs(pp.get("Norm_t") - t) < 1e-14
+            assert abs(pp.get("Norm_l2_t") - t) < 1e-14
+            assert abs(pp.get("Norm_linf_t") - t) < 1e-14
+            assert abs(pp.get("Norm_MockFunctionField") - norm(interpolate(Expression("1+x[0]*x[1]*t", t=t), spaces.Q))) < 1e-14
+            if D == 2:
+                assert abs(pp.get("Norm_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V))) < 1e-14
+                assert abs(pp.get("Norm_L2_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V), 'L2')) < 1e-14
+                assert abs(pp.get("Norm_H10_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V), 'H10')) < 1e-14
+            elif D == 3:
+                assert abs(pp.get("Norm_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V))) < 1e-14
+                assert abs(pp.get("Norm_L2_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V), 'L2')) < 1e-14
+                assert abs(pp.get("Norm_H10_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V), 'H10')) < 1e-14
+            assert abs(pp.get("Norm_MockTupleField") - sqrt(t**2+(3*t)**2+(1+5*t)**2)) < 1e-14
+            assert abs(pp.get("Norm_l4_MockTupleField") - (t**4+(3*t)**4+(1+5*t)**4)**(0.25)) < 1e-14
+            assert abs(pp.get("Norm_linf_MockTupleField") - (1+5*t)) < 1e-14
+    
+    pp.finalize_all(spaces, problem)
+    
+    assert abs(pp.get("Norm_t") - t) < 1e-14
+    assert abs(pp.get("Norm_l2_t") - t) < 1e-14
+    assert abs(pp.get("Norm_linf_t") - t) < 1e-14
+    assert abs(pp.get("Norm_MockFunctionField") - norm(interpolate(Expression("1+x[0]*x[1]*t", t=t), spaces.Q))) < 1e-14
+    if D == 2:
+        assert abs(pp.get("Norm_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V))) < 1e-14
+        assert abs(pp.get("Norm_L2_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V), 'L2')) < 1e-14
+        assert abs(pp.get("Norm_H10_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t"), t=t), spaces.V), 'H10')) < 1e-14
+    elif D == 3:
+        assert abs(pp.get("Norm_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V))) < 1e-14
+        assert abs(pp.get("Norm_L2_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V), 'L2')) < 1e-14
+        assert abs(pp.get("Norm_H10_MockVectorFunctionField") - norm(interpolate(Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t), spaces.V), 'H10')) < 1e-14
+    assert abs(pp.get("Norm_MockTupleField") - sqrt(t**2+(3*t)**2+(1+5*t)**2)) < 1e-14
+    assert abs(pp.get("Norm_l4_MockTupleField") - (t**4+(3*t)**4+(1+5*t)**4)**(0.25)) < 1e-14
+    assert abs(pp.get("Norm_linf_MockTupleField") - (1+5*t)) < 1e-14
     
     
+def test_PointEval(problem, spaces2, pp, start_time, end_time, dt):   
+    # Setup some mock scheme state
+    dt, timesteps, start_timestep = compute_regular_timesteps(problem)
+    
+    pp.add_fields([
+        MockFunctionField(),
+        MockVectorFunctionField(),
+        MockTupleField(),
+    ])
+
+    D = problem.mesh.geometry().dim()
+    
+    xmin = MPI.min(min(problem.mesh.coordinates()[:,0]))
+    ymin = MPI.min(min(problem.mesh.coordinates()[:,1]))
+    if problem.D > 2:
+        zmin = MPI.min(min(problem.mesh.coordinates()[:,2]))
+        
+    xmax = MPI.max(max(problem.mesh.coordinates()[:,0]))
+    ymax = MPI.max(max(problem.mesh.coordinates()[:,1]))
+    if problem.D > 2:
+        zmax = MPI.max(max(problem.mesh.coordinates()[:,2]))
+        
+    points = []
+    #for i in range(5):
+    bbtree = problem.mesh.bounding_box_tree()
+    while len(points) < 5:
+        p = [xmin+(xmax-xmin)*random(), ymin+(ymax-ymin)*random()]
+        if D == 3:
+            p += [zmin+(zmax-xmin)*random()]
+        _,d = bbtree.compute_closest_entity(Point(*p))
+
+        if d < 1e-12:
+            points.append(p)
+    
+    
+    pp.add_fields([
+        MockFunctionField(),
+        MockVectorFunctionField(),
+    ])
+
+    pp.add_fields([
+        PointEval("MockFunctionField", points),
+        PointEval("MockVectorFunctionField", points),
+        ])
+        
+    for timestep, t in enumerate(timesteps, start_timestep):
+        # Run postprocessing step
+        pp.update_all({}, t, timestep, spaces2, problem)
+        
+        if start_time < t < end_time:
+            pevalfunction = pp.get("PointEval_MockFunctionField")
+            pevalvectorfunction = pp.get("PointEval_MockVectorFunctionField")
+            for i, p in enumerate(points):
+                if D == 2:
+                    x,y = p
+                    assert abs( pevalfunction[i] - (1+x*y*t) ) < 1e-10
+                    assert sum( abs( pevalvectorfunction[i][k] - (1+x*t, 3+y*t)[k]) for k in range(D)) < 1e-10
+                elif D == 3:
+                    x,y,z = p
+                    assert abs( pevalfunction[i] - (1+x*y*t) ) < 1e-10
+                    assert sum( abs( pevalvectorfunction[i][k] - (1+x*t, 3+y*t, 10+z*t)[k]) for k in range(D)) < 1e-10
 
 
+    pp.finalize_all(spaces, problem)
+    
+    pevalfunction = pp.get("PointEval_MockFunctionField")
+    pevalvectorfunction = pp.get("PointEval_MockVectorFunctionField")
+    for i, p in enumerate(points):
+        if D == 2:
+            x,y = p
+            assert abs( pevalfunction[i] - (1+x*y*t) ) < 1e-10
+            assert sum( abs( pevalvectorfunction[i][k] - (1+x*t, 3+y*t)[k]) for k in range(D)) < 1e-10
+        elif D == 3:
+            x,y,z = p
+            assert abs( pevalfunction[i] - (1+x*y*t) ) < 1e-10
+            assert sum( abs( pevalvectorfunction[i][k] - (1+x*t, 3+y*t, 10+z*t)[k]) for k in range(D)) < 1e-10
 

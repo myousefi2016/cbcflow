@@ -28,4 +28,4 @@ class MetaPPField2(PPField):
         n = "%s_%s_%s" % (self.__class__.__name__, self.valuename1, self.valuename2)
         if self.label: n += "_"+self.label
             
-        return "%s_%s_%s" % (self.__class__.__name__, self.valuename1, self.valuename2)
+        return n

@@ -75,7 +75,9 @@ class PointEval(MetaPPField):
 
     @property
     def name(self):
-        return "%s_%s_%s" % (self.__class__.__name__, self.valuename, self.label)
+        n = "%s_%s" % (self.__class__.__name__, self.valuename)
+        if self.label: n += "_%s" %self.label
+        return n
 
     def before_first_compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)

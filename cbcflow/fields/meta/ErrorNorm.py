@@ -38,6 +38,14 @@ class ErrorNorm(MetaPPField):
             )
         return params
     
+    @property
+    def name(self):
+        n = "%s" % (self.__class__.__name__)
+        if self.params.norm_type != "default": n += "_"+self.params.norm_type
+        n += "_"+self.valuename1+"_"+self.valuename2
+        if self.label: n += "_"+self.label
+        return n
+    
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename1)
         uh = pp.get(self.valuename2)
@@ -58,7 +66,7 @@ class ErrorNorm(MetaPPField):
             assert hasattr(uh, "__len__")
             assert len(u) == len(uh)
             
-            if self.params.norm_type == 'default:'
+            if self.params.norm_type == 'default':
                 norm_type = 'l2'
             
             if self.params.norm_type == 'linf':

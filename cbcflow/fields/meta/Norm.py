@@ -37,17 +37,27 @@ class Norm(MetaPPField):
             )
         return params
     
+    @property
+    def name(self):
+        n = "%s" % (self.__class__.__name__)
+        if self.params.norm_type != "default": n += "_"+self.params.norm_type
+        n += "_"+self.valuename
+        if self.label: n += "_"+self.label
+        return n
+    
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
         
         if u == None:
             return None
         
+        norm_type = self.params.norm_type
+        
         if isinstance(u, Function):
-            norm_type = self.params.norm_type if self.params.norm_type != "default" else "L2"
+            norm_type = norm_type if norm_type != "default" else "L2"
             return norm(u, norm_type)
         elif isinstance(u, Vector):
-            norm_type = self.params.norm_type if self.params.norm_type != "default" else "l2"
+            norm_type = norm_type if norm_type != "default" else "l2"
             return norm(u, norm_type)
         else:
             if isinstance(u, (int, long, float)):
@@ -55,7 +65,7 @@ class Norm(MetaPPField):
             
             assert hasattr(u, "__len__")
             
-            if self.params.norm_type == 'default:'
+            if self.params.norm_type == 'default':
                 norm_type = 'l2'
             
             if self.params.norm_type == 'linf':
@@ -63,5 +73,5 @@ class Norm(MetaPPField):
                 
             else:
                 # Extract norm type
-                p = int(self.params.norm_type[1:])
+                p = int(norm_type[1:])
                 return sum(abs(_u)**p for _u in u)**(1./p)
