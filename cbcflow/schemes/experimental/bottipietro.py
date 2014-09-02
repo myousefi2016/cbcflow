@@ -25,6 +25,7 @@ from cbcflow.utils.schemes import (compute_regular_timesteps,
                                          make_pressure_bcs,
                                          make_penalty_pressure_bcs)
 from cbcflow.utils.core import NSSpacePoolSplit
+from cbcflow.dol import SpatialCoordinate
 
 
 class BottiPietro(NSScheme):
@@ -55,7 +56,7 @@ class BottiPietro(NSScheme):
         ds = problem.ds
         n  = FacetNormal(mesh)
         cell = mesh.ufl_cell()
-        x = cell.x
+        x = SpatialCoordinate(mesh)
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)

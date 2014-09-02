@@ -14,8 +14,9 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.dol import (SubsetIterator, MPI, ds, assemble, Constant, sqrt,
-                         FacetNormal, as_vector)
+from cbcflow.dol import (SubsetIterator, MPI, mpi_comm_world, ds, assemble, 
+                         Constant, sqrt, FacetNormal, as_vector, 
+                         SpatialCoordinate)
 import numpy as np
 
 def x_to_r2(x, c, n):
@@ -39,27 +40,27 @@ def compute_radius(mesh, facet_domains, ind, center):
             p = geom.point(v)
             r2 = sum((p[j] - center[j])**2 for j in xrange(d))
             maxr2 = max(maxr2, r2)
-    r = MPI.max(sqrt(maxr2))
+    r = MPI.max(mpi_comm_world(), sqrt(maxr2))
     return r
 
 def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
     # Some convenient variables
     assert facet_domains is not None
-    dsi = ds[facet_domains](ind)
+    dsi = ds[facet_domains](ind, domain=mesh)
     cell = mesh.ufl_cell()
-    d = cell.d
-    x = cell.x
+    d = cell.geometric_dimension()
+    x = SpatialCoordinate(mesh)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
-    A = assemble(Constant(1.0)*dsi, mesh=mesh)
+    A = assemble(Constant(1.0)*dsi)
     assert A > 0.0, "Expecting positive area, probably mismatch between mesh and markers!"
 
     # Compute barycenter by integrating x components over all facets
-    c = [assemble(x[i]*dsi, mesh=mesh) / A for i in xrange(d)]
+    c = [assemble(x[i]*dsi) / A for i in xrange(d)]
 
     # Compute average normal (assuming boundary is actually flat)
     n = FacetNormal(mesh)
-    ni = [assemble(n[i]*dsi, mesh=mesh) for i in xrange(d)]
+    ni = [assemble(n[i]*dsi) for i in xrange(d)]
     n_len = np.sqrt(sum([ni[i]**2 for i in xrange(d)])) # Should always be 1!?
     normal = [ni[i]/n_len for i in xrange(d)]
 
@@ -76,7 +77,7 @@ def compute_area(mesh, ind, facet_domains):
     dsi = ds[facet_domains](ind)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
-    A = assemble(Constant(1.0)*dsi, mesh=mesh)
+    A = assemble(Constant(1.0)*dsi, mesh=mesh) 
     assert A > 0.0, "Expecting positive area, probably mismatch between mesh and markers!"
     return A
 

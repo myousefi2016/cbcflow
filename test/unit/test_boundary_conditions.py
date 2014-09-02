@@ -100,7 +100,7 @@ def test_womersley_is_poiseuille_with_stationary_coefficients(data):
     wexpressions = make_womersley_bcs(coeffs, data.mesh, data.indicator, nu, None, data.facet_domains)
     pexpressions = make_poiseuille_bcs(coeffs, data.mesh, data.indicator, None, data.facet_domains)
 
-    dsi = ds[data.facet_domains](data.indicator)
+    dsi = ds[data.facet_domains](data.indicator, domain=data.mesh)
 
     for t in np.linspace(0.0, period, 10):
         for bc in wexpressions:
@@ -109,9 +109,9 @@ def test_womersley_is_poiseuille_with_stationary_coefficients(data):
             bc.set_t(t)
 
         for wbc, pbc in zip(wexpressions, pexpressions):
-            wnorm = np.sqrt(assemble(wbc**2*dsi, mesh=data.mesh))
-            pnorm = np.sqrt(assemble(pbc**2*dsi, mesh=data.mesh))
-            diff = np.sqrt(assemble((wbc-pbc)**2*dsi, mesh=data.mesh))
+            wnorm = np.sqrt(assemble(wbc**2*dsi))
+            pnorm = np.sqrt(assemble(pbc**2*dsi))
+            diff = np.sqrt(assemble((wbc-pbc)**2*dsi))
             if 0:
                 print "wnorm", wnorm
                 print "pnorm", pnorm
