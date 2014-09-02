@@ -23,7 +23,7 @@ from cbcflow.utils.common import (cbcflow_warning, hdf5_link, safe_mkdir, on_mas
 
 from cbcflow.fields import field_classes, basic_fields, meta_fields, PPField
 
-from dolfin import Function, MPI, plot, File, HDF5File, XDMFFile, error
+from dolfin import Function, MPI, mpi_comm_world, plot, File, HDF5File, XDMFFile, error
 
 import os, re, inspect, pickle, shelve
 from collections import defaultdict
@@ -44,7 +44,7 @@ def disable_plotting():
         else:
             cbcflow_warning("Unable to plot in paralell. Disabling plotting.")
             disable_plotting.value = True
-        
+
     return disable_plotting.value
 disable_plotting.value = "init"
 
@@ -100,7 +100,7 @@ class NSPostProcessor(Parameterized):
 
         # Plan of what to compute now and in near future
         self._plan = defaultdict(lambda: defaultdict(int))
-        
+
         # Keep track of which fields have been finalized
         self._finalized = {}
 
@@ -109,7 +109,7 @@ class NSPostProcessor(Parameterized):
 
         # Keep track of how many times .get has called each field.compute, for administration:
         self._compute_counts = defaultdict(int) # Actually only used for triggering "before_first_compute"
-        
+
         # Keep track of how many times update_all has been called
         self._update_all_count = 0
 
@@ -130,7 +130,7 @@ class NSPostProcessor(Parameterized):
         self._problem = None
         self._spaces = None
         self._solution = None
-        
+
         self._timer = Timer()
 
     @classmethod
@@ -158,7 +158,7 @@ class NSPostProcessor(Parameterized):
 
     def find_dependencies(self, field):
         "Read dependencies from source code in field.compute function"
-        
+
         # Get source of compute and after_last_compute
         s = inspect.getsource(field.compute)
         s += inspect.getsource(field.after_last_compute)
@@ -211,7 +211,7 @@ class NSPostProcessor(Parameterized):
 
             # Append to dependencies
             deps.append(tuple(dep))
-            
+
         # Make unique (can happen that deps are repeated in rare cases)
         return sorted(set(deps))
 
@@ -227,7 +227,7 @@ class NSPostProcessor(Parameterized):
             elif field in basic_fields:
                 # Create a proper field object from known field name with negative end time,
                 # so that it is never triggered directly
-                field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) 
+                field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16})
             elif field in meta_fields:
                 error("Meta field %s cannot be constructed by name because the field instance requires parameters." % field)
             else:
@@ -238,7 +238,7 @@ class NSPostProcessor(Parameterized):
         # This is a bit unsafe though, the user might add a field twice with different parameters...
         # Check that at least the same name is not used for different field classes:
         assert type(field) == type(self._fields.get(field.name,field))
-        
+
         # Add fields explicitly specified by field
         self.add_fields(field.add_fields())
 
@@ -264,7 +264,7 @@ class NSPostProcessor(Parameterized):
                     full_deps.append(fdep)
             existing_full_deps.add(dep)
             full_deps.append(dep)
-        
+
         # Add field to internal data structures
         self._fields[field.name] = field
         self._dependencies[field.name] = deps
@@ -312,17 +312,17 @@ class NSPostProcessor(Parameterized):
         # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
         # it's easy to swap here with e.g. fp = self._field_params[field.name]
         fp = field.params
-        
+
         # Should never be finalized
         #if not fp["finalize"]:
         #    return False
-        
+
         # Finalize if that is default for field
         if not field.__class__.default_params()["finalize"] and not fp["finalize"]:
             return False
-        
-        
-        
+
+
+
         # Already finalized
         if field.name in self._finalized:
             return False
@@ -336,7 +336,7 @@ class NSPostProcessor(Parameterized):
         eps = 1e-10
         if e-eps < t:
             return True
-        
+
         # Not completed
         return False
 
@@ -347,22 +347,22 @@ class NSPostProcessor(Parameterized):
         Values are computed at first request and cached.
         """
         cbcflow_log(20, "Getting: %s, %d (compute=%s, finalize=%s)" %(name, timestep, compute, finalize))
-        
+
         # Check cache
         c = self._cache[timestep]
         data = c.get(name, "N/A")
-        
+
         # Check if field has been finalized, and if so,
         # return finalized value
         if name in self._finalized and data == "N/A":
             if compute:
                 cbcflow_warning("Field %s has already been finalized. Will not call compute on field." %name)
             return self._finalized[name]
-        
+
         # Hack to access the spaces and problem arguments to update()
         spaces = self._spaces
         problem = self._problem
-        
+
         # Are we attempting to get value from before update was started?
         # Use constant extrapolation if allowed.
         if abs(timestep) > self._update_all_count and data == "N/A":
@@ -443,7 +443,7 @@ class NSPostProcessor(Parameterized):
     def _get_save_formats(self, field, data):
         if data == None:
             return []
-        
+
         if field.params.save_as == PPField.default_save_as():
             # Determine proper file formats from data type if not specifically provided
             if isinstance(data, Function):
@@ -473,13 +473,13 @@ class NSPostProcessor(Parameterized):
                     all_fields = []
                     for k,v in playlog.items():
                         all_fields += v.get("fields", {}).keys()
-    
+
                     all_fields = list(set(all_fields))
                     playlog.close()
-                    
+
                     for field in all_fields:
                         rmtree(os.path.join(self.get_casedir(), field))
-                    
+
                     for f in ["mesh.hdf5", "play.db", "params.txt", "params.pickle"]:
                         if os.path.isfile(os.path.join(self.get_casedir(), f)):
                             os.remove(os.path.join(self.get_casedir(), f))
@@ -591,7 +591,7 @@ class NSPostProcessor(Parameterized):
     def _update_hdf5_file(self, field_name, saveformat, data, timestep, t):
         assert saveformat == "hdf5"
         fullname, metadata = self._get_datafile_name(field_name, saveformat, timestep)
-        
+
         # Create "good enough" hash. This is done to avoid data corruption when restarted from
         # different number of processes, different distribution or different function space
         local_hash= sha1()
@@ -599,39 +599,39 @@ class NSPostProcessor(Parameterized):
         local_hash.update(str(data.function_space().ufl_element()))
         local_hash.update(str(data.function_space().dim()))
         local_hash.update(str(MPI.num_processes()))
-        
+
         # Global hash (same on all processes), 10 digits long
         hash = str(int(MPI.sum(int(local_hash.hexdigest(), 16))%1e10)).zfill(10)
-        
+
         #key = (field_name, saveformat)
         #datafile = self._datafile_cache.get(key)
         #if datafile is None:
-        #    datafile = HDF5File(fullname, 'w')
+        #    datafile = HDF5File(mpi_comm_world(), fullname, 'w')
         #    self._datafile_cache[key] = datafile
-        
+
         # Open HDF5File
         if not os.path.isfile(fullname):
-            datafile = HDF5File(fullname, 'w')
+            datafile = HDF5File(mpi_comm_world(), fullname, 'w')
         else:
-            datafile = HDF5File(fullname, 'a')
-        
+            datafile = HDF5File(mpi_comm_world(), fullname, 'a')
+
         # Write to hash-dataset if not yet done
         if not datafile.has_dataset(hash) or not datafile.has_dataset(hash+"/"+field_name):
             datafile.write(data, str(hash)+"/"+field_name)
-            
+
         if not datafile.has_dataset("Mesh"):
             datafile.write(data.function_space().mesh(), "Mesh")
-        
+
         # Write vector to file
         # TODO: Link vector when function has been written to hash
         datafile.write(data.vector(), field_name+str(timestep)+"/vector")
 
-        del datafile        
+        del datafile
         # Link information about function space from hash-dataset
         hdf5_link(fullname, str(hash)+"/"+field_name+"/x_cell_dofs", field_name+str(timestep)+"/x_cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cell_dofs", field_name+str(timestep)+"/cell_dofs")
         hdf5_link(fullname, str(hash)+"/"+field_name+"/cells", field_name+str(timestep)+"/cells")
-        
+
         return metadata
 
     def _update_xml_file(self, field_name, saveformat, data, timestep, t):
@@ -666,7 +666,7 @@ class NSPostProcessor(Parameterized):
             datafile = shelve.open(fullname)
             datafile[str(timestep)] = data
             datafile.close()
-            
+
         return metadata
 
     def _fetch_play_log(self):
@@ -709,7 +709,7 @@ class NSPostProcessor(Parameterized):
     def store_mesh(self, mesh):
         "Store mesh in casedir to mesh.hdf5 (dataset Mesh) in casedir."
         casedir = self.get_casedir()
-        meshfile = HDF5File(os.path.join(casedir, "mesh.hdf5"), 'w')
+        meshfile = HDF5File(mpi_comm_world(), os.path.join(casedir, "mesh.hdf5"), 'w')
         meshfile.write(mesh, "Mesh")
         del meshfile
 
@@ -737,10 +737,10 @@ class NSPostProcessor(Parameterized):
         # object like we do for plotting, or?
         if isinstance(data, Function):
             data.rename(field_name, "Function produced by cbcflow postprocessing.")
-        
+
         # Get list of file formats
         save_as = self._get_save_formats(field, data)
-        
+
         # Write data to file for each filetype
         for saveformat in save_as:
             # Write data to file depending on type
@@ -764,14 +764,14 @@ class NSPostProcessor(Parameterized):
 
         # Write new data to metadata file
         self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
-        
+
         self._fill_play_log(field, timestep, save_as)
 
     def _action_plot(self, field, data):
         "Apply the 'plot' action to computed field data."
         if data == None:
             return
-        
+
         if disable_plotting():
             return
         if isinstance(data, Function):
@@ -897,12 +897,12 @@ class NSPostProcessor(Parameterized):
         #min_dt_factor = 0.5
         #max_dt_factor = 2.0
         dt = self._problem.params.dt
-        
+
         # Loop over all fields that and trigger for computation
         for name, field in self._fields.iteritems():
             full_deps = self._full_dependencies[name]
             offset = abs(min([ts for depname, ts in full_deps]+[0]))
-                        
+
             # Check if field should be computed in this or the next timesteps,
             # and plan dependency computations accordingly
             # TODO: Allow for varying timestep
@@ -912,9 +912,9 @@ class NSPostProcessor(Parameterized):
                     if i == 0:
                         # Store compute trigger times to keep track of compute intervals
                         self._last_trigger_time[field.name] = (t, timestep)
-                        
+
                     self._insert_deps_in_plan(name, i)
-                    
+
                     oldttk = self._plan[0].get(name, 0)
                     ttk = max(oldttk, i)
                     self._plan[i][name] = ttk
@@ -931,13 +931,13 @@ class NSPostProcessor(Parameterized):
             # Insert in plan if able to compute
             if offset+ts >= 0:
                 self._plan[offset+ts][depname] = ttk
-            
+
                 new_offset = offset+ts
                 self._insert_deps_in_plan(depname, new_offset)
 
     def _execute_plan(self, t, timestep):
         "Check plan and compute fields in plan."
-        
+
         # Initialize cache for current timestep
         assert not self._cache[0], "Not expecting cached computations at this timestep before plan execution!"
         self._cache[0] = {
@@ -951,20 +951,20 @@ class NSPostProcessor(Parameterized):
                 compute = True
             else:
                 compute = False
-            
-            field = self._fields[name]    
+
+            field = self._fields[name]
             if self._should_finalize_at_this_time(field, t, timestep):
                 finalize = True
             else:
                 finalize = False
-            
+
             # If neither finalize or compute triggers, continue
             if not (finalize or compute):
                 continue
-            
+
             # Execute computation through get call
             data = self.get(name, compute=compute, finalize=finalize)
-            
+
             # Apply action if it was triggered directly this timestep (not just indirectly)
             #if (data is not None) and (self._last_trigger_time[name][1] == timestep):
             if self._last_trigger_time[name][1] == timestep or finalize:
@@ -1010,7 +1010,7 @@ class NSPostProcessor(Parameterized):
 
         # Compute what's needed according to plan
         self._execute_plan(t, timestep)
-        
+
         self._update_all_count += 1
 
         # Reset hack to make these objects available throughout during update, to
@@ -1033,7 +1033,7 @@ class NSPostProcessor(Parameterized):
             field = self._fields[name]
             if field.params.finalize and name not in self._finalized:
                 self.get(name, compute=False, finalize=True)
-                
+
             #finalize_data = field.after_last_compute(self, spaces, problem)
             #if finalize_data is not None and field.params["save"]:
             #    self._finalize_metadata_file(name, finalize_data)
