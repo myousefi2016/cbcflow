@@ -17,7 +17,8 @@
 
 from os.path import join
 
-from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
+from dolfin import Function, TestFunction, assemble, inner, dx, project
+from dolfin import HDF5File, error, CellVolume
 import shelve   
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
@@ -139,7 +140,7 @@ class PPField(Parameterized):
             #target = pp.function_pool.borrow_function(space)
 
             test = TestFunction(space)
-            scale = 1.0 / space.mesh().ufl_cell().volume
+            scale = 1.0 / CellVolume(space.mesh())
             assemble(scale*inner(expr, test)*dx(), tensor=function.vector())
             return function
 

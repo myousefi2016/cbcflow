@@ -18,13 +18,14 @@
 import os
 from time import time
 
-from cbcflow.dol import MPI, warning, log, compile_extension_module
+from cbcflow.dol import MPI, mpi_comm_world, warning, log
+from cbcflow.dol import compile_extension_module
 
 def on_master_process():
-    return MPI.process_number() == 0
+    return MPI.rank(mpi_comm_world()) == 0
 
 def in_serial():
-    return MPI.num_processes() == 1
+    return MPI.rank(mpi_comm_world()) == 1
 
 
 # --- Logging ---

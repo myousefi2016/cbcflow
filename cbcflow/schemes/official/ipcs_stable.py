@@ -290,11 +290,11 @@ class IPCS_Stable(NSScheme):
             # also stored in rhs. (And it's faster).
             if Kconv.size(0) == 0:
                 # First time, just assemble normally
-                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+                assemble(a_conv, tensor=Kconv)
             else:
                 # Subtract the convection for previous time step before re-assembling Kconv
                 A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
-                assemble(a_conv, tensor=Kconv, reset_sparsity=False)
+                assemble(a_conv, tensor=Kconv)
 
             # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
             # the axpy (it doesn't matter which)
