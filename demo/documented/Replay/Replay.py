@@ -29,7 +29,7 @@ def replay():
     postprocessor.add_fields([
         Stress({"save": True}),
         StreamFunction({"save": True, "plot": True}),
-        L2norm("Velocity", {"save": True, "plot": True}),
+        Norm("Velocity", {"save": True, "plot": True}),
     ])
     
     # Replay
