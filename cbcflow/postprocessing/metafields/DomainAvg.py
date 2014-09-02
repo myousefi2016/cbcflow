@@ -14,23 +14,34 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import Function, MPI
-import numpy
+from cbcflow.fields.bases.MetaField import MetaField
+from dolfin import assemble, dx, Function, Constant
 
-class Minimum(MetaPPField):
+class DomainAvg(MetaField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
         
         if u == None:
-            return None
-        
+            return
+
+        # Find mesh/domain
         if isinstance(u, Function):
-            return MPI.min(numpy.min(u.vector().array()))
-        elif hasattr(u, "__len__"):
-            return MPI.min(min(u))
-        elif isinstance(u, (float,int,long)):
-            return MPI.min(u)
+            mesh = u.function_space().mesh()
         else:
-            raise Exception("Unable to take min of %s" %str(u))
+            mesh = problem.mesh
         
+        # Calculate volume
+        if not hasattr(self, "volume"):
+            self.volume = assemble(Constant(1)*dx(), mesh=mesh)
+        
+        if u.rank() == 0:
+            value = assemble(u*dx(), mesh=mesh)/self.volume
+        elif u.rank() == 1:
+            value = [assemble(u[i]*dx(), mesh=mesh)/self.volume for i in xrange(u.value_size())]
+        elif u.rank() == 2:
+            value = []
+            for i in xrange(u.shape()[0]):
+                for j in xrange(u.shape()[1]):
+                    value.append(assemble(u[i,j]*dx(), mesh=mesh)/self.volume)
+
+        return value

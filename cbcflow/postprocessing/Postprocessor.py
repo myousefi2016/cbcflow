@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
+from cbcflow.core.parameterized import Parameterized
+
+
 class DependencyException(Exception):
     def __init__(self, fieldname=None, dependency=None, timestep=None, original_exception_msg=None):
         message = []
@@ -30,7 +33,7 @@ class DependencyException(Exception):
         Exception.__init__(self, message)
 
 
-# Fields available through pp.get(name) even though they have no PPField class
+# Fields available through pp.get(name) even though they have no Field class
 builtin_fields = ("t", "timestep")
 
 class PostProcessor(Parameterized):
@@ -111,7 +114,7 @@ class PostProcessor(Parameterized):
         # Insert item after all its dependencies
         self._sorted_fields_keys.insert(max_index+1, fieldname)
 
-    def find_dependencies(self, field):
+    def _find_dependencies(self, field):
         "Read dependencies from source code in field.compute function"
         
         # Get source of compute and after_last_compute
@@ -392,7 +395,7 @@ class PostProcessor(Parameterized):
 
 
     def finalize_all(self, spaces, problem):
-        "Finalize all PPFields after last timestep has been computed."
+        "Finalize all Fields after last timestep has been computed."
         for name in self._sorted_fields_keys:
             field = self._fields[name]
             if field.params.finalize and name not in self._finalized:

@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 r'''
-Computes the norm of two PPFields. If the PPFields Function-objects, the computation is forwarded to
+Computes the norm of two Fields. If the Fields Function-objects, the computation is forwarded to
 the dolfin function *errornorm*. Otherwise two float list-type object is expected, and the :math:'l^p'-norm is computed as
 
 .. math:: ||\mathbf{x}||_p := \left( \sum_i=1^n |x_i|^p \right)^{1/p}.
@@ -25,13 +25,13 @@ The :math:'\infty'-norm is computed as
 .. math:: ||\mathbf{x}||_\infty := max(|x_1|, |x_2|, ..., |x_n|)
 
 '''
-from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaField import MetaField
 from dolfin import Function, Vector, norm
 
-class ErrorNorm(MetaPPField):
+class ErrorNorm(MetaField):
     @classmethod
     def default_params(cls):
-        params = MetaPPField.default_params()
+        params = MetaField.default_params()
         params.update(
             norm_type='default',
             degree_rise='3',

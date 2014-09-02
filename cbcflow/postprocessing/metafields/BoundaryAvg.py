@@ -14,18 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+from cbcflow.fields.bases.MetaField import MetaField
+from dolfin import assemble, ds
 
-from cbcflow.fields.bases.PPField import PPField
-
-class MetaPPField2(PPField):
-    def __init__(self, value1, value2, params=None, label=None):
-        PPField.__init__(self, params, label)
-        self.valuename1 = value1.name if isinstance(value1, PPField) else value1
-        self.valuename2 = value2.name if isinstance(value2, PPField) else value2
-
-    @property
-    def name(self):
-        n = "%s_%s_%s" % (self.__class__.__name__, self.valuename1, self.valuename2)
-        if self.label: n += "_"+self.label
-            
-        return n
+class BoundaryAvg(MetaField):
+    def compute(self, pp, spaces, problem):
+        u = pp.get(self.valuename)
+        value = assemble(u*ds(), mesh=problem.mesh)
+        return value

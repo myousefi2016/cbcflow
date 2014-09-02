@@ -14,30 +14,25 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import Function
-import numpy
+from cbcflow.fields.bases.MetaField import MetaField
+from dolfin import project, sqrt, Function, inner
+from cbcflow.utils.common import cbcflow_warning
 
-class RunningMax(MetaPPField):
-    def before_first_compute(self, pp, spaces, problem):
-        self._value = None
-
+class Magnitude(MetaField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-
-        if self._value is None:
-            if isinstance(u, Function):
-                self._value = Function(u)
-            else:
-                self._value = u
+        
+        if isinstance(u, Function):
+            if u.rank() == 0:
+                return u
+            elif u.rank() >= 1:
+                # Assume all subpaces are equal
+                V = u.function_space().extract_sub_space([0]).collapse()
+                mag = project(sqrt(inner(u,u)), V)
+                return mag
         else:
-            if isinstance(u, Function):
-                # TODO: Test! This might work at least in serial, what about paralell?
-                self._value.vector()[:] = numpy.max(self._value.vector()[:], u.vector()[:])
-            else:
-                self._value = max(self._value, u)
-
-        return self._value
-
-    def after_last_compute(self, pp, spaces, problem):
-        return self._value
+            # Don't know how to handle object
+            cbcflow_warning("Don't know how to calculate magnitude of object of type %s. Returning object." %type(u))
+            return u
+                        
+    

@@ -15,17 +15,17 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.fields.bases.PPField import PPField
+from cbcflow.fields.bases.Field import Field
 from dolfin import Function, VectorFunctionSpace, FunctionSpace, project, as_vector, MPI
 
 def import_fenicstools():
     import fenicstools
     return fenicstools
 
-class SubFunction(PPField):
-    "SubFunction is used to interpolate a PPField on a non-matching mesh"
+class SubFunction(Field):
+    "SubFunction is used to interpolate a Field on a non-matching mesh"
     def __init__(self, field, mesh, params=None, label=None):
-        PPField.__init__(self, params, label)
+        Field.__init__(self, params, label)
         
         import imp
         try:
@@ -38,7 +38,7 @@ class SubFunction(PPField):
         self.mesh = mesh
 
         # Store only name, don't need the field
-        if isinstance(field, PPField):
+        if isinstance(field, Field):
             field = field.name
         self.valuename = field
 

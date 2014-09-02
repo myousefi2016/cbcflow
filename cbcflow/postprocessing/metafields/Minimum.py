@@ -14,22 +14,23 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+from cbcflow.fields.bases.MetaField import MetaField
+from dolfin import Function, MPI
+import numpy
 
-from cbcflow.fields.bases.PPField import PPField
-
-class MetaPPField(PPField):
-    def __init__(self, value, params=None, label=None):
-        PPField.__init__(self, params, label)
-        self.valuename = value.name if isinstance(value, PPField) else value
-
-    @property
-    def name(self):
-        n = "%s_%s" % (self.__class__.__name__, self.valuename)
-        if self.label: n += "_"+self.label
-        return n
-    
-    def after_last_compute(self, pp, spaces, problem):
+class Minimum(MetaField):
+    def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-        if u != "N/A":
-            return self.compute(pp, spaces, problem)
-
+        
+        if u == None:
+            return None
+        
+        if isinstance(u, Function):
+            return MPI.min(numpy.min(u.vector().array()))
+        elif hasattr(u, "__len__"):
+            return MPI.min(min(u))
+        elif isinstance(u, (float,int,long)):
+            return MPI.min(u)
+        else:
+            raise Exception("Unable to take min of %s" %str(u))
+        

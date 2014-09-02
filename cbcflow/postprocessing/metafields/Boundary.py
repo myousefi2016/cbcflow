@@ -14,11 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaField import MetaField
 from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
 from dolfin import Function, ds, dx, assemble
 
-class Boundary(MetaPPField):
+class Boundary(MetaField):
 
     def before_first_compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)

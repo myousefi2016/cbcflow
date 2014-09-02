@@ -16,8 +16,8 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 """ Base classes for all postprocessing fields. """
 
-from PPField import PPField
-from MetaPPField import MetaPPField
-from MetaPPField2 import MetaPPField2
+from Field import Field
+from MetaField import MetaField
+from MetaField2 import MetaField2
 
-__all__ = ["PPField", "MetaPPField", "MetaPPField2"]
+__all__ = ["Field", "MetaField", "MetaField2"]

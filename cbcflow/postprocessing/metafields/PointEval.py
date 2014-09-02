@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaField import MetaField
 import numpy as np
 from dolfin import Point
 from itertools import chain
@@ -67,9 +67,9 @@ def points_in_ball(center, radius, resolution):
                     points.append(tuple(x))
     return tuple(points)
 
-class PointEval(MetaPPField):
+class PointEval(MetaField):
     def __init__(self, value, points, params=None, label=None):
-        MetaPPField.__init__(self, value, params, label)
+        MetaField.__init__(self, value, params, label)
         self.points = points
         self._ft = import_fenicstools()
 

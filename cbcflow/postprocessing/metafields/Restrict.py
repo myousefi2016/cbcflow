@@ -14,17 +14,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaField import MetaField
 from cbcflow.utils.common.restriction_map import restriction_map
 from cbcflow.utils.common.utils import cbcflow_warning
-from cbcflow.fields import PPField
+from cbcflow.fields import Field
 from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
 from numpy import array, uint
 
-class Restrict(MetaPPField):
-    "Restrict is used to restrict a PPField to a submesh of the mesh associated with the PPField."
+class Restrict(MetaField):
+    "Restrict is used to restrict a Field to a submesh of the mesh associated with the Field."
     def __init__(self, field, submesh, params={}, label=None):
-        MetaPPField.__init__(self, field, params, label)
+        MetaField.__init__(self, field, params, label)
         
         self.submesh = submesh
         

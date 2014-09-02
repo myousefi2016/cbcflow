@@ -14,14 +14,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaPPField import MetaPPField
+from cbcflow.fields.bases.MetaField import MetaField
 from dolfin import Function
 EPS = 1e-10
 
-class TimeIntegral(MetaPPField):
+class TimeIntegral(MetaField):
     @classmethod
     def default_params(cls):
-        params = MetaPPField.default_params()
+        params = MetaField.default_params()
         params.update(
             finalize=True,
             )

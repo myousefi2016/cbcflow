@@ -15,14 +15,25 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
+from cbcflow.fields.bases.Field import Field
+from dolfin import assemble, dot
 
-from Postprocessor import PostProcessor
+class FlowRate(Field):
+    def __init__(self, boundary_id, params=None, label=None):
+        Field.__init__(self, params, label)
+        self.boundary_id = boundary_id
 
-from cbcflow.postprocessing.fieldbases import Field
-from cbcflow.postprocessing.fieldbases import MetaField
-from cbcflow.postprocessing.fieldbases import MetaField2
+    @property
+    def name(self):
+        n = "%s_%s" % (self.__class__.__name__, self.boundary_id)
+        if self.label: n += "_"+self.label
+        return n
 
-from cbcflow.postprocessing.metafields import meta_fields
+    def compute(self, pp, spaces, problem):
+        u = pp.get("Velocity")
 
-for f in meta_fields:
-    exec("from cbcflow.postprocessor.metafields.%s import %s" % (f, f))
+        n = problem.mesh.ufl_cell().n
+        dsi = problem.ds(self.boundary_id)
+
+        M = dot(u, n)*dsi
+        return assemble(M)

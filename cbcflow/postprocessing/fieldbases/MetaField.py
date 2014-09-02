@@ -15,25 +15,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.fields.bases.PPField import PPField
-from dolfin import assemble, dot
+from cbcflow.fields.bases.Field import Field
 
-class FlowRate(PPField):
-    def __init__(self, boundary_id, params=None, label=None):
-        PPField.__init__(self, params, label)
-        self.boundary_id = boundary_id
+class MetaField(Field):
+    def __init__(self, value, params=None, label=None):
+        Field.__init__(self, params, label)
+        self.valuename = value.name if isinstance(value, Field) else value
 
     @property
     def name(self):
-        n = "%s_%s" % (self.__class__.__name__, self.boundary_id)
+        n = "%s_%s" % (self.__class__.__name__, self.valuename)
         if self.label: n += "_"+self.label
         return n
+    
+    def after_last_compute(self, pp, spaces, problem):
+        u = pp.get(self.valuename)
+        if u != "N/A":
+            return self.compute(pp, spaces, problem)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-
-        n = problem.mesh.ufl_cell().n
-        dsi = problem.ds(self.boundary_id)
-
-        M = dot(u, n)*dsi
-        return assemble(M)

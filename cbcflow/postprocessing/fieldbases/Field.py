@@ -22,7 +22,7 @@ import shelve
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 
-class PPField(Parameterized):
+class Field(Parameterized):
     def __init__(self, params=None, label=None):
         Parameterized.__init__(self, params)
         if label:
@@ -95,7 +95,7 @@ class PPField(Parameterized):
 
     def compute(self, pp, spaces, problem):
         "Called each time the quantity should be computed."
-        raise NotImplementedError("A PPField must implement the compute function!")
+        raise NotImplementedError("A Field must implement the compute function!")
 
     def convert(self, pp, spaces, problem):
         """Called if quantity is input to NSPostProcessor.update_all"""
