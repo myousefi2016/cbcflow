@@ -16,7 +16,7 @@ def play():
     fields = [
         Velocity(dict(save=True, stride_timestep=5)),
         Pressure(dict(save=True, stride_timestep=10)),
-        L2norm("Velocity", dict(save=True, stride_timestep=2))
+        Norm("Velocity", dict(save=True, stride_timestep=2))
     ]
     
     postprocessor = NSPostProcessor(dict(casedir='results'))
