@@ -121,7 +121,9 @@ class Stokes(NSScheme):
 
             # Solve for up1
             #solver.solve()
-            solve(a == L, up1, bcu)
+            solve(a == L, up1, bcu, 
+                  solver_parameters={"linear_solver": "gmres",
+                                     "preconditioner": "hypre_amg"})
 
             # Rotate functions for next timestep
             up0.assign(up1)

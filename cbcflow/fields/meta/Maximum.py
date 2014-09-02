@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import Function, MPI
+from dolfin import Function, MPI, mpi_comm_world
 import numpy
 
 class Maximum(MetaPPField):
@@ -26,11 +26,11 @@ class Maximum(MetaPPField):
             return None
         
         if isinstance(u, Function):
-            return MPI.max(numpy.max(u.vector().array()))
+            return MPI.max(mpi_comm_world(), numpy.max(u.vector().array()))
         elif hasattr(u, "__len__"):
-            return MPI.max(max(u))
+            return MPI.max(mpi_comm_world(), max(u))
         elif isinstance(u, (float,int,long)):
-            return MPI.max(u)
+            return MPI.max(mpi_comm_world(), u)
         else:
             raise Exception("Unable to take max of %s" %str(u))
         

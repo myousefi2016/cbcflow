@@ -413,7 +413,7 @@ def test_get_first_time_derivative():
         # Fake a varying pressure
         pexpr.t = t
         p.interpolate(pexpr)
-        assert abs(assemble(p**2*dx, mesh=problem.mesh) - (t+2*t**2+3*t**3)**2)  <  1e-8
+        assert abs(assemble(p**2*dx(domain=problem.mesh)) - (t+2*t**2+3*t**3)**2)  <  1e-8
         #assert assemble(dpdtexpr**2*dx, mesh=problem.mesh) < 1e-8
 
         # Run postprocessing step
@@ -430,7 +430,7 @@ def test_get_first_time_derivative():
             #print "YYY", assemble(prm**2*dx, mesh=problem.mesh)
             #print "YYY", assemble(dpdtexpr**2*dx, mesh=problem.mesh)
             #print "YYY", assemble(tdp**2*dx, mesh=problem.mesh)
-            diff = assemble((dpdtexpr-tdp)**2*dx, mesh=problem.mesh)
+            diff = assemble((dpdtexpr-tdp)**2*dx(domain=problem.mesh))
             assert abs(diff) < 1e-8
 
     # TODO: Check that we get the right amount of calls:

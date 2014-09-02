@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.fields.bases.MetaPPField import MetaPPField
-from dolfin import Function, MPI
+from dolfin import Function, MPI, mpi_comm_world
 import numpy
 
 class Minimum(MetaPPField):
@@ -26,11 +26,11 @@ class Minimum(MetaPPField):
             return None
         
         if isinstance(u, Function):
-            return MPI.min(numpy.min(u.vector().array()))
+            return MPI.min(mpi_comm_world(), numpy.min(u.vector().array()))
         elif hasattr(u, "__len__"):
-            return MPI.min(min(u))
+            return MPI.min(mpi_comm_world(), min(u))
         elif isinstance(u, (float,int,long)):
-            return MPI.min(u)
+            return MPI.min(mpi_comm_world(), u)
         else:
             raise Exception("Unable to take min of %s" %str(u))
         
