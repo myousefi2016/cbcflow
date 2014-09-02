@@ -44,7 +44,7 @@ class SpacePool(object):
 
         # Start with empty cache
         self._spaces = {}
-        
+
         self._boundary = None
 
     def get_custom_space(self, family, degree, shape, boundary=False):
@@ -62,7 +62,7 @@ class SpacePool(object):
             elif rank == 1:
                 space = VectorFunctionSpace(mesh, family, degree, shape[0])
             else:
-                space = TensorFunctionSpace(mesh, family, degree, shape)
+                space = TensorFunctionSpace(mesh, family, degree, shape, symmetry={})
             self._spaces[key] = space
         return space
 
@@ -70,13 +70,13 @@ class SpacePool(object):
         family = decide_family(family, degree)
         shape = (self.gdim,)*rank
         return self.get_custom_space(family, degree, shape, boundary)
-    
+
     @property
     def BoundaryMesh(self):
         if self._boundary == None:
             self._boundary = BoundaryMesh(self.mesh, "exterior")
         return self._boundary
-        
+
 
 class NSSpacePool(SpacePool):
     "A function space pool with custom named spaces for use with Navier-Stokes schemes."

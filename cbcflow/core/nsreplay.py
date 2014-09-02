@@ -35,19 +35,19 @@ def print_replay_plan(plan):
         print timestep, plan[timestep].keys()
 
 
-def have_necessary_deps(solution, pp, field):   
+def have_necessary_deps(solution, pp, field):
     if field in solution:
         return True
-    
+
     deps = pp._dependencies[field]
     if len(deps) == 0:
         return False
-    
+
     all_deps = []
     for dep in deps:
         all_deps.append(have_necessary_deps(solution, pp, dep[0]))
     return all(all_deps)
-        
+
 
 class NSReplay(Parameterized):
     """ Replay class for postprocessing exisiting solution data. """
@@ -55,10 +55,10 @@ class NSReplay(Parameterized):
         Parameterized.__init__(self, params)
         self.postproc = postprocessor
         self._functions = {}
-        
+
         self.timer = Timer(self.params.timer_frequency)
         self.timer._N = 0
-        
+
     @classmethod
     def default_params(cls):
         params = ParamDict(
@@ -69,7 +69,7 @@ class NSReplay(Parameterized):
     def _fetch_history(self):
         casedir = self.postproc.get_casedir()
         assert(os.path.isfile(os.path.join(casedir, "play.db")))
-       
+
         # Read play.shelve
         play = shelve.open(os.path.join(casedir, "play.db"))
         data = {}
@@ -77,19 +77,19 @@ class NSReplay(Parameterized):
         for key, value in play.items():
             replay_solutions[int(key)] = {"t": value["t"]}
             data[int(key)] = value
-        
+
         metadata_files = {}
         for timestep in sorted(data.keys()):
             if "fields" not in data[timestep]:
                 continue
-            
+
             for fieldname, fieldnamedata in data[timestep]["fields"].items():
                 if not any([saveformat in fetchable_formats for saveformat in fieldnamedata["save_as"]]):
                     continue
-                
+
                 if fieldname not in metadata_files:
                     metadata_files[fieldname] = shelve.open(os.path.join(casedir, fieldname, "metadata.db"))
-                
+
                 if 'hdf5' in fieldnamedata["save_as"]:
                     function = self._get_function(fieldname, metadata_files[fieldname], 'hdf5')
                     replay_solutions[timestep][fieldname] = {'format': 'hdf5', 'function': function}
@@ -99,8 +99,8 @@ class NSReplay(Parameterized):
                     replay_solutions[timestep][fieldname] = {'format': 'shelve'}
                 else:
                     continue
-        return replay_solutions    
-        
+        return replay_solutions
+
     def _check_field_coverage(self, plan, fieldname):
         "Find which timesteps fieldname can be computed at"
         timesteps = []
@@ -109,7 +109,7 @@ class NSReplay(Parameterized):
                 timesteps.append(ts)
 
         return timesteps
-    
+
     def _recursive_dependency_check(self, plan, key, fieldname):
         "Check if field or dependencies exist in plan"
         if key not in plan:
@@ -120,7 +120,7 @@ class NSReplay(Parameterized):
         # Return True if data present in plan as a readable data format
         if plan[key].get(fieldname):
             return True
-        
+
         # If no dependencies, or if not all dependencies exist in plan, return False
         dependencies = self.postproc._dependencies[fieldname]
         if len(dependencies) == 0:
@@ -132,9 +132,9 @@ class NSReplay(Parameterized):
                     continue
                 checks.append(self._recursive_dependency_check(plan, key, dep_field))
             return all(checks)
-     
+
     def _get_mesh(self):
-        if not hasattr(self, "_mesh"):       
+        if not hasattr(self, "_mesh"):
             # Read mesh
             meshfilename = os.path.join(self.postproc.get_casedir(), "mesh.hdf5")
             assert os.path.isfile(meshfilename), "Unable to find mesh file!"
@@ -144,7 +144,7 @@ class NSReplay(Parameterized):
             del meshfile
 
         return self._mesh
-    
+
     def _get_boundarymesh(self):
         if not hasattr(self, "_boundarymesh"):
             self._boundarymesh = BoundaryMesh(self._get_mesh(), 'exterior')
@@ -155,25 +155,25 @@ class NSReplay(Parameterized):
         if not hasattr(self, "_spaces"):
             params = self._get_all_params()
             self._spaces = NSSpacePoolSplit(self._get_mesh(), params.scheme.u_degree, params.scheme.p_degree)
-        
+
         return self._spaces
 
     def _create_function_from_metadata(self, fieldname, metadata, saveformat):
         assert metadata['type'] == 'Function'
-        
+
         # Load mesh
-        if saveformat == 'hdf5':    
+        if saveformat == 'hdf5':
             mesh = Mesh()
             hdf5file = HDF5File(os.path.join(self.postproc.get_casedir(),fieldname, fieldname+'.hdf5'), 'r')
             hdf5file.read(mesh, "Mesh")
             del hdf5file
         elif saveformat == 'xml' or saveformat == 'xml.gz':
             mesh = Mesh(os.path.join(self.postproc.get_casedir(), fieldname, "mesh."+saveformat))
-        
+
         shape = eval(metadata["element_value_shape"])
         degree = eval(metadata["element_degree"])
         family = eval(metadata["element_family"])
-        
+
         # Get space from existing function spaces if mesh is the same
         # TODO: Verify that this check is good enough
         if mesh.hash() != self._get_mesh().hash():
@@ -185,7 +185,7 @@ class NSReplay(Parameterized):
             elif rank == 1:
                 space = VectorFunctionSpace(mesh, family, degree)
             elif rank == 2:
-                space = TensorFunctionSpace(mesh, family, degree)
+                space = TensorFunctionSpace(mesh, family, degree, symmetry={})
         else:
             del mesh
             space = self._get_spaces().get_space(degree, len(shape), family)
@@ -195,18 +195,18 @@ class NSReplay(Parameterized):
     def _get_all_params(self):
         paramfile = open(os.path.join(self.postproc.get_casedir(), "params.pickle"), 'rb')
         return pickle.load(paramfile)
-       
+
     def _get_function(self, fieldname, metadata, saveformat):
         if fieldname not in self._functions:
             self._functions[fieldname] = self._create_function_from_metadata(fieldname, metadata, saveformat)
         return self._functions[fieldname]
-       
+
     def replay(self):
         "Replay problem with given postprocessor."
 
         # Initiate problem
         params = self._get_all_params()
-        
+
         problem = NSProblem({"T": 0})
         problem.params.update_recursive(params.problem)
         problem.mesh = self._get_mesh()
@@ -219,26 +219,26 @@ class NSReplay(Parameterized):
                     or field.params.plot
                     or field.params.callback):
                 continue
-            
+
             keys = self._check_field_coverage(replay_plan, fieldname)
             # Check timesteps covered by current field
             keys = self._check_field_coverage(replay_plan, fieldname)
             print fieldname#, keys
-            
+
             # Get the time dependency for the field
             t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
-            
+
             dep_fields = []
             for dep in self.postproc._full_dependencies[fieldname]:
                 if dep[0] in ["t", "timestep"]:
                     continue
-                
+
                 if dep[0] in dep_fields:
                     continue
-                
+
                 dep_fields.append(self.postproc._fields[dep[0]])
             fields = dep_fields + [field]
-            
+
             added_to_postprocessor = False
             for i, (ppkeys, ppt_dep, pp) in enumerate(postprocessors):
                 if t_dep == 0 and set(keys).issubset(set(ppkeys)):
@@ -253,7 +253,7 @@ class NSReplay(Parameterized):
                     break
                 else:
                     continue
-                    
+
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
                 pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
@@ -263,8 +263,8 @@ class NSReplay(Parameterized):
                 #import ipdb; ipdb.set_trace()
                 pp.add_fields(fields)
                 postprocessors.append([keys, t_dep, pp])
-            
-            
+
+
         """
         for fieldname in self.postproc._sorted_fields_keys:
             field = self.postproc._fields[fieldname]
@@ -274,7 +274,7 @@ class NSReplay(Parameterized):
             # Check timesteps covered by current field
             keys = self._check_field_coverage(replay_plan, fieldname)
             print fieldname#, keys
-            
+
             # Get the time dependency for the field
             t_dep = min([dep[1] for dep in self.postproc._dependencies[fieldname]]+[0])
 
@@ -294,7 +294,7 @@ class NSReplay(Parameterized):
                     break
                 else:
                     continue
-                    
+
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
                 pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
@@ -311,7 +311,7 @@ class NSReplay(Parameterized):
             # Load solution at this timestep (all available fields)
             solution = replay_plan[timestep]
             t = solution.pop("t")
-            
+
             # Cycle through postprocessors and update if required
             for ppkeys, ppt_dep, pp in postprocessors:
                 if timestep in ppkeys:
@@ -324,15 +324,14 @@ class NSReplay(Parameterized):
                             if not have_necessary_deps(solution, pp, dep[0]):
                                 solution[dep[0]] = None
                     pp.update_all(solution, t, timestep, self._get_spaces(), problem)
-                    
+
                     # Clear None-objects from solution
                     [solution.pop(k) for k in solution.keys() if not solution[k]]
 
                     # Update solution to avoid re-reading data
                     solution = pp._solution
-                    
+
             self.timer.increment()
-        
+
         for ppkeys, ppt_dep, pp in postprocessors:
             pp.finalize_all(pp._spaces, problem)
-

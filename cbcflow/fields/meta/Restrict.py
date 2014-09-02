@@ -25,46 +25,45 @@ class Restrict(MetaPPField):
     "Restrict is used to restrict a PPField to a submesh of the mesh associated with the PPField."
     def __init__(self, field, submesh, params={}, label=None):
         MetaPPField.__init__(self, field, params, label)
-        
+
         self.submesh = submesh
-        
+
     @property
     def name(self):
         n = "Restrict_%s" % self.valuename
         if self.label: n += "_"+self.label
         return n
-    
+
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-        
+
         if u == None:
             return None
-        
+
         if not isinstance(u, Function):
             cbcflow_warning("Do not understand how to handle datatype %s" %str(type(u)))
             return None
-        
+
         #if not hasattr(self, "restriction_map"):
         if not hasattr(self, "keys"):
             V = u.function_space()
-            element = V.ufl_element()        
+            element = V.ufl_element()
             family = element.family()
             degree = element.degree()
-            
+
             if u.rank() == 0: FS = FunctionSpace(self.submesh, family, degree)
             elif u.rank() == 1: FS = VectorFunctionSpace(self.submesh, family, degree)
-            elif u.rank() == 2: FS = TensorFunctionSpace(self.submesh, family, degree)
-            
+            elif u.rank() == 2: FS = TensorFunctionSpace(self.submesh, family, degree, symmetry={})
+
             self.u = Function(FS)
-            
-            
+
+
             #self.restriction_map = restriction_map(V, FS)
             rmap = restriction_map(V, FS)
             self.keys = array(rmap.keys(), dtype=uint)
             self.values = array(rmap.values(), dtype=uint)
-            
-            
+
+
         #self.u.vector()[self.restriction_map.keys()] = u.vector()[self.restriction_map.values()]
         self.u.vector()[self.keys] = u.vector()[self.values]
         return self.u
-        
