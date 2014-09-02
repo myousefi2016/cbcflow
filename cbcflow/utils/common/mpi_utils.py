@@ -24,7 +24,7 @@ def broadcast(array, from_process):
     namespace dolfin {
         std::vector<double> broadcast(const Array<double>& inarray, int from_process)
         {
-            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+            int this_process = dolfin::MPI::rank(MPI_COMM_WORLD);
 
             std::vector<double> outvector(inarray.size());
 
@@ -55,7 +55,7 @@ def distribution(number):
         {
             // Variables to help in synchronization
             int num_processes = dolfin::MPI::num_processes(MPI_COMM_WORLD);
-            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+            int this_process = dolfin::MPI::rank(MPI_COMM_WORLD);
 
             static std::vector<uint> distribution(num_processes);
 
@@ -81,7 +81,7 @@ def gather(array, on_process=0, flatten=False):
     namespace dolfin {
         std::vector<double> gather(const Array<double>& inarray, int on_process)
         {
-            int this_process = dolfin::MPI::process_number(MPI_COMM_WORLD);
+            int this_process = dolfin::MPI::rank(MPI_COMM_WORLD);
 
             static std::vector< std::vector<double> > outvector(dolfin::MPI::num_processes(MPI_COMM_WORLD));
 
@@ -144,7 +144,7 @@ def distribute_meshdata(cells, vertices):
 
         # Extract vertices and remove cells[0] on from_process
         v_out = np.zeros((1+x_per_v)*v_per_cell)
-        if MPI.process_number(mpi_comm_world()) == from_process:
+        if MPI.rank(mpi_comm_world()) == from_process:
             # Structure v_out as (ind0, x0, y0, .., ind1, x1, .., )
             for i, v in enumerate(cells[0]):
                 v_out[i*(x_per_v+1)] = vertices[v][0]
@@ -166,7 +166,7 @@ def distribute_meshdata(cells, vertices):
         v_in = broadcast(v_out, from_process)
         MPI.barrier(mpi_comm_world())
         # Create cell and vertices on to_process
-        if MPI.process_number(mpi_comm_world()) == to_process:
+        if MPI.rank(mpi_comm_world()) == to_process:
             for i in xrange(v_per_cell):
                 vertices[i] = (int(v_in[i*(x_per_v+1)]), v_in[i*(x_per_v+1)+1:(i+1)*(x_per_v+1)])
 

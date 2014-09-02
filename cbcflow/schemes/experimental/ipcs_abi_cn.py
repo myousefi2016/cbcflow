@@ -37,7 +37,7 @@ from numpy import ceil
 #####################################################################
 #from solverbase import *
 
-#master=MPI.process_number()==0
+#master=MPI.rank()==0
 #parameters["std_out_all_processes"] = False;
 
 class IPCS_ABI_CN(NSScheme):
