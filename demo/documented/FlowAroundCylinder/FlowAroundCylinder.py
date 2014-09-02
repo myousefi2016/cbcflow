@@ -22,7 +22,8 @@ class RightBoundary(SubDomain):
 
 class Cylinder(SubDomain):
     def inside(self, x, on_boundary):
-        return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
+        r = sqrt((x[0]-2.0)**2+(x[1]-0.5)**2)
+        return on_boundary and (r < 0.12+0.04)
 
 class Wall(SubDomain):
     def inside(self, x, on_boundary):
