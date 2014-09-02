@@ -17,7 +17,7 @@
 from __future__ import division
 
 
-from cbcflow.dol import as_vector, project, FacetNormal, DirichletBC, Constant, dot, Dn
+from cbcflow.dol import as_vector, project, FacetNormal, DirichletBC, Constant, dot, Dn, MaxFacetEdgeLength
 from cbcflow.utils.common import cbcflow_warning
 from numpy import linspace, zeros, append, arange
 
@@ -42,10 +42,10 @@ def compute_regular_timesteps(problem):
     timesteps = arange(T0, T+dt, dt)
     assert abs( (timesteps[1]-timesteps[0]) - dt) < 1e-8, "Timestep size does not match specified dt."
     assert timesteps[-1] >= T-dt/1e6, "Timestep range not including end time."
-    
+
     if timesteps[-1] > T+dt/1e6:
         cbcflow_warning("End time for simulation does not match end time set for problem (T-T0 not a multiple of dt).")
-    
+
     return dt, timesteps, problem.params.start_timestep
 
 # --- Initial condition helper functions for schemes
@@ -113,7 +113,7 @@ def make_penalty_pressure_bcs(problem, spaces, bcs, gamma, test, trial):
 
     # Define Nitche discretization constants
     gamma = Constant(gamma, name="gamma")
-    hE = Q.mesh().ufl_cell().max_facet_edge_length
+    hE = MaxFacetEdgeLength(Q.mesh())
 
     # The Nietche terms to integrate
     a_dirichlet = (gamma/hE)*(p*q) - Dn(p)*q - p*Dn(q)

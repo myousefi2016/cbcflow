@@ -42,12 +42,12 @@ class SegregatedPenaltyIPCS(NSScheme):
             p_degree = 1,
 
             # Penalty pressure bcs is necessary for optimization
-            use_penalty_pressure_bcs=True,
+            use_penalty_pressure_bcs=False,
             penalty_gamma=100.0,
             )
         return params
 
-    def solve(self, problem, update, restart=None):
+    def solve(self, problem, update, timer):
         # Spatial parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -154,7 +154,7 @@ class SegregatedPenaltyIPCS(NSScheme):
         solver_p_corr = LinearVariationalSolver(p_corr_problem)
         (solver_p_corr.parameters["linear_solver"],
          solver_p_corr.parameters["preconditioner"]) = solver_p_params
-        solver_p_corr.parameters["symmetric"] = True
+        solver_p_corr.parameters["symmetric"] = False #True
         #solver_p_corr.solve() # Adding this line (which is a bug) causes the reported dolfin-adjoint warning
 
         update(u0, p0, float(t), start_timestep, spaces)
