@@ -291,7 +291,7 @@ class HDF5Link:
                                   const std::string link_from,
                                   const std::string link_to)
         {
-            hid_t hdf5_file_id = HDF5Interface::open_file(hdf5_filename, "a", true);
+            hid_t hdf5_file_id = HDF5Interface::open_file(MPI_COMM_WORLD, hdf5_filename, "a", true);
 
             herr_t status = H5Lcreate_hard(hdf5_file_id, link_from.c_str(), H5L_SAME_LOC,
                                 link_to.c_str(), H5P_DEFAULT, H5P_DEFAULT);
