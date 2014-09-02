@@ -1,5 +1,17 @@
+from collections import defaultdict
+
 
 class Planner():
+    def __init__(self, timer, initial_dt):
+        self._timer = timer
+        self._plan = defaultdict(lambda: defaultdict(int))
+        
+        self._t_prev = None
+        self._initial_dt = initial_dt
+        
+        # Keep track of last (time, timestep) computation of each field was triggered directly
+        self._last_trigger_time = defaultdict(lambda: (-1e16,-1e16))
+    
     def _should_compute_at_this_time(self, field, t, timestep):
         "Check if field is to be computed at current time"
         # If we later wish to move configuration of field compute frequencies to NSPostProcessor,
@@ -46,8 +58,8 @@ class Planner():
         
         
         # Already finalized
-        if field.name in self._finalized:
-            return False
+        #if field.name in self._finalized:
+        #    return False
 
         e = fp.end_timestep
         if e <= timestep:
@@ -74,7 +86,7 @@ class Planner():
                     new_plan[ts-1][name] = ttk - 1
         self._plan = new_plan
 
-    def _update_plan(self, t, timestep):
+    def _update(self, fields, full_dependencies, dependencies, t, timestep):
         "Update plan for new timestep."
         # ttk = timesteps to keep
         #self._plan[-1][name] = ttk # How long to cache what's already computed
@@ -86,11 +98,20 @@ class Planner():
         # TODO: Allow for varying timestep
         #min_dt_factor = 0.5
         #max_dt_factor = 2.0
-        dt = self._problem.params.dt
+        #dt = self._problem.params.dt
+        if self._t_prev == None:
+            dt = self._initial_dt
+        else:
+            dt = t-self._t_prev
+
+        self._t_prev = t
+        
+        finalize_fields = []
         
         # Loop over all fields that and trigger for computation
-        for name, field in self._fields.iteritems():
-            full_deps = self._full_dependencies[name]
+        #for name, field in self._fields.iteritems():
+        for name, field in fields.iteritems():
+            full_deps = full_dependencies[name]
             offset = abs(min([ts for depname, ts in full_deps]+[0]))
                         
             # Check if field should be computed in this or the next timesteps,
@@ -103,15 +124,27 @@ class Planner():
                         # Store compute trigger times to keep track of compute intervals
                         self._last_trigger_time[field.name] = (t, timestep)
                         
-                    self._insert_deps_in_plan(name, i)
+                    self._insert_deps_in_plan(dependencies, name, i)
                     
                     oldttk = self._plan[0].get(name, 0)
                     ttk = max(oldttk, i)
                     self._plan[i][name] = ttk
+                    
+            #field = self._fields[name]    
+            if self._should_finalize_at_this_time(field, t, timestep):
+                finalize_fields.append(name)
+            #    finalize = True
+            #else:
+            #    finalize = False
+        
+        
+        #if self._should_finalize_at_this_time(field, t, timestep)
+        
+        return self._plan, finalize_fields, self._last_trigger_time
 
-    def _insert_deps_in_plan(self, name, offset):
+    def _insert_deps_in_plan(self, dependencies, name, offset):
         "Insert dependencies recursively in plan"
-        deps = self._dependencies[name]
+        deps = dependencies[name]
         for depname, ts in deps:
             # Find time-to-keep (FIXME: Is this correct? Optimal?)
             oldttk = self._plan[ts+offset].get(depname, 0)
@@ -123,4 +156,4 @@ class Planner():
                 self._plan[offset+ts][depname] = ttk
             
                 new_offset = offset+ts
-                self._insert_deps_in_plan(depname, new_offset)
+                self._insert_deps_in_plan(dependencies, depname, new_offset)

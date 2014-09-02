@@ -14,23 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaField import MetaField
-from dolfin import Function, MPI
-import numpy
+from cbcflow.post.fieldbases.MetaField import MetaField
+from dolfin import assemble, ds
 
-class Maximum(MetaField):
+class BoundaryAvg(MetaField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-        
-        if u == None:
-            return None
-        
-        if isinstance(u, Function):
-            return MPI.max(numpy.max(u.vector().array()))
-        elif hasattr(u, "__len__"):
-            return MPI.max(max(u))
-        elif isinstance(u, (float,int,long)):
-            return MPI.max(u)
-        else:
-            raise Exception("Unable to take max of %s" %str(u))
-        
+        value = assemble(u*ds(), mesh=problem.mesh)
+        return value

@@ -15,8 +15,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.core.parameterized import Parameterized
+from dolfin import Function
 
+# TODO: No imports from cbcflow!
+from cbcflow.core.parameterized import Parameterized
+from cbcflow.core.paramdict import ParamDict
+
+#from cbcflow.utils.core.strip_code import strip_code
+from cbcflow.post.utils import strip_code, Timer, cbcflow_log, cbcflow_warning
+
+import inspect, re
+from collections import defaultdict
+
+from Plotter import Plotter
+from Planner import Planner
+from Saver import Saver
 
 class DependencyException(Exception):
     def __init__(self, fieldname=None, dependency=None, timestep=None, original_exception_msg=None):
@@ -36,9 +49,20 @@ class DependencyException(Exception):
 # Fields available through pp.get(name) even though they have no Field class
 builtin_fields = ("t", "timestep")
 
-class PostProcessor(Parameterized):
-    def __init__(self, params=None):
-        Parameterized.__init__(self, params)
+#class PostProcessor(Parameterized):
+    #def __init__(self, params=None):
+class PostProcessor():
+    def __init__(self, casedir='.', timer=False, extrapolate=True, initial_dt=1e-5):
+        #Parameterized.__init__(self, params)
+        if isinstance(timer, Timer):
+            self._timer = timer
+        elif timer:
+            self._timer = Timer(1)
+        else:
+            self._timer = Timer()
+            
+        self._extrapolate = extrapolate
+            
 
         # Storage of actual fields
         self._fields = {}
@@ -52,29 +76,39 @@ class PostProcessor(Parameterized):
             self._full_dependencies[depname] = []
         #self._reverse_dependencies = {} # TODO: Need this?
         
-        self._plotter = Plotter()
-        self._saver = Saver()
-        self._planner = Planner()
         
         
-        """
+        self._plotter = Plotter(self._timer)
+        self._saver = Saver(self._timer, casedir)
+        self._planner = Planner(self._timer, initial_dt)
+        
         # Plan of what to compute now and in near future
         self._plan = defaultdict(lambda: defaultdict(int))
         
-        # Keep track of which fields have been finalized
-        self._finalized = {}
-
         # Cache of computed values needed for planned computations
         self._cache = defaultdict(dict)
-
-        # Keep track of how many times .get has called each field.compute, for administration:
-        self._compute_counts = defaultdict(int) # Actually only used for triggering "before_first_compute"
+        
+        # Keep track of which fields have been finalized
+        self._finalized = {}
         
         # Keep track of how many times update_all has been called
         self._update_all_count = 0
+        
+        # Keep track of how many times .get has called each field.compute, for administration:
+        self._compute_counts = defaultdict(int) # Actually only used for triggering "before_first_compute"
+        
+        
+        """
+        
+        
+        
 
-        # Keep track of last (time, timestep) computation of each field was triggered directly
-        self._last_trigger_time = defaultdict(lambda: (-1e16,-1e16))
+        
+
+        
+        
+
+        
 
         # Cache for plotting
         self._plot_cache = {}
@@ -97,6 +131,7 @@ class PostProcessor(Parameterized):
             casedir=".",
             enable_timer=False,
             extrapolate=True,
+            initial_dt=1e-5,
             )
         return params
 
@@ -201,7 +236,7 @@ class PostProcessor(Parameterized):
         self.add_fields(field.add_fields())
 
         # Analyze dependencies of field through source inspection
-        deps = self.find_dependencies(field)
+        deps = self._find_dependencies(field)
 
         # Add dependent fields to self._fields (this will add known fields by name)
         for depname in set(d[0] for d in deps) - set(self._fields.keys()):
@@ -262,7 +297,7 @@ class PostProcessor(Parameterized):
         # Are we attempting to get value from before update was started?
         # Use constant extrapolation if allowed.
         if abs(timestep) > self._update_all_count and data == "N/A":
-            if self.params.extrapolate:
+            if self._extrapolate:
                 cbcflow_log(20, "Extrapolating %s from %d to %d" %(name, timestep, -self._update_all_count))
                 data = self.get(name, -self._update_all_count, compute, finalize)
                 c[name] = data
@@ -332,7 +367,10 @@ class PostProcessor(Parameterized):
                 compute = False
             
             field = self._fields[name]    
-            if self._should_finalize_at_this_time(field, t, timestep):
+            #if self._should_finalize_at_this_time(field, t, timestep):
+            #finalize = True if name in self._finalize_plan else False
+            
+            if name in self._finalize_plan:# and name not in self._finalized:
                 finalize = True
             else:
                 finalize = False
@@ -379,13 +417,19 @@ class PostProcessor(Parameterized):
         self._solution = solution
 
         # Update play log
-        self._update_play_log(t, timestep)
+        self._saver._update_play_log(t, timestep)
 
         # Update cache to keep what's needed later according to plan, forget what we don't need
         self._update_cache()
+        #print self._cache
+        #return
+        #exit()
 
         # Plan what we need to compute now and in near future based on action triggers and dependencies
-        self._update_plan(t, timestep)
+        #self._plan = self._planner._update_plan(self._plan, t, timestep)
+        #self._compute_plan, self._finalize_plan = self._planner._update_plan(t, timestep)
+        self._plan, self._finalize_plan, self._last_trigger_time = \
+            self._planner._update(self._fields, self._full_dependencies, self._dependencies, t, timestep)
         self._timer.completed("PP: updated plan.")
 
         # Compute what's needed according to plan

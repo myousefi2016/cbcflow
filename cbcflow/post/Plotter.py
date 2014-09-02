@@ -31,6 +31,8 @@ import_pylab.value = "init"
 
 
 class Plotter():
+    def __init__(self, timer):
+        self._timer = timer
 
     def _plot_dolfin(self, field_name, data):
         "Plot field using dolfin plot command"

@@ -1,10 +1,16 @@
 from hashlib import sha1
 from dolfin import Function, MPI, plot, File, HDF5File, XDMFFile, error
 
+import os, shelve
+
+from utils import on_master_process
+
 class Saver():
-    def __init__(self):
+    def __init__(self, timer, casedir):
+        self._timer = timer
         # Caches for file storage
         self._datafile_cache = {}
+        self.casedir = casedir
 
     def _get_save_formats(self, field, data):
         if data == None:
@@ -26,7 +32,7 @@ class Saver():
         return save_as
 
     def get_casedir(self):
-        return self.params.casedir
+        return self.casedir
 
     def _clean_casedir(self):
         "Cleans out all files produced by cbcflow in the current casedir."
@@ -51,13 +57,13 @@ class Saver():
                             os.remove(os.path.join(self.get_casedir(), f))
 
     def _create_casedir(self):
-        casedir = self.params.casedir
+        casedir = self.casedir
         safe_mkdir(casedir)
         return casedir
 
     def get_savedir(self, field_name):
         "Returns savedir for given fieldname"
-        return os.path.join(self.params.casedir, field_name)
+        return os.path.join(self.casedir, field_name)
 
     def _create_savedir(self, field_name):
         self._create_casedir()

@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-""" Base classes for all postprocessing fields. """
+""" Base classes for all post fields. """
 
 from Field import Field
 from MetaField import MetaField

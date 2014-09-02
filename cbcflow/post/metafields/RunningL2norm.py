@@ -14,22 +14,20 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+from cbcflow.post.fieldbases.MetaField import MetaField
+from numpy import sqrt
 
-from cbcflow.fields.bases.Field import Field
+class RunningL2norm(MetaField):
+    def before_first_compute(self, pp, spaces, problem):
+        self._count = 0
+        self._sum = 0
+        self._value = 0
 
-class MetaField(Field):
-    def __init__(self, value, params=None, label=None):
-        Field.__init__(self, params, label)
-        self.valuename = value.name if isinstance(value, Field) else value
-
-    @property
-    def name(self):
-        n = "%s_%s" % (self.__class__.__name__, self.valuename)
-        if self.label: n += "_"+self.label
-        return n
-    
-    def after_last_compute(self, pp, spaces, problem):
+    def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-        if u != "N/A":
-            return self.compute(pp, spaces, problem)
 
+        self._count += 1
+        self._sum += u**2
+        self._value = sqrt(self._sum) / self._count
+
+        return self._value

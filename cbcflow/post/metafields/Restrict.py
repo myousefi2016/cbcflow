@@ -14,10 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaField import MetaField
+from cbcflow.post.fieldbases.MetaField import MetaField
 from cbcflow.utils.common.restriction_map import restriction_map
 from cbcflow.utils.common.utils import cbcflow_warning
-from cbcflow.fields import Field
+#from cbcflow.fields import Field
+
 from dolfin import Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace
 from numpy import array, uint
 

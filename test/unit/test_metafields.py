@@ -5,10 +5,14 @@ Tests of postprocessing framework in cbcflow.
 
 from collections import defaultdict
 
-from cbcflow import (ParamDict, NSProblem, NSPostProcessor, NSScheme,
-    PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
-    TimeDerivative, SecondTimeDerivative, TimeIntegral)
-from cbcflow.fields import *
+#from cbcflow import (ParamDict, NSProblem, NSPostProcessor, NSScheme,
+#    Field, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
+#    TimeDerivative, SecondTimeDerivative, TimeIntegral)
+#from cbcflow.fields import *
+from cbcflow.post import *
+
+from cbcflow.core.parameterized import Parameterized
+from cbcflow.core.paramdict import ParamDict
 
 from cbcflow.utils.core import NSSpacePoolSplit
 from cbcflow.utils.schemes import compute_regular_timesteps
@@ -28,27 +32,28 @@ from numpy import linspace
 dolfin.parameters["form_compiler"]["representation"] = "quadrature"
 dolfin.parameters["form_compiler"]["quadrature_degree"] = 1
 
-class MockProblem(NSProblem):
+class MockProblem(Parameterized):
     def __init__(self, D, params=None):
-        NSProblem.__init__(self, params)
+        Parameterized.__init__(self, params)
         self.D = D
         if D == 2:
-            mesh = UnitSquareMesh(6,6)
+            self.mesh = UnitSquareMesh(6,6)
         elif D == 3:
-            mesh = UnitCubeMesh(3,3,3)
+            self.mesh = UnitCubeMesh(3,3,3)
         elif D == 'complex':
-            mesh = Mesh("../cbcflow-data/dog_mesh_37k.xml.gz")
-        self.initialize_geometry(mesh)
+            self.mesh = Mesh("../cbcflow-data/dog_mesh_37k.xml.gz")
+        #self.initialize_geometry(mesh)
 
     @classmethod
     def default_params(cls):
-        params = NSProblem.default_params()
-        params.replace(
+        params = ParamDict(
+            T0 = 0.0,
             T = 2.0,
+            start_timestep=0,
             dt = 0.1,
             mu = 0.1,
             rho = 0.9,
-            )
+        )
         return params
 
 @pytest.fixture(scope="module", params=[2,3])
@@ -69,10 +74,10 @@ def spaces2(problem):
     return NSSpacePoolSplit(problem.mesh, 2, 2)
 
 @pytest.fixture(scope="function")
-def pp():
-    return NSPostProcessor()
+def pp(problem):
+    return PostProcessor(initial_dt=problem.params.dt)
 
-class MockFunctionField(PPField):
+class MockFunctionField(Field):
     def before_first_compute(self, pp, spaces, problem):
         Q = spaces.Q
         t = pp.get('t')
@@ -85,7 +90,7 @@ class MockFunctionField(PPField):
         self.f.interpolate(self.expr)
         return self.f
 
-class MockVectorFunctionField(PPField):
+class MockVectorFunctionField(Field):
     def before_first_compute(self, pp, spaces, problem):
         V = spaces.V
         t = pp.get('t')
@@ -103,7 +108,7 @@ class MockVectorFunctionField(PPField):
         self.f.interpolate(self.expr)
         return self.f
      
-class MockTupleField(PPField):
+class MockTupleField(Field):
     def compute(self, pp, spaces, problem):
         t = pp.get('t')
         return (t, 3*t, 1+5*t)

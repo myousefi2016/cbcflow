@@ -14,11 +14,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaField import MetaField
-from dolfin import assemble, ds
 
-class BoundaryAvg(MetaField):
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
-        value = assemble(u*ds(), mesh=problem.mesh)
-        return value
+
+from Postprocessor import PostProcessor
+
+from cbcflow.post.fieldbases import Field
+from cbcflow.post.fieldbases import MetaField
+from cbcflow.post.fieldbases import MetaField2
+
+from cbcflow.post.metafields import meta_fields
+
+for f in meta_fields:
+    exec("from cbcflow.post.metafields.%s import %s" % (f, f))

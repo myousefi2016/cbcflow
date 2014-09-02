@@ -15,14 +15,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
+from cbcflow.post.fieldbases.Field import Field
 
-from Postprocessor import PostProcessor
+class MetaField(Field):
+    def __init__(self, value, params=None, label=None):
+        Field.__init__(self, params, label)
+        self.valuename = value.name if isinstance(value, Field) else value
 
-from cbcflow.postprocessing.fieldbases import Field
-from cbcflow.postprocessing.fieldbases import MetaField
-from cbcflow.postprocessing.fieldbases import MetaField2
+    @property
+    def name(self):
+        n = "%s_%s" % (self.__class__.__name__, self.valuename)
+        if self.label: n += "_"+self.label
+        return n
+    
+    def after_last_compute(self, pp, spaces, problem):
+        u = pp.get(self.valuename)
+        if u != "N/A":
+            return self.compute(pp, spaces, problem)
 
-from cbcflow.postprocessing.metafields import meta_fields
-
-for f in meta_fields:
-    exec("from cbcflow.postprocessor.metafields.%s import %s" % (f, f))

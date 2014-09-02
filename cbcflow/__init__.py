@@ -26,6 +26,8 @@ __version__ = "1.3.0"
 # Basic utilities
 from cbcflow.core.paramdict import ParamDict
 
+from cbcflow.post import *
+
 # Core component interfaces
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.core.nspostprocessor import NSPostProcessor

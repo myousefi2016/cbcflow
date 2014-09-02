@@ -14,11 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaField import MetaField
+from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import Function
 import numpy
 
-class RunningMax(MetaField):
+class RunningMin(MetaField):
     def before_first_compute(self, pp, spaces, problem):
         self._value = None
 
@@ -33,9 +33,9 @@ class RunningMax(MetaField):
         else:
             if isinstance(u, Function):
                 # TODO: Test! This might work at least in serial, what about paralell?
-                self._value.vector()[:] = numpy.max(self._value.vector()[:], u.vector()[:])
+                self._value.vector()[:] = numpy.min(self._value.vector()[:], u.vector()[:])
             else:
-                self._value = max(self._value, u)
+                self._value = min(self._value, u)
 
         return self._value
 

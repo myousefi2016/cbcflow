@@ -14,30 +14,23 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.MetaField import MetaField
-from dolfin import Function
+from cbcflow.post.fieldbases.MetaField import MetaField
+from dolfin import Function, MPI
 import numpy
 
-class RunningMin(MetaField):
-    def before_first_compute(self, pp, spaces, problem):
-        self._value = None
-
+class Maximum(MetaField):
     def compute(self, pp, spaces, problem):
         u = pp.get(self.valuename)
-
-        if self._value is None:
-            if isinstance(u, Function):
-                self._value = Function(u)
-            else:
-                self._value = u
+        
+        if u == None:
+            return None
+        
+        if isinstance(u, Function):
+            return MPI.max(numpy.max(u.vector().array()))
+        elif hasattr(u, "__len__"):
+            return MPI.max(max(u))
+        elif isinstance(u, (float,int,long)):
+            return MPI.max(u)
         else:
-            if isinstance(u, Function):
-                # TODO: Test! This might work at least in serial, what about paralell?
-                self._value.vector()[:] = numpy.min(self._value.vector()[:], u.vector()[:])
-            else:
-                self._value = min(self._value, u)
-
-        return self._value
-
-    def after_last_compute(self, pp, spaces, problem):
-        return self._value
+            raise Exception("Unable to take max of %s" %str(u))
+        
