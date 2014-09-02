@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from cbcflow import (ParamDict, NSProblem, NSPostProcessor,
     PPField, Velocity, Pressure, VelocityGradient, Strain, Stress, WSS,
-    TimeDerivative, SecondTimeDerivative, TimeIntegral, L2norm)
+    TimeDerivative, SecondTimeDerivative, TimeIntegral, Norm)
 from cbcflow.utils.core import NSSpacePoolSplit
 
 import dolfin
@@ -366,17 +366,17 @@ def test_get_first_time_derivative():
     ppp = ppf_immediate_cb_params # Important that we ask for the fields to be computed, as time dependencies will not work retrospectively after time loop is over!
     pp.add_fields([
             #Velocity(ppp),
-            L2norm("Pressure", ppp),
+            Norm("Pressure", ppp),
             TimeDerivative("t", ppp),
             TimeDerivative("timestep", ppp),
-            TimeDerivative("L2norm_Pressure", ppp),
+            TimeDerivative("Norm_Pressure", ppp),
             TimeDerivative("Pressure", ppp),
             SecondTimeDerivative("t", ppp),
             SecondTimeDerivative("timestep", ppp),
-            SecondTimeDerivative("L2norm_Pressure", ppp),
+            SecondTimeDerivative("Norm_Pressure", ppp),
             TimeIntegral("t", ppp),
             TimeIntegral("timestep", ppp),
-            TimeIntegral("L2norm_Pressure", ppp),
+            TimeIntegral("Norm_Pressure", ppp),
             ])
 
     # Attach a callback to postprocessor so we can inspect direct compute requests
@@ -448,9 +448,9 @@ def test_get_first_time_derivative():
 
     # FIXME:
     #assert abs( (pp.get("TimeIntegral_timestep")) - (T/dt) ) < 1e-8
-    #assert abs( (pp.get("TimeDerivative_L2norm_Pressure")) - (0.0) ) < 1e-8
-    #assert abs( (pp.get("TimeIntegral_L2norm_Pressure")) - (0.0) ) < 1e-8
-    #assert abs( (pp.get("SecondTimeDerivative_L2norm_Pressure")) - (0.0) ) < 1e-8
+    #assert abs( (pp.get("TimeDerivative_Norm_Pressure")) - (0.0) ) < 1e-8
+    #assert abs( (pp.get("TimeIntegral_Norm_Pressure")) - (0.0) ) < 1e-8
+    #assert abs( (pp.get("SecondTimeDerivative_Norm_Pressure")) - (0.0) ) < 1e-8
 
 def test_get_second_time_derivative():
     assert 1 == 1 # FIXME
