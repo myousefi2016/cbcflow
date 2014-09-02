@@ -30,10 +30,10 @@ class Wall(SubDomain):
 
 class FlowAroundCylinder(NSProblem):
     "Flow around a cylinder in 2D."
-    
+
     @classmethod
     def default_params(cls):
-	"Default parameters overwriting and adding to NSProblem.default_params()"
+        "Default parameters overwriting and adding to NSProblem.default_params()"
         params = NSProblem.default_params()
         params.replace(
             # Time parameters
@@ -51,21 +51,21 @@ class FlowAroundCylinder(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        
+
         # Load mesh
         mesh = Mesh(files[self.params.refinement_level])
-	
-	# The mesh can also be generated on the fly. This has been
-	# commented out because the mesh generator is non-deterministic and thus
-	# unsuitable for the test suites.
-	"""
-	refinement_levels=[32,64,128,256,512]
+
+        # The mesh can also be generated on the fly. This has been
+        # commented out because the mesh generator is non-deterministic and thus
+        # unsuitable for the test suites.
+        """
+        refinement_levels=[32,64,128,256,512]
         N = refinement_levels[self.params.refinement_level]
         # Create mesh
         r = Rectangle(0,0, 10, 1)
         c = Circle(2.0, 0.5, 0.12)
         mesh = Mesh(r-c, N)
-	"""
+        """
 
         # Create boundary markers
         facet_domains = FacetFunction("size_t", mesh)
@@ -86,7 +86,7 @@ class FlowAroundCylinder(NSProblem):
         return (u0, p0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-	"Setting uniform velocity on inlet, p=0 on outlet and no-slip elsewhere"
+        "Setting uniform velocity on inlet, p=0 on outlet and no-slip elsewhere"
         c0 = Constant(0)
         c1 = Constant(1)
 
@@ -98,7 +98,7 @@ class FlowAroundCylinder(NSProblem):
         bcp0 = (c0, 2)
 
         # Collect and return
-        bcu = [bcu0, bcu1]
+        bcu = [bcu1, bcu0]
         bcp = [bcp0]
         return (bcu, bcp)
 
@@ -111,7 +111,7 @@ def main():
     # Create postprocessor instance pointing to a case directory
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     postprocessor = NSPostProcessor({"casedir": casedir})
-    
+
     # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
     fields = [
@@ -119,7 +119,7 @@ def main():
         Velocity(plot_and_save),
         StreamFunction(plot_and_save),
         ]
-    
+
     # Add fields to postprocessor
     postprocessor.add_fields(fields)
 
