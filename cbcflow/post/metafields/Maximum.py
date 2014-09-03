@@ -19,8 +19,8 @@ from dolfin import Function, MPI
 import numpy
 
 class Maximum(MetaField):
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         
         if u == None:
             return None

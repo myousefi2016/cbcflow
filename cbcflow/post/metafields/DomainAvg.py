@@ -18,8 +18,8 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import assemble, dx, Function, Constant
 
 class DomainAvg(MetaField):
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         
         if u == None:
             return

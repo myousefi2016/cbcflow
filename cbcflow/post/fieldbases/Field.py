@@ -85,15 +85,15 @@ class Field(Parameterized):
         "Specify any specific fields used in this field. Could be e.g. definite integrals."
         return []
 
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         "Called prior to the simulation timeloop."
         pass
 
-    def after_last_compute(self, pp, spaces, problem):
+    def after_last_compute(self, get):
         "Called after the simulation timeloop."
         return "N/A"
 
-    def compute(self, pp, spaces, problem):
+    def compute(self, get):
         "Called each time the quantity should be computed."
         raise NotImplementedError("A Field must implement the compute function!")
 
@@ -103,22 +103,22 @@ class Field(Parameterized):
         # Load data from disk (this is used in replay functionality)
         # The structure of the dict pp._solution[self.name] is determined in nsreplay.py
         if isinstance(pp._solution[self.name], dict):
-            timestep = pp.get("timestep")
+            timestep = get("timestep")
             saveformat = pp._solution[self.name]["format"]
             if saveformat == 'hdf5':
-                hdf5filepath = join(pp.get_casedir(), self.name, self.name+".hdf5")
+                hdf5filepath = join(get_casedir(), self.name, self.name+".hdf5")
                 hdf5file = HDF5File(hdf5filepath, 'r')
                 dataset = self.name+str(timestep)
                 hdf5file.read(pp._solution[self.name]["function"], dataset)
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat in ["xml", "xml.gz"]:
                 xmlfilename = self.name+str(timestep)+"."+saveformat
-                xmlfilepath = join(pp.get_casedir(), self.name, xmlfilename)
+                xmlfilepath = join(get_casedir(), self.name, xmlfilename)
                 function = pp._solution[self.name]["function"]
                 function.assign(Function(function.function_space(), xmlfilepath))
                 pp._solution[self.name] = pp._solution[self.name]["function"]
             elif saveformat == "shelve":
-                shelvefilepath = join(pp.get_casedir(), self.name, self.name+".db")
+                shelvefilepath = join(get_casedir(), self.name, self.name+".db")
                 shelvefile = shelve.open(shelvefilepath)
                 pp._solution[self.name] = shelvefile[str(timestep)]
 

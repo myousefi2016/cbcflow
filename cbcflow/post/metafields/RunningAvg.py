@@ -18,12 +18,12 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import Function
 
 class RunningAvg(MetaField):
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         self._value = None
         self._count = 0
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
 
         self._count += 1
 
@@ -45,5 +45,5 @@ class RunningAvg(MetaField):
 
         return self._value
 
-    def after_last_compute(self, pp, spaces, problem):
+    def after_last_compute(self, get):
         return self._value

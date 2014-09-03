@@ -20,12 +20,16 @@ from dolfin import Function, ds, dx, assemble
 
 class Boundary(MetaField):
 
-    def before_first_compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def before_first_compute(self, get):
+        raise NotImplementedError("Currently awaiting rework of SpacePool")
+        u = get(self.valuename)
         
         assert isinstance(u, Function), "Can only extract boundary values of Function-objects"
         
         FS = u.function_space()
+        
+        #FS_boundary =
+        #spaces = SpacePool()
         FS_boundary = spaces.get_space(FS.ufl_element().degree(), FS.num_sub_spaces(), boundary=True)
         
         local_dofmapping = mesh_to_boundarymesh_dofmap(spaces.BoundaryMesh, FS, FS_boundary)
@@ -34,8 +38,8 @@ class Boundary(MetaField):
         
         self.u_bdry = Function(FS_boundary)
     
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         self.u_bdry.vector()[self._keys] = u.vector()[self._values]       
 
         return self.u_bdry

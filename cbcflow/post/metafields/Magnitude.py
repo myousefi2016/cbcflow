@@ -19,8 +19,8 @@ from dolfin import project, sqrt, Function, inner
 from cbcflow.utils.common import cbcflow_warning
 
 class Magnitude(MetaField):
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         
         if isinstance(u, Function):
             if u.rank() == 0:

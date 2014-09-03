@@ -46,9 +46,9 @@ class ErrorNorm(MetaField):
         if self.label: n += "_"+self.label
         return n
     
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename1)
-        uh = pp.get(self.valuename2)
+    def compute(self, get):
+        u = get(self.valuename1)
+        uh = get(self.valuename2)
         
         if u == None:
             return None

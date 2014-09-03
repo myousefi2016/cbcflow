@@ -14,13 +14,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.meta.TimeIntegral import TimeIntegral
+#from cbcflow.fields.meta.TimeIntegral import TimeIntegral
+from cbcflow.post.metafields.TimeIntegral import TimeIntegral
 from dolfin import Function
 
 class TimeAverage(TimeIntegral):
-    def compute(self, pp, spaces, problem):
+    def compute(self, get):
         
-        ti = super(TimeAverage, self).compute(pp, spaces, problem)
+        ti = super(TimeAverage, self).compute(get)
         
         if self.params.finalize:
             return None
@@ -29,13 +30,13 @@ class TimeAverage(TimeIntegral):
         
         # Make sure dependencies are read by postprocessor
         # (This code is never reached, just inspected)
-        pp.get("t")
-        pp.get("t", -1)
-        pp.get(self.valuename)
-        pp.get(self.valuename, -1)
+        get("t")
+        get("t", -1)
+        get(self.valuename)
+        get(self.valuename, -1)
         
-    def after_last_compute(self, pp, spaces, problem):
-        ti = super(TimeAverage, self).after_last_compute(pp, spaces, problem)
+    def after_last_compute(self, get):
+        ti = super(TimeAverage, self).after_last_compute(get)
         
         ta = self.scale(ti)
         #print "Averaged %s from %f (start_time=%f) to %f (end_time=%f) (result=%s)" %(self.valuename, self.T0, self.params.start_time, self.T1, self.params.end_time,  str(ta))

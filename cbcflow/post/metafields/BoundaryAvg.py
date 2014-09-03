@@ -18,7 +18,7 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import assemble, ds
 
 class BoundaryAvg(MetaField):
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         value = assemble(u*ds(), mesh=problem.mesh)
         return value

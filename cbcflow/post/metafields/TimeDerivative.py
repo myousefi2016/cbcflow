@@ -18,12 +18,12 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import Function
 
 class TimeDerivative(MetaField):
-    def compute(self, pp, spaces, problem):
-        u1 = pp.get(self.valuename)
-        u0 = pp.get(self.valuename, -1)
+    def compute(self, get):
+        u1 = get(self.valuename)
+        u0 = get(self.valuename, -1)
 
-        t1 = pp.get("t")
-        t0 = pp.get("t", -1)
+        t1 = get("t")
+        t0 = get("t", -1)
         dt = t1 - t0
         if dt == 0: dt = 1e-14 # Avoid zero-division
 

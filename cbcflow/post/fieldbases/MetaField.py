@@ -28,8 +28,8 @@ class MetaField(Field):
         if self.label: n += "_"+self.label
         return n
     
-    def after_last_compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def after_last_compute(self, get):
+        u = get(self.valuename)
         if u != "N/A":
-            return self.compute(pp, spaces, problem)
+            return self.compute(get)
 

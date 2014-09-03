@@ -48,8 +48,8 @@ class SubFunction(Field):
         if self.label: n += "_"+self.label
         return n
 
-    def before_first_compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def before_first_compute(self, get):
+        u = get(self.valuename)
         
         V = u.function_space()
         element = V.ufl_element()        
@@ -68,8 +68,8 @@ class SubFunction(Field):
         
         self.u = Function(FS, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
 
         if u.rank() == 1:
             u = u.split()

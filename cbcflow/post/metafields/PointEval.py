@@ -79,12 +79,15 @@ class PointEval(MetaField):
         if self.label: n += "_%s" %self.label
         return n
 
-    def before_first_compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def before_first_compute(self, get):
+        u = get(self.valuename)
 
         # Convert 'Point' instances (not necessary if we
         # just assume tuples as input anyway)
-        dim = spaces.d
+        #dim = spaces.d
+        if u == None:
+            return
+        dim = u.function_space().mesh().geometry().dim()
         self.coords = []
         for p in self.points:
             if isinstance(p, Point):
@@ -104,9 +107,9 @@ class PointEval(MetaField):
         # This data is currently stored in the metadata file under 'init_data'
         return self.coords
 
-    def compute(self, pp, spaces, problem):
+    def compute(self, get):
         # Get field to probe
-        u = pp.get(self.valuename)
+        u = get(self.valuename)
 
         # Evaluate in all points
         self.probes(u)
@@ -128,6 +131,6 @@ class PointEval(MetaField):
             else:
                 return list(results)
 
-    def after_last_compute(self, pp, spaces, problem):
+    def after_last_compute(self, get):
         # This data is currently stored in the metadata file under 'finalize_data':
         return None

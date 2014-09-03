@@ -29,8 +29,8 @@ class FlowRate(Field):
         if self.label: n += "_"+self.label
         return n
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
+    def compute(self, get):
+        u = get("Velocity")
 
         n = problem.mesh.ufl_cell().n
         dsi = problem.ds(self.boundary_id)

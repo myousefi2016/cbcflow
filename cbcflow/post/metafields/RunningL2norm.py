@@ -18,13 +18,13 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from numpy import sqrt
 
 class RunningL2norm(MetaField):
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         self._count = 0
         self._sum = 0
         self._value = 0
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
 
         self._count += 1
         self._sum += u**2

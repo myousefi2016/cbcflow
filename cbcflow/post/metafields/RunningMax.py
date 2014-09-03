@@ -19,11 +19,11 @@ from dolfin import Function
 import numpy
 
 class RunningMax(MetaField):
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         self._value = None
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
 
         if self._value is None:
             if isinstance(u, Function):
@@ -39,5 +39,5 @@ class RunningMax(MetaField):
 
         return self._value
 
-    def after_last_compute(self, pp, spaces, problem):
+    def after_last_compute(self, get):
         return self._value

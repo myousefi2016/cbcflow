@@ -18,14 +18,14 @@ from cbcflow.post.fieldbases.MetaField import MetaField
 from dolfin import Function
 
 class SecondTimeDerivative(MetaField):
-    def compute(self, pp, spaces, problem):
-        u2 = pp.get(self.valuename)
-        u1 = pp.get(self.valuename, -1)
-        u0 = pp.get(self.valuename, -2)
+    def compute(self, get):
+        u2 = get(self.valuename)
+        u1 = get(self.valuename, -1)
+        u0 = get(self.valuename, -2)
 
-        t2 = pp.get("t")
-        t1 = pp.get("t", -1)
-        t0 = pp.get("t", -2)
+        t2 = get("t")
+        t1 = get("t", -1)
+        t0 = get("t", -2)
         dt1 = t2 - t1
         if dt1 == 0: dt1 = 1e-14 # Avoid zero-division
             

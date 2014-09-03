@@ -27,15 +27,15 @@ class TimeIntegral(MetaField):
             )
         return params
     
-    def compute(self, pp, spaces, problem):
-        t1 = pp.get("t")
-        t0 = pp.get("t", -1)
+    def compute(self, get):
+        t1 = get("t")
+        t0 = get("t", -1)
         
         assert t0 <= self.params.end_time+EPS and t1 >= self.params.start_time-EPS, "Trying to compute integral outside the integration limits!"
 
         # Get integrand
-        u1 = pp.get(self.valuename)
-        u0 = pp.get(self.valuename, -1)
+        u1 = get(self.valuename)
+        u0 = get(self.valuename, -1)
         
         assert u0 != "N/A" and u1 != "N/A", "u0=%s, u1=%s" %(str(u0), str(u1))
         
@@ -99,13 +99,13 @@ class TimeIntegral(MetaField):
         else:
             return None
     
-    def after_last_compute(self, pp, spaces, problem):
+    def after_last_compute(self, get):
         if not hasattr(self, "_sum"):
             return None
                
         # Integrate last timestep if integration not completed
         if self.T1 <= self.params.end_time - EPS:
-            self.compute(pp, spaces, problem)
+            self.compute(get)
 
         #print "Integrated %s from %f (start_time=%f) to %f (end_time=%f) (result=%s)" %(self.valuename, self.T0, self.params.start_time, self.T1, self.params.end_time,  str(self._sum))
 

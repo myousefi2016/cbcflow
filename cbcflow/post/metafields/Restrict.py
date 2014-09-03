@@ -35,8 +35,8 @@ class Restrict(MetaField):
         if self.label: n += "_"+self.label
         return n
     
-    def compute(self, pp, spaces, problem):
-        u = pp.get(self.valuename)
+    def compute(self, get):
+        u = get(self.valuename)
         
         if u == None:
             return None
