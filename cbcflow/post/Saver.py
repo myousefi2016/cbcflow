@@ -1,7 +1,11 @@
 from hashlib import sha1
 from dolfin import Function, MPI, plot, File, HDF5File, XDMFFile, error
 
-import os, shelve
+from cbcflow.post.utils import safe_mkdir, hdf5_link
+from cbcflow.post.fieldbases import Field
+
+import os, shelve, pickle
+from shutil import rmtree
 
 from utils import on_master_process
 
@@ -10,7 +14,7 @@ class Saver():
         self._timer = timer
         # Caches for file storage
         self._datafile_cache = {}
-        self.casedir = casedir
+        self._casedir = casedir
 
     def _get_save_formats(self, field, data):
         if data == None:
@@ -32,7 +36,7 @@ class Saver():
         return save_as
 
     def get_casedir(self):
-        return self.casedir
+        return self._casedir
 
     def _clean_casedir(self):
         "Cleans out all files produced by cbcflow in the current casedir."
@@ -57,13 +61,13 @@ class Saver():
                             os.remove(os.path.join(self.get_casedir(), f))
 
     def _create_casedir(self):
-        casedir = self.casedir
+        casedir = self._casedir
         safe_mkdir(casedir)
         return casedir
 
     def get_savedir(self, field_name):
         "Returns savedir for given fieldname"
-        return os.path.join(self.casedir, field_name)
+        return os.path.join(self._casedir, field_name)
 
     def _create_savedir(self, field_name):
         self._create_casedir()
@@ -278,9 +282,84 @@ class Saver():
         with open(tfn, 'w') as f:
             f.write(str(params))
 
-    def store_mesh(self, mesh):
+    def store_mesh(self, mesh, cell_domains=None, facet_domains=None):
         "Store mesh in casedir to mesh.hdf5 (dataset Mesh) in casedir."
         casedir = self.get_casedir()
         meshfile = HDF5File(os.path.join(casedir, "mesh.hdf5"), 'w')
         meshfile.write(mesh, "Mesh")
         del meshfile
+    
+    def _action_save(self, field, data):
+        "Apply the 'save' action to computed field data."
+        field_name = field.name
+
+        # Create save folder first time
+        self._create_savedir(field_name)
+
+        # Get current time (assuming the cache contains
+        # valid 't' and 'timestep' at each step)
+        t = self.t
+        timestep = self.timestep
+
+        # Collect metadata shared between data types
+        metadata = {
+            'timestep': timestep,
+            'time': t,
+            }
+
+        # Rename Functions to get the right name in file
+        # (NB! This has the obvious side effect!)
+        # TODO: We don't need to cache a distinct Function
+        # object like we do for plotting, or?
+        if isinstance(data, Function):
+            data.rename(field_name, "Function produced by cbcflow postprocessing.")
+        
+        # Get list of file formats
+        save_as = self._get_save_formats(field, data)
+        
+        # Write data to file for each filetype
+        for saveformat in save_as:
+            # Write data to file depending on type
+            if saveformat == 'pvd':
+                metadata[saveformat] = self._update_pvd_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'xdmf':
+                metadata[saveformat] = self._update_xdmf_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'xml':
+                metadata[saveformat] = self._update_xml_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'xml.gz':
+                metadata[saveformat] = self._update_xml_gz_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'txt':
+                metadata[saveformat] = self._update_txt_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'hdf5':
+                metadata[saveformat] = self._update_hdf5_file(field_name, saveformat, data, timestep, t)
+            elif saveformat == 'shelve':
+                metadata[saveformat] = self._update_shelve_file(field_name, saveformat, data, timestep, t)
+            else:
+                error("Unknown save format %s." % (saveformat,))
+            self._timer.completed("PP: save %s %s" %(field_name, saveformat))
+
+        # Write new data to metadata file
+        self._update_metadata_file(field_name, data, t, timestep, save_as, metadata)
+        
+        self._fill_play_log(field, timestep, save_as)
+    
+    
+    def update(self, t, timestep, cache, triggered_or_finalized):
+        #print cache, triggered_or_finalized
+        self.t = t
+        self.timestep = timestep
+        for field in triggered_or_finalized:
+            #print name, cache[name]
+            if field.params.save:
+                self._action_save(field, cache[field.name])
+        
+        """
+        if self._last_trigger_time[name][1] == timestep or finalize:
+            for action in ["save", "plot", "callback"]:
+                if field.params[action]:
+                    self._apply_action(action, field, data)
+        """
+        
+
+
+    

@@ -49,11 +49,11 @@ class DependencyException(Exception):
 # Fields available through pp.get(name) even though they have no Field class
 builtin_fields = ("t", "timestep")
 
-#class PostProcessor(Parameterized):
-    #def __init__(self, params=None):
-class PostProcessor():
-    def __init__(self, casedir='.', timer=False, extrapolate=True, initial_dt=1e-5):
-        #Parameterized.__init__(self, params)
+#class PostProcessor():
+#    def __init__(self, casedir='.', timer=False, extrapolate=True, initial_dt=1e-5):
+class PostProcessor(Parameterized):
+    def __init__(self, timer=None, params=None):
+        Parameterized.__init__(self, params)
         if isinstance(timer, Timer):
             self._timer = timer
         elif timer:
@@ -61,7 +61,7 @@ class PostProcessor():
         else:
             self._timer = Timer()
             
-        self._extrapolate = extrapolate
+        self._extrapolate = self.params.extrapolate
             
 
         # Storage of actual fields
@@ -79,8 +79,8 @@ class PostProcessor():
         
         
         self._plotter = Plotter(self._timer)
-        self._saver = Saver(self._timer, casedir)
-        self._planner = Planner(self._timer, initial_dt)
+        self._saver = Saver(self._timer, self.params.casedir)
+        self._planner = Planner(self._timer, self.params.initial_dt)
         
         # Plan of what to compute now and in near future
         self._plan = defaultdict(lambda: defaultdict(int))
@@ -124,7 +124,7 @@ class PostProcessor():
         
         self._timer = Timer()
         """
-
+    
     @classmethod
     def default_params(cls):
         params = ParamDict(
@@ -134,7 +134,7 @@ class PostProcessor():
             initial_dt=1e-5,
             )
         return params
-
+    
     def _insert_in_sorted_list(self, fieldname):
         # Topological ordering of all fields, so that all dependencies are taken care of
 
@@ -312,8 +312,10 @@ class PostProcessor():
                 field = self._fields[name]
                 if self._compute_counts[field.name] == 0:
                     init_data = field.before_first_compute(self, spaces, problem)
+                    """
                     if init_data is not None and field.params["save"]:
                         self._init_metadata_file(name, init_data)
+                    """
                     self._timer.completed("PP: before first compute %s" %name)
 
                 # Compute value
@@ -384,10 +386,12 @@ class PostProcessor():
             
             # Apply action if it was triggered directly this timestep (not just indirectly)
             #if (data is not None) and (self._last_trigger_time[name][1] == timestep):
+            """
             if self._last_trigger_time[name][1] == timestep or finalize:
                 for action in ["save", "plot", "callback"]:
                     if field.params[action]:
                         self._apply_action(action, field, data)
+            """
     
     def _update_cache(self):
         "Update cache, remove what can be removed"
@@ -406,7 +410,6 @@ class PostProcessor():
                     # Insert data in new cache at position ts-1
                     new_cache[ts-1][name] = data
         self._cache = new_cache
-
 
     def update_all(self, solution, t, timestep, spaces, problem):
         "Updates cache, plan, play log and executes plan."
@@ -431,12 +434,26 @@ class PostProcessor():
         self._plan, self._finalize_plan, self._last_trigger_time = \
             self._planner._update(self._fields, self._full_dependencies, self._dependencies, t, timestep)
         self._timer.completed("PP: updated plan.")
-
+        
+        
         # Compute what's needed according to plan
         self._execute_plan(t, timestep)
+        #for name, field in self._fields:
+        #    if 
+        #print self._cache[0].keys()
+        
+        triggered_or_finalized = []
+        for name in self._cache[0]:
+            if name in self._finalize_plan or self._last_trigger_time[name][1] == timestep:
+                triggered_or_finalized.append(self._fields[name])
+        
+        #triggered_or_finalized = [name if name in self._finalize_plan or self._last_trigger_time[name][1] == timestep for name in self._cache[0]]
+        
+        self._saver.update(t, timestep, self._cache[0], triggered_or_finalized)
+        self._plotter.update(t, timestep, self._cache[0], triggered_or_finalized)
+        
         
         self._update_all_count += 1
-
 
     def finalize_all(self, spaces, problem):
         "Finalize all Fields after last timestep has been computed."
@@ -449,7 +466,14 @@ class PostProcessor():
             #if finalize_data is not None and field.params["save"]:
             #    self._finalize_metadata_file(name, finalize_data)
 
+    def store_mesh(self, mesh, cell_domains=None, facet_domains=None):
+        self._saver.store_mesh(mesh, cell_domains, facet_domains)
 
 
+    def _clean_casedir(self):
+        self._saver._clean_casedir()
+        
 
-
+    def store_params(self, params):
+        self._saver.store_params(params)
+        

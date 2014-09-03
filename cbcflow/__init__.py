@@ -30,7 +30,7 @@ from cbcflow.post import *
 
 # Core component interfaces
 from cbcflow.core.nsproblem import NSProblem
-from cbcflow.core.nspostprocessor import NSPostProcessor
+#from cbcflow.core.nspostprocessor import NSPostProcessor
 from cbcflow.core.nsscheme import NSScheme
 from cbcflow.core.nssolver import NSSolver
 from cbcflow.core.nsreplay import NSReplay
