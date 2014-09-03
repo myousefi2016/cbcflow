@@ -1,3 +1,9 @@
+from cbcflow.post.utils import in_serial
+import os
+
+from dolfin import Function, plot
+
+
 def disable_plotting():
     "Disable all plotting if we run in parallell."
     if disable_plotting.value == "init":
@@ -33,45 +39,43 @@ import_pylab.value = "init"
 class Plotter():
     def __init__(self, timer):
         self._timer = timer
+        
+        # Cache for plotting
+        self._plot_cache = {}
 
-    def _plot_dolfin(self, field_name, data):
+    def _plot_dolfin(self, t, timestep, field, data):
         "Plot field using dolfin plot command"
-
-        # Get current time
-        t = self.get("t")
-        timestep = self.get('timestep')
-
         # Plot or re-plot
-        plot_object = self._plot_cache.get(field_name)
+        plot_object = self._plot_cache.get(field.name)
         if plot_object is None:
-            plot_object = plot(data, title=field_name, **self._fields[field_name].params.plot_args)
-            self._plot_cache[field_name] = plot_object
+            plot_object = plot(data, title=field.name, **field.params.plot_args)
+            self._plot_cache[field.name] = plot_object
         else:
             plot_object.plot(data)
 
         # Set title and show
-        title = "%s, t=%0.4g, timestep=%d" % (field_name, t, timestep)
+        title = "%s, t=%0.4g, timestep=%d" % (field.name, t, timestep)
         plot_object.parameters["title"] = title
 
-    def _plot_pylab(self, field_name, data):
+    def _plot_pylab(self, t, timestep, field, data):
         "Plot using pylab if field is a single scalar."
         pylab = import_pylab()
         if not pylab:
             return
 
         # Hack to access the spaces and problem arguments to update()
-        problem = self._problem
+        #problem = self._problem
 
         # Get current time
-        t = self.get("t")
-        timestep = self.get('timestep')
+        #t = self.get("t")
+        #timestep = self.get('timestep')
 
         # Values to plot
         x = t
         y = data
 
         # Plot or re-plot
-        plot_data = self._plot_cache.get(field_name)
+        plot_data = self._plot_cache.get(field.name)
         if plot_data is None:
             figure_number = len(self._plot_cache)
             pylab.figure(figure_number)
@@ -82,7 +86,7 @@ class Plotter():
             newmax = max(ydata)
 
             plot_object, = pylab.plot(xdata, ydata)
-            self._plot_cache[field_name] = plot_object, figure_number, newmin, newmax
+            self._plot_cache[field.name] = plot_object, figure_number, newmin, newmax
         else:
             plot_object, figure_number, oldmin, oldmax = plot_data
             pylab.figure(figure_number)
@@ -110,16 +114,43 @@ class Plotter():
                 ymax = newmax
 
             # Need to store min/max for the heuristics to work
-            self._plot_cache[field_name] = plot_object, figure_number, ymin, ymax
+            self._plot_cache[field.name] = plot_object, figure_number, ymin, ymax
 
             plot_object.set_xdata(xdata)
             plot_object.set_ydata(ydata)
 
-            pylab.axis([problem.params.T0, problem.params.T, ymin, ymax])
-
+        pylab.axis([xdata[0], 1.2*xdata[-1], ymin, ymax])
+        
         # Set title and show
-        title = "%s, t=%0.4g, timestep=%d, min=%.2g, max=%.2g" % (field_name, t, timestep, newmin, newmax)
+        title = "%s, t=%0.4g, timestep=%d, min=%.2g, max=%.2g" % (field.name, t, timestep, newmin, newmax)
         plot_object.get_axes().set_title(title)
         pylab.xlabel("t")
-        pylab.ylabel(field_name)
+        pylab.ylabel(field.name)
         pylab.draw()
+
+
+    def _action_plot(self, t, timestep, field, data):
+        "Apply the 'plot' action to computed field data."
+        if data == None:
+            return
+        
+        if disable_plotting():
+            return
+        if isinstance(data, Function):
+            self._plot_dolfin(t, timestep, field, data)
+        elif isinstance(data, float):
+            self._plot_pylab(t, timestep, field, data)
+        else:
+            cbcflow_warning("Unable to plot object %s of type %s." % (field.name, type(data)))
+        self._timer.completed("PP: plot %s" %field.name)
+
+
+
+    def update(self, t, timestep, cache, triggered_or_finalized):
+        #print cache, triggered_or_finalized
+        #self.t = t
+        #self.timestep = timestep
+        for field in triggered_or_finalized:
+            #print name, cache[name]
+            if field.params.plot:
+                self._action_plot(t, timestep, field, cache[field.name])

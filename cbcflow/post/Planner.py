@@ -103,7 +103,7 @@ class Planner():
             dt = self._initial_dt
         else:
             dt = t-self._t_prev
-
+        #print "dt=", dt
         self._t_prev = t
         
         finalize_fields = []
@@ -149,6 +149,8 @@ class Planner():
             # Find time-to-keep (FIXME: Is this correct? Optimal?)
             oldttk = self._plan[ts+offset].get(depname, 0)
             ttk = max(oldttk, offset-min([_ts for _depname, _ts in deps if _depname==depname])+ts)
+            #if depname == "timestep":
+            #    print depname, offset+ts, ttk
             #ttk = max(oldttk, offset)
 
             # Insert in plan if able to compute

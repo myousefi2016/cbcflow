@@ -46,7 +46,7 @@ class DependencyException(Exception):
         Exception.__init__(self, message)
 
 
-# Fields available through pp.get(name) even though they have no Field class
+# Fields available through get(name) even though they have no Field class
 builtin_fields = ("t", "timestep")
 
 #class PostProcessor():
@@ -62,7 +62,6 @@ class PostProcessor(Parameterized):
             self._timer = Timer()
             
         self._extrapolate = self.params.extrapolate
-            
 
         # Storage of actual fields
         self._fields = {}
@@ -74,6 +73,8 @@ class PostProcessor(Parameterized):
         for depname in builtin_fields:
             self._dependencies[depname] = []
             self._full_dependencies[depname] = []
+            
+        #import ipdb; ipdb.set_trace()
         #self._reverse_dependencies = {} # TODO: Need this?
         
         
@@ -100,26 +101,11 @@ class PostProcessor(Parameterized):
         
         """
         
-        
-        
-
-        
-
-        
-        
-
-        
-
-        # Cache for plotting
-        self._plot_cache = {}
-
         # Callback to be called with fields where the 'callback' action is enabled
         # Signature: ppcallback(field, data, t, timestep)
         self._callback = None
 
         # Hack to make these objects available throughout during update... Move these to a struct?
-        self._problem = None
-        self._spaces = None
         self._solution = None
         
         self._timer = Timer()
@@ -169,11 +155,11 @@ class PostProcessor(Parameterized):
         # Get argument names for the compute function
         args = inspect.getargspec(field.compute)[0]
         self_arg = args[0]
-        pp_arg = args[1]
+        get_arg = args[1]
 
         # Read the code for dependencies
         deps = []
-        deps_raw = re.findall(pp_arg+".get\((.+)\)", s)
+        deps_raw = re.findall(get_arg+"\((.+)\)", s)
         for dep in deps_raw:
             # Split into arguments (name, timestep)
             dep = dep.split(',')
@@ -188,10 +174,10 @@ class PostProcessor(Parameterized):
             # Get field name from string literal or through string variable
             dep[0] = dep[0].strip(' ').replace('"', "'")
             if "'" in dep[0]:
-                # If pp.get('Velocity')
+                # If get('Velocity')
                 dep[0] = dep[0].replace("'","")
             else:
-                # If pp.get(self.somevariable), get the string hiding at self.somevariable
+                # If get(self.somevariable), get the string hiding at self.somevariable
                 dep[0] = eval(dep[0].replace(self_arg, "field", 1))
 
                 # TODO: Test alternative solution without eval (a matter of principle) and with better check:
@@ -204,7 +190,8 @@ class PostProcessor(Parameterized):
 
             # Append to dependencies
             deps.append(tuple(dep))
-            
+        
+        #print field.name, sorted(set(deps))
         # Make unique (can happen that deps are repeated in rare cases)
         return sorted(set(deps))
 
@@ -283,16 +270,14 @@ class PostProcessor(Parameterized):
         c = self._cache[timestep]
         data = c.get(name, "N/A")
         
+        #print name, data, timestep, self._cache[timestep]
+        
         # Check if field has been finalized, and if so,
         # return finalized value
         if name in self._finalized and data == "N/A":
             if compute:
                 cbcflow_warning("Field %s has already been finalized. Will not call compute on field." %name)
             return self._finalized[name]
-        
-        # Hack to access the spaces and problem arguments to update()
-        spaces = self._spaces
-        problem = self._problem
         
         # Are we attempting to get value from before update was started?
         # Use constant extrapolation if allowed.
@@ -311,7 +296,7 @@ class PostProcessor(Parameterized):
                 # Ensure before_first_compute is always called once initially
                 field = self._fields[name]
                 if self._compute_counts[field.name] == 0:
-                    init_data = field.before_first_compute(self, spaces, problem)
+                    init_data = field.before_first_compute(self.get)
                     """
                     if init_data is not None and field.params["save"]:
                         self._init_metadata_file(name, init_data)
@@ -320,14 +305,14 @@ class PostProcessor(Parameterized):
 
                 # Compute value
                 if name in self._solution:
-                    data = field.convert(self, spaces, problem)
+                    data = field.convert(self.get)
                     self._timer.completed("PP: convert %s" %name)
                 else:
                     if compute:
-                        data = field.compute(self, spaces, problem)
+                        data = field.compute(self.get)
                         self._timer.completed("PP: compute %s" %name)
                     if finalize:
-                        finalized_data = field.after_last_compute(self, spaces, problem)
+                        finalized_data = field.after_last_compute(self.get)
                         if finalized_data not in [None, "N/A"]:
                             data = finalized_data
                         self._finalized[name] = data
@@ -360,6 +345,7 @@ class PostProcessor(Parameterized):
             "t": t,
             "timestep": timestep,
             }
+        #print "heiheihei", self._plan[0]["timestep"]
 
         # Loop over all planned field computations
         for name in self._sorted_fields_keys:
@@ -411,12 +397,10 @@ class PostProcessor(Parameterized):
                     new_cache[ts-1][name] = data
         self._cache = new_cache
 
-    def update_all(self, solution, t, timestep, spaces, problem):
+    def update_all(self, solution, t, timestep):
         "Updates cache, plan, play log and executes plan."
 
         # TODO: Better design solution to making these variables accessible the right places?
-        self._problem = problem
-        self._spaces = spaces
         self._solution = solution
 
         # Update play log
@@ -424,9 +408,6 @@ class PostProcessor(Parameterized):
 
         # Update cache to keep what's needed later according to plan, forget what we don't need
         self._update_cache()
-        #print self._cache
-        #return
-        #exit()
 
         # Plan what we need to compute now and in near future based on action triggers and dependencies
         #self._plan = self._planner._update_plan(self._plan, t, timestep)
@@ -434,8 +415,7 @@ class PostProcessor(Parameterized):
         self._plan, self._finalize_plan, self._last_trigger_time = \
             self._planner._update(self._fields, self._full_dependencies, self._dependencies, t, timestep)
         self._timer.completed("PP: updated plan.")
-        
-        
+
         # Compute what's needed according to plan
         self._execute_plan(t, timestep)
         #for name, field in self._fields:
@@ -455,25 +435,22 @@ class PostProcessor(Parameterized):
         
         self._update_all_count += 1
 
-    def finalize_all(self, spaces, problem):
+    def finalize_all(self):
         "Finalize all Fields after last timestep has been computed."
         for name in self._sorted_fields_keys:
             field = self._fields[name]
             if field.params.finalize and name not in self._finalized:
                 self.get(name, compute=False, finalize=True)
                 
-            #finalize_data = field.after_last_compute(self, spaces, problem)
+            #finalize_data = field.after_last_compute(self.get)
             #if finalize_data is not None and field.params["save"]:
             #    self._finalize_metadata_file(name, finalize_data)
 
     def store_mesh(self, mesh, cell_domains=None, facet_domains=None):
         self._saver.store_mesh(mesh, cell_domains, facet_domains)
 
-
     def _clean_casedir(self):
         self._saver._clean_casedir()
-        
 
     def store_params(self, params):
         self._saver.store_params(params)
-        
