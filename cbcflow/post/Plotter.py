@@ -63,9 +63,6 @@ class Plotter():
         if not pylab:
             return
 
-        # Hack to access the spaces and problem arguments to update()
-        #problem = self._problem
-
         # Get current time
         #t = self.get("t")
         #timestep = self.get('timestep')

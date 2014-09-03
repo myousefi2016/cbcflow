@@ -75,42 +75,47 @@ def spaces2(problem):
 
 @pytest.fixture(scope="function")
 def pp(problem):
-    return PostProcessor(initial_dt=problem.params.dt)
+    return PostProcessor(params=dict(initial_dt=problem.params.dt))
 
 class MockFunctionField(Field):
-    def before_first_compute(self, pp, spaces, problem):
-        Q = spaces.Q
-        t = pp.get('t')
-        self.f = Function(Q)
+    def __init__(self, spaces, params=None):
+        Field.__init__(self, params)
+        self.f = Function(spaces.Q)
+    
+    def before_first_compute(self, get):
+        t = get('t')
         self.expr = Expression("1+x[0]*x[1]*t", t=t)
         
-    def compute(self, pp, spaces, problem):
-        t = pp.get('t')
+    def compute(self, get):
+        t = get('t')
         self.expr.t = t
         self.f.interpolate(self.expr)
         return self.f
 
 class MockVectorFunctionField(Field):
-    def before_first_compute(self, pp, spaces, problem):
-        V = spaces.V
-        t = pp.get('t')
-        self.f = Function(V)
+    def __init__(self, spaces, params=None):
+        Field.__init__(self, params)
+        self.f = Function(spaces.V)
+    
+    def before_first_compute(self, get):
+        t = get('t')
+
         
-        D = V.mesh().geometry().dim()
+        D = self.f.function_space().mesh().geometry().dim()
         if D == 2:
             self.expr = Expression(("1+x[0]*t", "3+x[1]*t"), t=t)
         elif D == 3:
             self.expr = Expression(("1+x[0]*t", "3+x[1]*t", "10+x[2]*t"), t=t)
         
-    def compute(self, pp, spaces, problem):
-        t = pp.get('t')
+    def compute(self, get):
+        t = get('t')
         self.expr.t = t
         self.f.interpolate(self.expr)
         return self.f
      
 class MockTupleField(Field):
-    def compute(self, pp, spaces, problem):
-        t = pp.get('t')
+    def compute(self, get):
+        t = get('t')
         return (t, 3*t, 1+5*t)
 
 def test_TimeDerivative(problem, spaces, pp, start_time, end_time, dt):   
@@ -120,8 +125,8 @@ def test_TimeDerivative(problem, spaces, pp, start_time, end_time, dt):
     params = dict(finalize=True, start_time=start_time, end_time=end_time)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
     
@@ -136,9 +141,8 @@ def test_TimeDerivative(problem, spaces, pp, start_time, end_time, dt):
     # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
-
-    pp.finalize_all(spaces, problem)
+        pp.update_all({}, t, timestep)
+    pp.finalize_all()
 
     # Get and check values from the final timestep
     assert abs( (pp.get("TimeDerivative_t", compute=False)) - (1.0) ) < 1e-8
@@ -159,8 +163,8 @@ def test_TimeIntegral(problem, spaces, pp, start_time, end_time, dt):
     params = dict(finalize=True, start_time=start_time, end_time=end_time)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
     
@@ -174,9 +178,9 @@ def test_TimeIntegral(problem, spaces, pp, start_time, end_time, dt):
     # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
 
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
 
     assert abs( pp.get("TimeIntegral_t") - (0.5*(end_time**2-start_time**2)) ) < 1e-8   
     assert errornorm(
@@ -205,8 +209,8 @@ def test_TimeAverage(problem, spaces, pp, start_time, end_time, dt):
     
     params = dict(start_time=start_time, end_time=end_time, finalize=True)
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
     
@@ -220,9 +224,9 @@ def test_TimeAverage(problem, spaces, pp, start_time, end_time, dt):
     # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
 
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
     
     assert abs( pp.get("TimeAverage_t") - (0.5*(end_time**2-start_time**2))/(end_time-start_time) ) < 1e-8
     assert errornorm(
@@ -250,8 +254,8 @@ def test_TimeIntegral_of_TimeDerivative(problem, spaces, pp, start_time, end_tim
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
 
@@ -292,11 +296,11 @@ def test_TimeIntegral_of_TimeDerivative(problem, spaces, pp, start_time, end_tim
      # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
         if start_time < t < end_time: 
             assert abs( pp.get("TimeIntegral_TimeDerivative_t") - ((t-start_time)-err_t) ) < 1e-8
     
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
 
     assert err_t-1e-8 < abs( pp.get("TimeIntegral_TimeDerivative_t") - (end_time-start_time)) < err_t+1e-8    
     assert err_MockFunctionField-1e-8 < \
@@ -330,8 +334,8 @@ def test_Maximum(problem, spaces, pp, start_time, end_time, dt):
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
 
@@ -350,7 +354,7 @@ def test_Maximum(problem, spaces, pp, start_time, end_time, dt):
      # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
         if start_time < t < end_time:
             assert abs(pp.get("Maximum_t") - t) < 1e-8
             assert abs(pp.get("Maximum_MockFunctionField") - (1+xmax*ymax*t)) < 1e-8
@@ -360,7 +364,7 @@ def test_Maximum(problem, spaces, pp, start_time, end_time, dt):
                 assert abs(pp.get("Maximum_MockVectorFunctionField") - (10+zmax*t)) < 1e-8
             assert abs(pp.get("Maximum_MockTupleField") - (1+5*t)) < 1e-8
     
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
     
     assert abs(pp.get("Maximum_t") - t) < 1e-8
     assert abs(pp.get("Maximum_MockFunctionField") - (1+xmax*ymax*t)) < 1e-8
@@ -375,8 +379,8 @@ def test_Minimum(problem, spaces, pp, start_time, end_time, dt):
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
 
@@ -395,14 +399,14 @@ def test_Minimum(problem, spaces, pp, start_time, end_time, dt):
      # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
         if start_time < t < end_time:
             assert abs(pp.get("Minimum_t") - t) < 1e-8
             assert abs(pp.get("Minimum_MockFunctionField") - (1+xmin*ymin*t)) < 1e-8
             assert abs(pp.get("Minimum_MockVectorFunctionField") - (1+xmin*t)) < 1e-8
             assert abs(pp.get("Minimum_MockTupleField") - t) < 1e-8
     
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
     
     assert abs(pp.get("Minimum_t") - t) < 1e-8
     assert abs(pp.get("Minimum_MockFunctionField") - (1+xmin*ymin*t)) < 1e-8
@@ -414,8 +418,8 @@ def test_Norm(problem, spaces, pp, start_time, end_time, dt):
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces),
+        MockVectorFunctionField(spaces),
         MockTupleField(),
     ])
 
@@ -439,7 +443,7 @@ def test_Norm(problem, spaces, pp, start_time, end_time, dt):
     # Update postprocessor for a number of timesteps, this is where the main code under test is
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces, problem)
+        pp.update_all({}, t, timestep)
         
         if start_time < t < end_time:
             assert abs(pp.get("Norm_t") - t) < 1e-14
@@ -458,7 +462,7 @@ def test_Norm(problem, spaces, pp, start_time, end_time, dt):
             assert abs(pp.get("Norm_l4_MockTupleField") - (t**4+(3*t)**4+(1+5*t)**4)**(0.25)) < 1e-14
             assert abs(pp.get("Norm_linf_MockTupleField") - (1+5*t)) < 1e-14
     
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
     
     assert abs(pp.get("Norm_t") - t) < 1e-14
     assert abs(pp.get("Norm_l2_t") - t) < 1e-14
@@ -482,8 +486,8 @@ def test_PointEval(problem, spaces2, pp, start_time, end_time, dt):
     dt, timesteps, start_timestep = compute_regular_timesteps(problem)
     
     pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
+        MockFunctionField(spaces2),
+        MockVectorFunctionField(spaces2),
         MockTupleField(),
     ])
 
@@ -512,10 +516,10 @@ def test_PointEval(problem, spaces2, pp, start_time, end_time, dt):
             points.append(p)
     
     
-    pp.add_fields([
-        MockFunctionField(),
-        MockVectorFunctionField(),
-    ])
+    #pp.add_fields([
+    #    MockFunctionField(spaces),
+    #    MockVectorFunctionField(spaces),
+    #])
 
     pp.add_fields([
         PointEval("MockFunctionField", points),
@@ -524,7 +528,7 @@ def test_PointEval(problem, spaces2, pp, start_time, end_time, dt):
         
     for timestep, t in enumerate(timesteps, start_timestep):
         # Run postprocessing step
-        pp.update_all({}, t, timestep, spaces2, problem)
+        pp.update_all({}, t, timestep)
         
         if start_time < t < end_time:
             pevalfunction = pp.get("PointEval_MockFunctionField")
@@ -540,7 +544,7 @@ def test_PointEval(problem, spaces2, pp, start_time, end_time, dt):
                     assert sum( abs( pevalvectorfunction[i][k] - (1+x*t, 3+y*t, 10+z*t)[k]) for k in range(D)) < 1e-10
 
 
-    pp.finalize_all(spaces, problem)
+    pp.finalize_all()
     
     pevalfunction = pp.get("PointEval_MockFunctionField")
     pevalvectorfunction = pp.get("PointEval_MockVectorFunctionField")
