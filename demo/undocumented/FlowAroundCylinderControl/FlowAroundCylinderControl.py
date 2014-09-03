@@ -5,11 +5,12 @@ from cbcflow.dol import *
 
 from os import path
 
-files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_0.6k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_2k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_8k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_32k.xml.gz"),
-         path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/cylinder_129k.xml.gz"),
+datapath = path.abspath(path.join(path.dirname(path.realpath(__file__)), "..","..","..","cbcflow-data"))
+files = [path.join(datapath, "cylinder_0.6k.xml.gz"),
+         path.join(datapath, "cylinder_2k.xml.gz"),
+         path.join(datapath, "cylinder_8k.xml.gz"),
+         path.join(datapath, "cylinder_32k.xml.gz"),
+         path.join(datapath, "cylinder_129k.xml.gz"),
         ]
 
 class LeftBoundary(SubDomain):
@@ -39,7 +40,7 @@ class FlowAroundCylinderControl(NSProblem):
         params.replace(
             # Time parameters
             T=.5,
-            dt=1e-3, #0.1,
+            dt=1e-2, #0.1,
             )
         params.update(
             # Physical parameters
@@ -80,26 +81,36 @@ class FlowAroundCylinderControl(NSProblem):
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
     def density(self):
+        "Return the fluid density as a float value."
         return self.params.rho
 
     def dynamic_viscosity(self):
+        "Return the dynamic viscosity as a float value."
         return self.params.mu
 
     def observations(self, spaces, t):
+        """Return list of observations of velocity for optimization problem."""
         z = Function(spaces.V)
+        e = Expression(("(x[0]-r)*(x[0]-r)", "0.0"), r=0.5)
+        z.interpolate(e)
         return [z]
 
     def controls(self, spaces):
-        m = Function(spaces.V)
-        return [m]
+        """Return list of controls for optimization problem."""
+        mu = self.dynamic_viscosity()
+        rho = self.density()
+        nu = Constant(mu / rho, name="kinematic_viscosity")
+        return [nu]
+
+    def kinematic_viscosity(self, controls):
+        "Return a Constant representing the kinematic viscosity."
+        nu, = controls
+        return nu
 
     def initial_conditions(self, spaces, controls):
         "Setting the flow at rest as initial conditions"
-        m, = controls
-
         c0 = Constant(0)
-        #u0 = [c0, c0]
-        u0 = m
+        u0 = [c0, c0]
         p0 = c0
         return (u0, p0)
 
@@ -121,10 +132,9 @@ class FlowAroundCylinderControl(NSProblem):
         return (bcu, bcp)
 
     def update(self, spaces, u, p, t, timestep, boundary_conditions, observations, controls):
-        m, = controls
-        z, = observations
-        e = Expression(("t*x[0]", "t*x[1]"), t=t)
-        z.interpolate(e)
+        #nu, = controls
+        #z, = observations
+        pass
 
 
 def main():
