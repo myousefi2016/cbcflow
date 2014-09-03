@@ -66,11 +66,6 @@ class NSProblem(Parameterized):
 
         """
         params = ParamDict(
-            # TODO: Remove these from the base class and make problems implement the methods instead:
-            # Physical parameters:
-            mu=None,
-            rho=None,
-
             # Time parameters:
             start_timestep = 0,
             dt=None,
@@ -146,13 +141,11 @@ class NSProblem(Parameterized):
 
     def density(self):
         "Return the fluid density as a float value."
-        assert self.params.rho is not None
-        return self.params.rho
+        raise NotImplementedError("NSProblem subclass must implement density().")
 
     def dynamic_viscosity(self):
         "Return the dynamic viscosity as a float value."
-        assert self.params.mu is not None
-        return self.params.mu
+        raise NotImplementedError("NSProblem subclass must implement dynamic_viscosity().")
 
     def kinematic_viscosity(self, controls):
         "Return a Constant representing the kinematic viscosity."
