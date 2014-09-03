@@ -52,8 +52,8 @@ class IPCS_opt(NSScheme):
         # Functions
         u1 = as_vector([Function(V) for d in dims])
         p1 = Function(Q)
-
-        nu = Constant(problem.params.mu/problem.params.rho)
+        controls = []
+        nu = problem.kinematic_viscosity(controls)
         k  = Constant(dt)
         f  = as_vector(problem.body_force())
         n  = FacetNormal(mesh)
@@ -165,4 +165,3 @@ class IPCS_opt(NSScheme):
             # Rotate functions for next timestep
             for r in dims: u0[r].assign(u1[r])
             p0.assign(p1)
-

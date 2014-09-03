@@ -94,7 +94,8 @@ class CoupledPicard(NSScheme):
         Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Problem parameters
-        nu = Constant(problem.params.mu/problem.params.rho, name="nu")
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt, name="dt")
         f  = as_vector(problem.body_force(spaces, t))
 

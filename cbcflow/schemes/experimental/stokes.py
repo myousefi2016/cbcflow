@@ -82,7 +82,8 @@ class Stokes(NSScheme):
         Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Problem parameters
-        nu = Constant(problem.params.mu/problem.params.rho, name="nu")
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt, name="dt")
         f  = as_vector(problem.body_force(spaces, t))
         c0 = Constant(0.0, name="zero")
@@ -121,7 +122,7 @@ class Stokes(NSScheme):
 
             # Solve for up1
             #solver.solve()
-            solve(a == L, up1, bcu, 
+            solve(a == L, up1, bcu,
                   solver_parameters={"linear_solver": "gmres",
                                      "preconditioner": "hypre_amg"})
 

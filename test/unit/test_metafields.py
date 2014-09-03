@@ -43,13 +43,15 @@ class MockProblem(NSProblem):
     @classmethod
     def default_params(cls):
         params = NSProblem.default_params()
-        params.replace(
-            T = 2.0,
-            dt = 0.1,
-            mu = 0.1,
-            rho = 0.9,
-            )
+        params.T = 2.0
+        params.dt = 0.1
         return params
+
+    def dynamic_viscosity(self):
+        return 0.1
+
+    def density(self):
+        return 0.9
 
 @pytest.fixture(scope="module", params=[2,3])
 def problem(request):

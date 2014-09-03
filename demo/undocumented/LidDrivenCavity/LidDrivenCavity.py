@@ -11,9 +11,9 @@ class LidDrivenCavity(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        
+
         refinements = [16,32,64,128,256]
-        
+
         #N = self.params.N
         N = refinements[self.params.refinement_level]
         mesh = UnitSquareMesh(N, N)
@@ -34,20 +34,26 @@ class LidDrivenCavity(NSProblem):
             # Time parameters
             dt=0.01,
             T=2.5,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
-            )
-        params.update(
             # Spatial parameters
             #N=32,
             refinement_level=0,
             )
         return params
-    
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
+
     def test_fields(self):
         return [Minimum("StreamFunction", {"save": False, "start_time": 2.5-DOLFIN_EPS, "end_time": 2.5+DOLFIN_EPS})]
-        
+
     def test_references(self, spaces, t):
         return [-0.061076605]
 

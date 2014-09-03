@@ -64,15 +64,21 @@ class PipeAneurysm(NSProblem):
             # Time parameters
             dt = 0.005,
             T = 0.05,
+            )
+        params.update(
             # Physical parameters
             rho = 1.0,
             mu = 3.5 / 1.025e6,
-            )
-        params.update(
             # Spatial discretization parameters
             refinement_level = 1,
             )
         return params
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def initial_conditions(self, spaces, controls):
         u0 = [c0, c0, c0]

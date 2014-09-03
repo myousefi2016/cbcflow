@@ -41,15 +41,21 @@ class Channel(NSProblem):
             # Time parameters
             T=1.0e2/8,#0.5,
             dt=1.0/80,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/8.0,
-            )
-        params.update(
             # Spatial parameters
             N=16,
             )
         return params
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def initial_conditions(self, spaces, controls):
         c0 = Constant(0)

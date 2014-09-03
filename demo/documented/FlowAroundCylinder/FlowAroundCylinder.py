@@ -40,11 +40,11 @@ class FlowAroundCylinder(NSProblem):
             # Time parameters
             T=5.0,
             dt=0.1,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             )
@@ -78,6 +78,12 @@ class FlowAroundCylinder(NSProblem):
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def initial_conditions(self, spaces, controls):
         "Setting the flow at rest as initial conditions"

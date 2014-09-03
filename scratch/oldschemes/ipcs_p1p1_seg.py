@@ -53,7 +53,8 @@ class IPCS_p1p1_seg(NSScheme):
         # Functions
         u1 = as_vector([Function(V) for _u0 in u0])
         p1 = interpolate(p0, Q)
-        nu = Constant(problem.params.mu/problem.params.rho)
+        controls = []
+        nu = problem.kinematic_viscosity(controls)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(V))
         n  = FacetNormal(mesh)

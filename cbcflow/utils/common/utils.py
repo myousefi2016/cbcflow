@@ -256,7 +256,7 @@ def epsilon(u):
 
 def sigma(u, p, mu):
     "Return stress tensor."
-    return 2*mu*epsilon(u) - p*Identity(u.cell().d)
+    return 2*mu*epsilon(u) - p*Identity(len(u))
 
 
 # --- Common solver parameters ---

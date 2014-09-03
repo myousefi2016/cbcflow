@@ -86,7 +86,7 @@ class Yosida(NSScheme):
         u_corr = Function(V, name="u_corr")
         p0 = Function(Q, name="p0")
         p_corr = Function(Q, name="p_corr")
-        
+
         # Get functions for data assimilation
         observations = problem.observations(spaces, t)
         controls = problem.controls(spaces)
@@ -102,29 +102,30 @@ class Yosida(NSScheme):
         Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Problem coefficients
-        nu = Constant(problem.params.mu/problem.params.rho)
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
         theta = self.params.theta
 
         # Forms
-        mu = inner(u,v)*dx()       
-        au = inner(grad(u), grad(v))*dx()               
+        mu = inner(u,v)*dx()
+        au = inner(grad(u), grad(v))*dx()
         u_conv = 0.5*(3*u1-u0)
         #u_conv = u1
         cu = inner(grad(u)*u_conv, v)*dx()
-                            
+
         b1 = -inner(p, div(v))*dx()
         b2 = -inner(q, div(u))*dx()
-        
+
         fu = 1/k*mu+theta*nu*au+theta*cu
-        
+
         delta = Constant(self.params.supg)
         gamma = delta*dt*h
         supg = gamma*inner(grad(v)*u_conv, grad(u)*u_conv)*dx()
-        
+
         Cu = assemble(cu, bcs=bcu)
-        
+
         if float(delta) > 0:
             SUPG = assemble(supg, bcs=bcu)
 
@@ -133,7 +134,7 @@ class Yosida(NSScheme):
         A = AA[0,0]
         D = AA[1,0]
         G = AA[0,1]
-        
+
         L0 = ( (1/k)*dot(u1,v)*dx()
               - (1-theta)*dot(grad(u1)*u_conv, v)*dx()
               - (1-theta)*nu*inner(grad(u1), grad(v))*dx()
@@ -142,12 +143,12 @@ class Yosida(NSScheme):
               #+ (1-theta)*p0*div(v)*dx()
               + Lbc
               + dot(f,v)*dx() )
-        
+
         L1 = Constant(0)*q*div(u1)*dx()
-        
+
         bb0 = assemble(L0, bcs=bcu)
         bb1 = assemble(L1)
-        
+
         # Schur complement
         Mu = assemble(1/dt*mu, bcs=bcu)
         #Mu_inv = LumpedInvDiag(Mu)
@@ -160,12 +161,12 @@ class Yosida(NSScheme):
         #A_inv = InvDiag(A)
         #A_inv = H
         #A_inv = DD_Amesos(A)
-        
+
         S = D*A_inv*G # Schur complement
-        
-        # Preconditioner   
-        Ap = assemble(dot(grad(p), grad(q))*dx())      
-        
+
+        # Preconditioner
+        Ap = assemble(dot(grad(p), grad(q))*dx())
+
         for bc in bcp:
             bc.apply(Ap)
 
@@ -179,48 +180,48 @@ class Yosida(NSScheme):
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
             assign_time(t, timesteps[timestep])
-        
+
             t0 = time()
             # Update various functions
             problem.update(spaces, u1, p0, t, timestep, bcs, observations, controls)
 
             t1 = time()
             print "Time spent updating: ", t1-t0
-                
+
             # Update terms dependent on previous solution (convection terms)
             A.axpy(-1.0*theta, Cu, True)
             assemble(cu, bcs=bcu, tensor=Cu)
             A.axpy(1.0*theta, Cu, True)
-            
+
             if float(delta) > 0:
                 A.axpy(-1.0, SUPG, True)
                 assemble(supg, bcs=bcu, tensor=SUPG)
                 A.axpy(1.0, SUPG, True)
-            
+
             assemble(L0, bcs=bcu, tensor=bb0)
             assemble(L1, tensor=bb1)
-            
+
             t2 = time()
             print "Time spent re-assembling: ", t2-t1
-            
+
             Aprec = DD_ILU(A)
             A_inv1 = LGMRES(A, precond=Aprec, initial_guess=u1.vector(), maxiter=250, nonconvergence_is_fatal=True, tolerance=self.params.conv_diff_tolerance)
             u1.vector()[:] = A_inv1*(bb0 - G*p0.vector())
-            
+
             #S = D*Aprec*G # Schur complement (approximated)
             S_inv = LGMRES(S, precond=X_inv, tolerance=self.params.schur_tolerance, maxiter=100, show=1, nonconvergence_is_fatal=True)
             p_corr.vector()[:] = -S_inv * (bb1 - D * u1.vector())
 
             A_inv2 = LGMRES(A, precond=Aprec, initial_guess=u_corr.vector(), maxiter=250, nonconvergence_is_fatal=True, tolerance=self.params.conv_diff_tolerance)
-            u_corr.vector()[:] = -A_inv2*G*p_corr.vector()           
-            
+            u_corr.vector()[:] = -A_inv2*G*p_corr.vector()
+
             u1.vector()[:] += u_corr.vector()
             p0.vector()[:] += p_corr.vector()
 
 
             # Update last timestep
             u0.assign(u1)
-            
+
             update(u1, p0, float(t), timestep, spaces)
 
         # Make sure annotation gets that the timeloop is over

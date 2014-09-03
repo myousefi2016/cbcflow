@@ -21,7 +21,7 @@ class BifurcationAneurysm(NSProblem):
         NSProblem.__init__(self, params)
 
         mesh = Mesh(files[self.params.refinement_level])
-        
+
         cell_domains = MeshFunction("size_t", mesh, 3)
         cell_domains.set_all(0)
         subdomain = CompiledSubDomain("x[0] > 49.0 && x[0] < 60.0 \
@@ -29,7 +29,7 @@ class BifurcationAneurysm(NSProblem):
                                       && x[2] > 25.2 && x[2] < 40.4")
 
         subdomain.mark(cell_domains, 1)
-        
+
         self.initialize_geometry(mesh, cell_domains=cell_domains)
 
     @classmethod
@@ -41,15 +41,21 @@ class BifurcationAneurysm(NSProblem):
             #period=1.0,
             #num_periods=0.3,
             T=2,
+            )
+        params.update(
             # Physical parameters
             mu=0.00345,
             rho=0.00106,
-            )
-        params.update(
             # Spatial discretization parameters
             refinement_level=0,
             )
         return params
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def initial_conditions(self, spaces, controls):
         "Return initial conditions as list of scalars (velocity) and scalar (pressure)."
@@ -81,8 +87,8 @@ class BifurcationAneurysm(NSProblem):
         bcu, bcp = bcs
         inflow = bcu[0][0]
         for e in inflow: e.set_t(float(t))
-        
-        
+
+
 
 
 def main():
@@ -101,66 +107,66 @@ def main():
         solver_u_corr = "WeightedGradient",
         theta=1.0,
         ))
-    
+
     parameters["krylov_solver"]["relative_tolerance"] = 1e-15
     parameters["krylov_solver"]["absolute_tolerance"] = 1e-15
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
-    
+
     postproc = NSPostProcessor({"casedir": "Results/"})
-    
-    
+
+
     def set_up_fields(problem):
         T0 = problem.params.T/2.0
         T1 = problem.params.T
         fields = []
-        
+
         plot = True
-        
+
         # Basic fields
         fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
         fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
-    
+
         # On boundary
         fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
         fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
-        
+
         # Time-integrated fields
         fields.append(TimeIntegral("WSS", dict(save=True, start_time=T0, end_time=T1)))
         fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
-        
+
         # SubFunctions and Restrictions
         from cbcflow.utils.common.submesh import create_submesh
         from cbcflow.utils.fields.Slice import Slice
-        
+
         submesh = create_submesh(problem.mesh, problem.cell_domains, 1)
         fields.append(Restrict("Velocity", submesh, dict(save=True, plot=plot)))
 
-        # Need mpi4py for SubFunction        
+        # Need mpi4py for SubFunction
         try:
             import mpi4py
         except:
             mpi4py = None
-        
-        if mpi4py != None:          
+
+        if mpi4py != None:
             slicemesh = Slice(problem.mesh, (54.8, 44.0, 33.1), (-0.23, -0.10, 0.97))
             fields.append(SubFunction("Velocity", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
             fields.append(SubFunction("Pressure", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
-            
+
         # Point evaluation
         fields.append(PointEval("Velocity", ((54.8, 44.0, 33.1), (53.6, 43.6, 37.9)), dict(save=True)))
-        
+
         # Derivatives
         fields.append(TimeDerivative("Pressure", dict(save=True, plot=plot)))
-        
+
         return fields
 
     postproc.add_fields(set_up_fields(problem))
-    
+
     solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=10))
     solver.solve()
-    
+
 
 if __name__ == "__main__":
     main()

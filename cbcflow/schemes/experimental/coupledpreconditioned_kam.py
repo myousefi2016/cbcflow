@@ -103,7 +103,8 @@ class CoupledPreconditionedKAM(NSScheme):
         Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Problem coefficients
-        nu = Constant(problem.params.mu/problem.params.rho)
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
         theta = self.params.theta

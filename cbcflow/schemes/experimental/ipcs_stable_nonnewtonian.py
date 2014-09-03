@@ -24,7 +24,7 @@ allowing for different evaluation of these, and the convection is handled semi-i
     \frac{1}{\Delta t}\left( \tilde{u}^{n+1}-u^{n} \right)-
     \nabla\cdot\nu\nabla \tilde{u}^{n+\theta}+
     u^*\cdot\nabla \tilde{u}^{n+\theta}+\nabla p^{n}=f^{n+1},
-    
+
 where
 
 .. math::
@@ -64,23 +64,23 @@ from cbcflow.utils.core import NSSpacePoolSegregated
 
 class ModifiedCross:
     def __init__(self, mesh, problem, spaces):
-       self.l = 3.7365
-       self.m = 2.406
-       self.a = 0.254
-       
-       self.mu_0 = 0.056
-       self.mu_inf = 0.00345
-       
-       self.DU0 = spaces.DU0
+        self.l = 3.7365
+        self.m = 2.406
+        self.a = 0.254
 
-       self.rho = problem.params.rho
-       
+        self.mu_0 = 0.056
+        self.mu_inf = 0.00345
+
+        self.DU0 = spaces.DU0
+
+        self.rho = problem.density()
+
     def __call__(self, u):
-        
+
         gamma = pow(0.5*inner(grad(u)+transpose(grad(u)), grad(u)+transpose(grad(u))), 0.5)
         mu = 1.0/((1.0+(self.l*gamma)**self.m)**self.a)*(self.mu_0-self.mu_inf)+self.mu_inf
         #nu = mu/self.rho
-        
+
         # Reusing projection matrix and solver, subfunction->vectorfunction assign with be better TODO
         if not hasattr(self, "_mu"):
             self._mu = Function(self.DU0)
@@ -96,7 +96,7 @@ class ModifiedCross:
             L = dot(mu, self._te)*dx()
             assemble(L, tensor=self._b)
         self._solver.solve(self._mu.vector(), self._b)
-        
+
         return self._mu
 
 
@@ -152,7 +152,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
         u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
         u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
-        
+
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
 
@@ -164,13 +164,13 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         ics = problem.initial_conditions(spaces, controls)
         assign_ics_segregated(u0, p0, spaces, ics)
         for d in dims: u1[d].assign(u0[d])
-        
+
         # Update Adams-Bashford term for first timestep
         for d in dims:
             u_ab[d].vector().zero()
             u_ab[d].vector().axpy(1.5, u1[d].vector())
             u_ab[d].vector().axpy(-0.5, u0[d].vector())
-        
+
         #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
 
@@ -183,16 +183,15 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         #beta = 0 if is_periodic(bcp) else 1
 
         # Problem coefficients
-        #nu = Constant(problem.params.mu/problem.params.rho)
+        #nu = problem.kinematic_viscosity(controls)
+        rho = problem.density()
         modifiedcross = ModifiedCross(mesh, problem, spaces)
         mu = modifiedcross(u1)
-        problem.params.mu = mu
-        
-        rho = float(problem.params.rho)
-        #rho = Constant(problem.params.rho)
+        problem.params.mu = mu # FIXME: Redesign so the problem can return the
+
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
-        
+
         timer.completed("create function spaces, functions and boundary conditions")
 
         # Tentative velocity step. Crank-Nicholson time-stepping is used for diffusion and convection.
@@ -209,7 +208,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
             Kconv_axpy_factor = theta/(1-theta)
         else:
             Kconv_axpy_factor = 1.0
-        
+
         Kconv = Matrix() # assembled from a_conv in the time loop
 
         # Create the static part of the coefficient matrix for the tentative
@@ -224,9 +223,9 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         # Create matrices for generating the RHS
         B = assemble(a1)
         B.axpy(-(1-theta), A2, True)
-        
+
         M = assemble(v*u*dx())
-        
+
         # Define how to create the RHS for the tentative velocity. The RHS is
         # (of course) different for each dimension.
         rhs_u_tent = [None]*len(dims)
@@ -239,7 +238,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
             rhs_u_tent[d] += M, f[d]
             if theta < 1.0:
                 rhs_u_tent[d] -= Kconv, u0[d]
-        
+
         # Apply BCs to LHS
         for bc in bcu:
             bc[0].apply(A_u_tent)
@@ -250,9 +249,9 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         if 'preconditioner' in solver_u_tent.parameters:
                 solver_u_tent.parameters['preconditioner']['structure'] = 'same'
         solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
-        
+
         timer.completed("create tenative velocity solver")
-        
+
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx())
         rhs_p_corr = RhsGenerator(Q)
@@ -261,7 +260,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
         for d in dims:
             Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
             rhs_p_corr += Ku[d], u1[d]
-            
+
         # Pressure correction solver
         if self.params.solver_p:
             solver_p_params = self.params.solver_p
@@ -269,18 +268,18 @@ class IPCS_Stable_NonNewtonian(NSScheme):
             solver_p_params = self.params.solver_p_neumann
         else:
             solver_p_params = self.params.solver_p_dirichlet
-        
+
         for bc in bcp:
             bc.apply(A_p_corr)
-        
+
         solver_p_corr = LinearSolver(*solver_p_params)
         solver_p_corr.set_operator(A_p_corr)
         if 'preconditioner' in solver_p_corr.parameters:
                 solver_p_corr.parameters['preconditioner']['structure'] = 'same'
         solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
-        
+
         timer.completed("create pressure correction solver")
-        
+
         # Velocity correction solver
         if self.params.solver_u_corr not in ["WeightedGradient"]:
             # Velocity correction. Like for the tentative velocity, a single LHS is used.
@@ -293,17 +292,17 @@ class IPCS_Stable_NonNewtonian(NSScheme):
                 rhs_u_corr[d] += M, u1[d]
                 rhs_u_corr[d] += Kp[d], p1
                 rhs_u_corr[d] -= Kp[d], p0
-            
+
             # Apply BCs to LHS
             for bc in bcu:
                 bc[0].apply(A_u_corr)
-                
+
             solver_u_corr = LinearSolver(*self.params.solver_u_corr)
             solver_u_corr.set_operator(A_u_corr)
             if 'preconditioner' in solver_u_corr.parameters:
                 solver_u_corr.parameters['preconditioner']['structure'] = 'same'
             solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
-            
+
         elif self.params.solver_u_corr == "WeightedGradient":
             from fenicstools.WeightedGradient import compiled_gradient_module
             DG = spaces.DQ0
@@ -316,7 +315,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
                 dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
                 compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
                 dPdX.append(C.copy())
-        
+
         timer.completed("create velocity correction solver")
 
         # Call update() with initial conditions
@@ -330,27 +329,27 @@ class IPCS_Stable_NonNewtonian(NSScheme):
             # Update various functions
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
-            
+
             p0.vector()[:] *= 1.0/rho
-            
+
             # Update viscosity
-            mu.assign(modifiedcross(u1))
+            mu.assign(modifiedcross(u1)) # FIXME: Redesign so this can be done in problem.update()?
             problem.params.mu.assign(mu)
             timer.completed("viscosity update")
-            
+
             # Reassemble viscous term
             A_u_tent.axpy(-theta, A2, True)
             B.axpy(1-theta, A2, True)
             assemble(a2, tensor=A2, reset_sparsity=False)
-            
+
             A_u_tent.axpy(theta, A2, True)
             B.axpy(-(1-theta), A2, True)
             timer.completed("reassemble viscous term")
-            
+
             #print norm(A_u_tent)
             #print A_u_tent.norm('frobenius')
             #print B.norm('frobenius')
-            
+
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
             # also stored in rhs. (And it's faster).
@@ -368,7 +367,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
             #    bc[0].zero(Kconv)
 
             A_u_tent.axpy(Kconv_axpy_factor, Kconv, True)
-            
+
             for bc in bcu:
                 bc[0].apply(A_u_tent)
             timer.completed("u_tent assemble convection & construct lhs")
@@ -390,13 +389,13 @@ class IPCS_Stable_NonNewtonian(NSScheme):
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
                 timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
-            
+
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0 or is_periodic(bcp): normalize(b)
             for bc in bcp:
                 b *= rho
-                
+
                 bc.apply(b)
                 b *= 1.0/rho
             timer.completed("p_corr construct rhs")
@@ -410,7 +409,7 @@ class IPCS_Stable_NonNewtonian(NSScheme):
                     b = rhs_u_corr[d]()
                     for bc in bcu: bc[d].apply(b)
                     timer.completed("u_corr construct rhs")
-    
+
                     iter = solver_u_corr.solve(u1[d].vector(), b)
                     timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
             elif self.params.solver_u_corr == "WeightedGradient":
@@ -424,13 +423,13 @@ class IPCS_Stable_NonNewtonian(NSScheme):
                 u_ab[d].vector().zero()
                 u_ab[d].vector().axpy(1.5, u1[d].vector())
                 u_ab[d].vector().axpy(-0.5, u0[d].vector())
-            
+
              # Rotate functions for next timestep
             for d in dims: u0[d].assign(u1[d])
             p0.assign(p1)
 
             p0.vector()[:] *= rho
-            
+
             # Update postprocessing
             update(u0, p0, float(t), timestep, spaces)
             timer.completed("updated postprocessing (completed timestep)")

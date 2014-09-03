@@ -55,7 +55,8 @@ class CSS(NSScheme):
         p0  = interpolate(p0, Q)
         p1  = interpolate(p0, Q)
         p2  = interpolate(p0, Q)
-        nu  = Constant(problem.params.mu/problem.params.rho)
+        controls = []
+        nu = problem.kinematic_viscosity(controls)
         k   = Constant(dt)
         n   = FacetNormal(mesh)
         #f   = as_vector(problem.body_force())[0]
@@ -125,4 +126,3 @@ class CSS(NSScheme):
             u0.assign(u1)
             p0.assign(p1)
             p1.assign(p2)
-

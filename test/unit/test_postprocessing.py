@@ -29,10 +29,14 @@ class MockProblem(NSProblem):
         params.replace(
             T = 1.0,
             dt = 0.1,
-            mu = 0.1,
-            rho = 0.9,
             )
         return params
+
+    def dynamic_viscosity(self):
+        return 0.1
+
+    def density(self):
+        return 0.9
 
 ppf_delayed_cb_params = ParamDict(
     # Don't compute unless asked
@@ -64,7 +68,7 @@ ppf_immediate_cb_params = ParamDict(
     save = False,
     plot = False,
     callback = True,
-    
+
     # Return on compute
     finalize = False,
     )
@@ -307,7 +311,7 @@ def test_get_compute_velocity_gradient_strain_and_stress():
     epsilon_expr = Expression((("2.0", "3.5"), ("3.5", "5.0")))
     sigma_expr = Expression((("2*0.2 - (1.0 + 3 * x[0] * x[1])", "2*0.35"),
                          ("2*0.35", "2*0.5 - (1.0 + 3 * x[0] * x[1])")))
-    assert abs( (problem.params.mu) - (0.1) ) < 1e-8 # Using this in sigma_expr
+    assert abs( (problem.dynamic_viscosity()) - (0.1) ) < 1e-8 # Using this in sigma_expr
 
     # Setup some mock scheme state
     spaces = NSSpacePoolSplit(problem.mesh, 1, 1)
@@ -443,7 +447,7 @@ def test_get_first_time_derivative():
 
     assert abs( (pp.get("TimeDerivative_timestep")) - (1.0/dt) ) < 1e-8
     # ts = (t-T0)/dt
-   
+
     assert abs( (pp.get("SecondTimeDerivative_timestep")) - (0.0) ) < 1e-8
 
     # FIXME:

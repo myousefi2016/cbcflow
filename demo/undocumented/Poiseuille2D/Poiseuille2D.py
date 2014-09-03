@@ -79,11 +79,11 @@ class Poiseuille2D(NSProblem):
             dt=1e-2,
             period=0.8,
             num_periods=0.1,
+            )
+        params.update(
             # Physical parameters
             rho = 10.0,
             mu=1.0/30.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             # Analytical solution parameters
@@ -91,11 +91,17 @@ class Poiseuille2D(NSProblem):
             )
         return params
 
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
+
     def analytical_solution(self, spaces, t):
         A = 2*RADIUS
         Q = self.params.Q
         mu = self.params.mu
-        
+
         dpdx = 3*Q*mu/(A*RADIUS**2)
 
         ux = Expression("(radius*radius - x[1]*x[1])/(2*mu)*dpdx", radius=RADIUS, mu=mu, dpdx=dpdx, degree=2)
@@ -107,10 +113,10 @@ class Poiseuille2D(NSProblem):
 
         return (u, p)
 
-    
+
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
-    
+
     def test_fields(self):
         return [Velocity(), Pressure()]
 
@@ -138,13 +144,13 @@ class Poiseuille2D(NSProblem):
         bcu = [noslip, inflow]
         bcp = [outflow]
         return (bcu, bcp)
-    
+
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls):
         bcu, bcp = bcs
         uin = bcu[1][0]
         for ucomp in uin:
             ucomp.set_t(t)
-        
+
 def main():
     set_log_level(100)
     problem = Poiseuille2D({"dt": 1e-3, "T": 1e-1, "num_periods": None, "refinement_level": 1})
@@ -161,7 +167,7 @@ def main():
 
     solver = NSSolver(problem, scheme, postproc)
     solver.solve()
-    
+
 
 if __name__ == "__main__":
     main()

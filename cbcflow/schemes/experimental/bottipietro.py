@@ -101,7 +101,8 @@ class BottiPietro(NSScheme):
         beta = 0 if is_periodic(bcp) else 1
 
         # Problem coefficients
-        nu = Constant(problem.params.mu/problem.params.rho, name="nu")
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt, name="dt")
         kinv = 1.0 / k
         f  = as_vector(problem.body_force(spaces, t))

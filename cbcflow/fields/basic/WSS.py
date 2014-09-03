@@ -42,14 +42,14 @@ class WSS(PPField):
         local_dofmapping = mesh_to_boundarymesh_dofmap(spaces.BoundaryMesh, Q, Q_boundary)
         self._keys = local_dofmapping.keys()
         self._values = local_dofmapping.values()
-        
+
         Mb = assemble(inner(TestFunction(Q_boundary), TrialFunction(Q_boundary))*dx)
         #self.solver = LinearSolver("gmres", "hypre_euclid")
         self.solver = LinearSolver("gmres", "jacobi")
         self.solver.set_operator(Mb)
 
         self.b = Function(Q_boundary).vector()
-        
+
         self._n = FacetNormal(problem.mesh)
 
 
@@ -57,21 +57,18 @@ class WSS(PPField):
         n = self._n
 
         u = pp.get("Velocity")
-        
-        if isinstance(problem.params.mu, (float, int)):
-            mu = Constant(problem.params.mu)
-        else:
-            mu = problem.params.mu
+
+        mu = Constant(problem.dynamic_viscosity())
 
         T = -mu*dot((grad(u) + grad(u).T), n)
         Tn = dot(T, n)
         Tt = T - Tn*n
-        
+
         tau_form = dot(self.v, Tt)*ds()
         assemble(tau_form, tensor=self.tau.vector(), reset_sparsity=False)
-        
+
         self.b[self._keys] = self.tau.vector()[self._values]
-        
+
         # Ensure proper scaling
         self.solver.solve(self.tau_boundary.vector(), self.b)
 

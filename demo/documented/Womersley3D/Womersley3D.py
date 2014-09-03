@@ -38,11 +38,11 @@ class Womersley3D(NSProblem):
             dt=1e-3,
             period=0.8,
             num_periods=1.0,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/30.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             # Analytical solution parameters
@@ -52,7 +52,7 @@ class Womersley3D(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        
+
         # Load mesh
         mesh = Mesh(files[self.params.refinement_level])
         #mesh = Mesh(self.params.mesh_filename)
@@ -61,13 +61,13 @@ class Womersley3D(NSProblem):
         self.wall_boundary_id = 0
         self.left_boundary_id = 1
         self.right_boundary_id = 2
-        
+
         facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(3)
         DomainBoundary().mark(facet_domains, self.wall_boundary_id)
         Inflow().mark(facet_domains, self.left_boundary_id)
         Outflow().mark(facet_domains, self.right_boundary_id)
-        
+
          # Setup analytical solution constants
         Q = self.params.Q
         self.nu = self.params.mu / self.params.rho
@@ -92,6 +92,12 @@ class Womersley3D(NSProblem):
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
 
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
+
     def analytical_solution(self, spaces, t):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains)
@@ -100,11 +106,11 @@ class Womersley3D(NSProblem):
         pa = Expression("-beta * x[0]", beta=1.0)
         pa.beta = self.beta # TODO: This is not correct unless stationary...
         return (ua, pa)
-    
-    
+
+
     def test_fields(self):
         return [Velocity(), Pressure()]
-    
+
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
 

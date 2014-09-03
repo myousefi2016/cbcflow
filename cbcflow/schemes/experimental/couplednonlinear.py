@@ -97,7 +97,8 @@ class CoupledNonLinear(NSScheme):
         beta = 1
 
         # Problem coefficients
-        nu = Constant(problem.params.mu/problem.params.rho)
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
         theta = self.params.theta

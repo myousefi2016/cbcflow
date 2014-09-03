@@ -72,14 +72,17 @@ class MockProblem(NSProblem):
             T0=1.0,
             T=2.0,
             dt=0.5,
-
-            mu=1.0,
-            rho=1.0,
             )
         params.update(
             d=2,
             )
         return params
+
+    def dynamic_viscosity(self):
+        return 1.0
+
+    def density(self):
+        return 1.0
 
     def observations(self, spaces, t):
         # Record this call

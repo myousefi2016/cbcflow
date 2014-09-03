@@ -65,15 +65,21 @@ class Channel3D(NSProblem):
             # Time parameters
             T=30e-5,
             dt=1e-5,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/10.0,
-            )
-        params.update(
             # Spatial parameters
             N=6,
             )
         return params
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def analytical_solution(self, spaces, t):
         ux = Expression("U*(radius*radius - x[1]*x[1])*(radius*radius - x[2]*x[2])", U=1.0, radius=RADIUS)

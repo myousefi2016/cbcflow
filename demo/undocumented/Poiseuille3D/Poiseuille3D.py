@@ -38,13 +38,13 @@ class Poiseuille3D(NSProblem):
         self.wall_boundary_id = 0
         self.left_boundary_id = 1
         self.right_boundary_id = 2
-        
+
         facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(3)
         DomainBoundary().mark(facet_domains, self.wall_boundary_id)
         Inflow().mark(facet_domains, self.left_boundary_id)
         Outflow().mark(facet_domains, self.right_boundary_id)
-        
+
         # Setup analytical solution constants
         Q = self.params.Q
 
@@ -63,11 +63,11 @@ class Poiseuille3D(NSProblem):
             dt=1e-3,
             period=0.8,
             num_periods=0.1,
+            )
+        params.update(
             # Physical parameters
             rho=10.0,
             mu=1.0/30.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             # Analytical solution parameters
@@ -75,25 +75,31 @@ class Poiseuille3D(NSProblem):
             )
         return params
 
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
+
     def analytical_solution(self, spaces, t):
         A = pi*RADIUS**2
         Q = self.params.Q
-        mu = self.params.mu       
+        mu = self.params.mu
         dpdx = 8.0*Q*mu/(A*RADIUS**2)
-        
+
         ux = Expression("(radius*radius - x[1]*x[1] - x[2]*x[2])/(4*mu)*dpdx", radius=RADIUS, mu=mu, dpdx=dpdx, cell=tetrahedron, degree=2)
         uy = Constant(0.0)
-        
+
         uz = Constant(0.0)
         u = [ux, uy, uz]
-        
+
         p = Expression("dpdx * (length-x[0])", dpdx=dpdx, length=LENGTH)
-        
+
         return (u,p)
 
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
-    
+
     def test_fields(self):
         return [Velocity(), Pressure()]
 

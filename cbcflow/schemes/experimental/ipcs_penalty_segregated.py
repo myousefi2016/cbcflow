@@ -98,7 +98,8 @@ class SegregatedPenaltyIPCS(NSScheme):
             a_pbc, L_pbc = 0, 0
 
         # Problem parameters
-        nu = Constant(problem.params.mu/problem.params.rho, name="nu")
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         k  = Constant(dt, name="dt")
         f  = as_vector(problem.body_force(spaces, t))
 

@@ -39,7 +39,7 @@ class PhysicalPressure(PPField):
             self._assigner.assign(self._p, w.sub(1))
 
         # Scale by density
-        rho = problem.params.rho
+        rho = problem.density()
         pv = self._p.vector()
         pv *= rho
         p = self._p

@@ -33,7 +33,7 @@ class Womersley2D(NSProblem):
         y = RADIUS*2*(y - 0.5)
         mesh.coordinates()[:,0] = x
         mesh.coordinates()[:,1] = y
-        
+
         # We will apply markers with these id values
         self.wall_boundary_id = 0
         self.left_boundary_id = 1
@@ -99,12 +99,12 @@ class Womersley2D(NSProblem):
             dt=1e-2,
             period=0.8,
             num_periods=1.0,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/30.0,
            #mu=1.0e6, #1.0/30.0,
-            )
-        params.update(
             # Spatial parameters
             #N=32,
             refinement_level=0,
@@ -115,21 +115,27 @@ class Womersley2D(NSProblem):
             )
         return params
 
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
+
     def analytical_solution(self, spaces, t):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains,
                                 self.params.coeffstype, num_fourier_coefficients=self.params.num_womersley_coefficients)
         #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
         for uc in ua:
-            uc.set_t(t)           
-            
+            uc.set_t(t)
+
         pa = Expression("-beta * x[0]", beta=1.0)
         pa.beta = self.beta # TODO: This is not correct unless stationary...
         return (ua, pa)
-    
+
     def test_fields(self):
         return [Velocity(), Pressure()]
-    
+
     def test_references(self, spaces, t):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains,

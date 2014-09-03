@@ -40,11 +40,11 @@ class FlowAroundCylinderControl(NSProblem):
             # Time parameters
             T=.5,
             dt=1e-3, #0.1,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0/1000.0, #1.0/1000.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             )
@@ -78,6 +78,12 @@ class FlowAroundCylinderControl(NSProblem):
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def observations(self, spaces, t):
         z = Function(spaces.V)

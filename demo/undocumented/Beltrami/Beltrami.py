@@ -32,15 +32,21 @@ class Beltrami(NSProblem):
             # Time parameters
             T=0.5,
             dt=0.05,
+            )
+        params.update(
             # Physical parameters
             rho=1.0,
             mu=1.0,
-            )
-        params.update(
             # Spatial parameters
             refinement_level=0,
             )
         return params
+
+    def density(self):
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        return self.params.mu
 
     def analytical_solution(self, spaces, t):
         # The analytical solution
@@ -61,15 +67,15 @@ class Beltrami(NSProblem):
         # Compile expressions
         exact_u = [Expression(analytical_u[d], **u_params) for d in xrange(3)]
         exact_p = Expression(analytical_p, **p_params)
-        
+
         return [as_vector(exact_u), exact_p]
-    
+
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
-    
+
     def test_fields(self):
         return [Velocity(), Pressure()]
-    
+
 
     def initial_conditions(self, spaces, controls):
         #exact_u, exact_p = self.analytical_solution(spaces, t=0.0)
@@ -87,7 +93,7 @@ class Beltrami(NSProblem):
         bcu, bcp = bcs
         uve = bcu[0][0]
         for ue in uve: ue.t = float(t)
-        
+
 
     '''
     # FIXME: Change this to use the new test_functionals, test_references interface:

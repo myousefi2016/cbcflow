@@ -60,17 +60,13 @@ class NSProblem(Parameterized):
         Either T or period and num_period must be set.
         If T is not set, T=T0+period*num_periods is used.
 
-        Physical parameters:
-
-          - mu: float, kinematic viscosity
-          - rho: float, mass density
-
         Space discretization parameters:
 
           - mesh_file: str, filename to load mesh from (if any)
 
         """
         params = ParamDict(
+            # TODO: Remove these from the base class and make problems implement the methods instead:
             # Physical parameters:
             mu=None,
             rho=None,
@@ -121,24 +117,46 @@ class NSProblem(Parameterized):
         self.dx = ufl.dx(domain=mesh, subdomain_data=self.cell_domains)
 
     def observations(self, spaces, t):
-        """Return observations of velocity for optimization problem.
+        """Return list of observations of velocity for optimization problem.
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
 
-        TODO: Document expected observations behaviour here.
+        The observations list returned from here is not used by the
+        regular forward schemes but is passed on to other functions
+        in the problem interface.
+
+        TODO: Document expected observations behaviour in more detail once we work it out.
         """
         return []
 
     def controls(self, spaces):
-        """Return controls for optimization problem.
+        """Return list of controls for optimization problem.
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
 
-        TODO: Document expected controls behaviour here.
+        The controls list returned from here is not used by the
+        regular forward schemes but is passed on to other functions
+        in the problem interface.
+
+        TODO: Document expected controls behaviour in more detail once we work it out.
         """
         return []
+
+    def density(self):
+        "Return the fluid density as a float value."
+        assert self.params.rho is not None
+        return self.params.rho
+
+    def dynamic_viscosity(self):
+        "Return the dynamic viscosity as a float value."
+        assert self.params.mu is not None
+        return self.params.mu
+
+    def kinematic_viscosity(self, controls):
+        "Return a Constant representing the kinematic viscosity."
+        return Constant(self.dynamic_viscosity() / self.density(), name="kinematic_viscosity")
 
     def initial_conditions(self, spaces, controls):
         """Return initial conditions.

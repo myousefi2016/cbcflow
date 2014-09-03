@@ -43,7 +43,7 @@ from numpy import ceil
 class IPCS_ABI_CN(NSScheme):
     def __init__(self, params=None):
         NSScheme.__init__(self, params)
-        
+
     @classmethod
     def default_params(cls):
         params = NSScheme.default_params()
@@ -76,11 +76,12 @@ class IPCS_ABI_CN(NSScheme):
         rt  = 1e-15   #Krylov solver relative tolerance
         pat = 1e-15   #Krylov solver abolute  tolerance for pressure
         prt = 1e-15   #Krylov solver relative tolerance for pressure
-                
+
         #Some other stuff
         dim     = mesh.geometry().dim()               #Dimension of geometry
         f       = Constant((0,)*dim)                  #Body force
-        nu      = Constant(problem.params.mu/problem.params.rho)                #kinametic Viscosity    
+        nu = problem.kinematic_viscosity(controls)
+        #rho = problem.density()
         #element order for pressure
         #con_dom = self.options["constrained_domain"]  #constrained domain
         uOrder = self.params.u_degree
@@ -88,13 +89,13 @@ class IPCS_ABI_CN(NSScheme):
 
         #Solver Parameters
         parameters["linear_algebra_backend"]        = "PETSc"
-        parameters["form_compiler"]["optimize"]     = False   
+        parameters["form_compiler"]["optimize"]     = False
         parameters["form_compiler"]["cpp_optimize"] = True
         set_log_active(True)
 
         # Declare solution Functions and FunctionSpaces
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
-        
+
         V = spaces.U
         VV = spaces.V
         Q = spaces.Q
@@ -115,16 +116,16 @@ class IPCS_ABI_CN(NSScheme):
         VV = dict((ui, V) for ui in u_components); VV['p'] = Q
 
         # Start from previous solution if restart_folder is given
-        
+
         ics=problem.initial_conditions(spaces, None)
-        
+
         #import ipdb; ipdb.set_trace()
-        
+
 
         q_     = dict((ui, interpolate(ics[0][u_components.index(ui)],V)) for ui in u_components)
         q_1    = dict((ui, interpolate(ics[0][u_components.index(ui)],V)) for ui in u_components)
         q_2    = dict((ui, interpolate(ics[0][u_components.index(ui)],V)) for ui in u_components)
-        
+
         q_['p']= interpolate(ics[-1],Q)
 
 
@@ -145,7 +146,7 @@ class IPCS_ABI_CN(NSScheme):
 #-----------------------------------------------------------------------------------------
 #                             Krylov Solver Tolerances
 #-----------------------------------------------------------------------------------------
-        
+
         print '-'*60
         print 'Krylov solver relative tolerance is ', rt
         print 'Krylov solver absolute tolerance is ', at
@@ -185,7 +186,7 @@ class IPCS_ABI_CN(NSScheme):
         # Get initial and boundary conditions
         #bcs = problem.boundary_conditions(V, Q, t)
         bcs = problem.boundary_conditions(spaces, u_, p_, t, None)
-        
+
         #bcu, bcp = bcs[:-1], bcs[-1]
         #bcu, bcp = bcs
         bcu = make_segregated_velocity_bcs(problem, spaces, bcs)
@@ -218,11 +219,11 @@ class IPCS_ABI_CN(NSScheme):
         # Apply boundary conditions on M and Ap that are used directly in solve
         [bc.apply(M)  for bc in bcs['u0']]
         [bc.apply(Ap) for bc in bcs['p']]
-        
+
         #Compress Pressure Laplacian
         try:    Ap.compress()
         except: pass
-        
+
         # Adams Bashforth projection of velocity at t - dt/2
         U_ = 1.5*u_1 - 0.5*u_2
 
@@ -252,7 +253,7 @@ class IPCS_ABI_CN(NSScheme):
         #Time loop parameters
         dt_         = dt #Time step size
         total_iters = 0  #total iterations
-        
+
         #Logs
         #self.start_timing()
         set_log_active(False)
@@ -266,10 +267,10 @@ class IPCS_ABI_CN(NSScheme):
 
             problem.update(spaces, u_, p_, t, tstep, bcs, None, None)
 
-            #Use iter_1 on 1st 10 time steps 
+            #Use iter_1 on 1st 10 time steps
             if tstep < 10:   num_iter = max(iter_1, max_iter)
             else:            num_iter = max_iter
-        
+
             #Loop over inner iterations
             while err > max_error and j < num_iter:
 
@@ -280,12 +281,12 @@ class IPCS_ABI_CN(NSScheme):
 
                 # Only on the first iteration because nothing here is changing in time
                 # Set up coefficient matrix for computing the rhs:
-                    A = assemble(a, tensor=A, reset_sparsity=reset_sparsity) 
+                    A = assemble(a, tensor=A, reset_sparsity=reset_sparsity)
                     reset_sparsity = False   # Warning! Must be true for periodic boundary conditions
-                    A._scale(-1.)            # Negative convection on the rhs 
+                    A._scale(-1.)            # Negative convection on the rhs
                     A.axpy(1./dt_, M, True)  # Add mass
-                    A.axpy(-0.5, K, True)    # Add diffusion 
-               
+                    A.axpy(-0.5, K, True)    # Add diffusion
+
                     # Compute rhs for all velocity components
                     for ui in u_components:
                         b[ui][:] = A*x_1[ui]
@@ -294,15 +295,15 @@ class IPCS_ABI_CN(NSScheme):
                     A._scale(-1.)
                     A.axpy(2./dt_, M, True)
                     [bc.apply(A) for bc in bcs['u0']]
-                    
+
                     print "Matrix (tentative) norm: ", A.norm('frobenius')
                     for i in range(2):
                         print (1.5*u_1[i].vector()[:]-0.5*u_2[i].vector()[:]).norm('l2')
                     #import ipdb; ipdb.set_trace()
                     #exit()
-                    
+
                     #Solving for tentative velocity
-                    
+
                     for ui in u_components:
                         bold[ui][:] = b[ui][:]
                         b[ui].axpy(-1., P[ui]*x_['p'])
@@ -312,8 +313,8 @@ class IPCS_ABI_CN(NSScheme):
                         print "Rhs (tentative) norm: ", b[ui].norm('l2')
                         print "ui norm: ", x_[ui].norm('l2')
                         b[ui][:] = bold[ui][:]
-                        
-                
+
+
                 ### Solve pressure ###
                 dp_.vector()[:] = x_['p'][:]
                 b['p'][:] = Ap*x_['p']
@@ -329,7 +330,7 @@ class IPCS_ABI_CN(NSScheme):
                 for ui in u_components:
                     b[ui][:] = M*x_[ui][:]
                     b[ui].axpy(-dt_, P[ui]*dp_.vector())
-                    [bc.apply(b[ui]) for bc in bcs[ui]]        
+                    [bc.apply(b[ui]) for bc in bcs[ui]]
                     oldnorm += norm(x_[ui][:])
                     du_sol.solve(M, x_[ui], b[ui])
                     newnorm += norm(x_[ui][:])
@@ -338,7 +339,7 @@ class IPCS_ABI_CN(NSScheme):
                 except:
                         if master:
                                 print
-                
+
                 #if master:
                 #        print 'Percent change of norm for velocity update', err, 'Iter ',j
             # Update to a new timestep
@@ -354,7 +355,7 @@ class IPCS_ABI_CN(NSScheme):
                 u_sol.parameters['nonzero_initial_guess']   = True
                 u_sol.parameters['monitor_convergence']     = True
     #################################################################################################
-          
+
 
            # Update
             #plot(u_)
@@ -363,11 +364,11 @@ class IPCS_ABI_CN(NSScheme):
             for i, ui in enumerate(u_):
                 print "u[%d] norm: " %i, ui.vector().norm('l2')
             print "p norm: ", p_.vector().norm('l2')
-            
+
             update(u_, p_, float(t), tstep, spaces)
             #self.update_temp(problem, t, u_, q_['p'])
 
-            
+
         # Return some quantities from the local namespace
         states = (u_, p_)
         namespace = {
@@ -383,4 +384,3 @@ class IPCS_ABI_CN(NSScheme):
     def __str__(self):
         name = "IPCS_opt_AB_CN"
         return name
-
