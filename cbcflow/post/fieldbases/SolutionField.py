@@ -15,21 +15,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.post.fieldbases.Field import Field
+from os.path import join
 
-class MetaField(Field):
-    def __init__(self, value, params=None, name="default", label=None):
+from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
+import shelve   
+from cbcflow.core.paramdict import ParamDict
+from cbcflow.core.parameterized import Parameterized
+
+class SolutionField(Field):
+    def __init__(self, name, params=None, label=None):
         Field.__init__(self, params, name, label)
-        self.valuename = value.name if isinstance(value, Field) else value
-
-    @property
-    def name(self):
-        n = "%s_%s" % (self._name, self.valuename)
-        if self.label: n += "_"+self.label
-        return n
-    
-    def after_last_compute(self, get):
-        u = get(self.valuename)
-        if u != "N/A":
-            return self.compute(get)
-
+        

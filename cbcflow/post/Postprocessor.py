@@ -258,19 +258,17 @@ class PostProcessor(Parameterized):
         "Add several fields at once."
         return [self.add_field(field) for field in fields]
     
-    def get(self, name, timestep=0, compute=True, finalize=False):
-        """Get the value of a named field at a particular timestep.
+    def get(self, name, relative_timestep=0, compute=True, finalize=False):
+        """Get the value of a named field at a particular relative_timestep.
 
-        The timestep is relative to now.
+        The relative_timestep is relative to now.
         Values are computed at first request and cached.
         """
-        cbcflow_log(20, "Getting: %s, %d (compute=%s, finalize=%s)" %(name, timestep, compute, finalize))
+        cbcflow_log(20, "Getting: %s, %d (compute=%s, finalize=%s)" %(name, relative_timestep, compute, finalize))
         
         # Check cache
-        c = self._cache[timestep]
+        c = self._cache[relative_timestep]
         data = c.get(name, "N/A")
-        
-        #print name, data, timestep, self._cache[timestep]
         
         # Check if field has been finalized, and if so,
         # return finalized value
@@ -281,18 +279,18 @@ class PostProcessor(Parameterized):
         
         # Are we attempting to get value from before update was started?
         # Use constant extrapolation if allowed.
-        if abs(timestep) > self._update_all_count and data == "N/A":
+        if abs(relative_timestep) > self._update_all_count and data == "N/A":
             if self._extrapolate:
-                cbcflow_log(20, "Extrapolating %s from %d to %d" %(name, timestep, -self._update_all_count))
+                cbcflow_log(20, "Extrapolating %s from %d to %d" %(name, relative_timestep, -self._update_all_count))
                 data = self.get(name, -self._update_all_count, compute, finalize)
                 c[name] = data
             else:
                 raise RuntimeError("Unable to get data from before update was started. \
-                                   (%s, timestep: %d, update_all_count: %d)" %(name, timestep, self._update_all_count))
+                                   (%s, relative_timestep: %d, update_all_count: %d)" %(name, relative_timestep, self._update_all_count))
 
         # Cache miss?
         if data == "N/A":
-            if timestep == 0:
+            if relative_timestep == 0:
                 # Ensure before_first_compute is always called once initially
                 field = self._fields[name]
                 if self._compute_counts[field.name] == 0:
@@ -305,8 +303,8 @@ class PostProcessor(Parameterized):
 
                 # Compute value
                 if name in self._solution:
-                    data = field.convert(self.get)
-                    self._timer.completed("PP: convert %s" %name)
+                    data = self._solution[name]()
+                    self._timer.completed("PP: call solution %s" %name)
                 else:
                     if compute:
                         data = field.compute(self.get)
@@ -319,7 +317,7 @@ class PostProcessor(Parameterized):
                         self._timer.completed("PP: finalize %s" %name)
                 self._compute_counts[field.name] += 1
 
-                # Copy functions to avoid storing references to the same function objects at each timestep
+                # Copy functions to avoid storing references to the same function objects at each relative_timestep
                 # NB! In other cases we assume that the fields return a new object for every compute!
                 # Check first if we actually will cache this object by looking at 'time to keep' in the plan
                 if self._plan[0][name] > 0:
@@ -330,9 +328,9 @@ class PostProcessor(Parameterized):
                 # Cache it!
                 c[name] = data
             else:
-                # Cannot compute missing value from previous timestep,
+                # Cannot compute missing value from previous relative_timestep,
                 # dependency handling must have failed
-                raise DependencyException(name, timestep=timestep)
+                raise DependencyException(name, relative_timestep=relative_timestep)
 
         return data
 

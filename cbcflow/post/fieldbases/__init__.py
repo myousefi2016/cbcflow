@@ -17,6 +17,7 @@
 """ Base classes for all post fields. """
 
 from Field import Field
+from SolutionField import SolutionField
 from MetaField import MetaField
 from MetaField2 import MetaField2
 

@@ -18,14 +18,14 @@
 from cbcflow.post.fieldbases.Field import Field
 
 class MetaField2(Field):
-    def __init__(self, value1, value2, params=None, label=None):
-        Field.__init__(self, params, label)
+    def __init__(self, value1, value2, params=None, name="default", label=None):
+        Field.__init__(self, params, name, label)
         self.valuename1 = value1.name if isinstance(value1, Field) else value1
         self.valuename2 = value2.name if isinstance(value2, Field) else value2
 
     @property
     def name(self):
-        n = "%s_%s_%s" % (self.__class__.__name__, self.valuename1, self.valuename2)
+        n = "%s_%s_%s" % (self._name, self.valuename1, self.valuename2)
         if self.label: n += "_"+self.label
             
         return n

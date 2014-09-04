@@ -23,12 +23,14 @@ from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.parameterized import Parameterized
 
 class Field(Parameterized):
-    def __init__(self, params=None, label=None):
+    def __init__(self, params=None, name="default", label=None):
         Parameterized.__init__(self, params)
         if label:
             self.label = str(label)
         else:
             self.label = None
+        
+        self._name = self.__class__.__name__ if name == "default" else name
 
     # --- Parameters
 
@@ -76,8 +78,9 @@ class Field(Parameterized):
     @property
     def name(self):
         "Return name of field, by default the classname but can be overloaded in subclass."
-        n = self.__class__.__name__
-        if self.label: n += "_"+self.label
+        n = self._name
+        if self.label: n += "-"+self.label
+        
         return n
 
     # --- Main interface
@@ -96,9 +99,8 @@ class Field(Parameterized):
     def compute(self, get):
         "Called each time the quantity should be computed."
         raise NotImplementedError("A Field must implement the compute function!")
-
+    """
     def convert(self, pp, spaces, problem):
-        """Called if quantity is input to NSPostProcessor.update_all"""
         
         # Load data from disk (this is used in replay functionality)
         # The structure of the dict pp._solution[self.name] is determined in nsreplay.py
@@ -123,7 +125,7 @@ class Field(Parameterized):
                 pp._solution[self.name] = shelvefile[str(timestep)]
 
         return pp._solution[self.name]
-
+    """
     # --- Helper functions
 
     def expr2function(self, expr, function):
