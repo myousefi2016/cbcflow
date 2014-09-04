@@ -19,15 +19,39 @@
 from cbcflow.dol import (FunctionSpace, VectorFunctionSpace,
                          TensorFunctionSpace, BoundaryMesh)
 
+import weakref
+
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"
 
 def decide_family(family, degree):
     return galerkin_family(degree) if family == "auto" else family
 
+def get_grad_space(u, family="auto", degree="auto", shape="auto"):
+    V = u.function_space()
+    spaces = SpacePool(V.mesh())
+    return spaces.get_grad_space(V, family, degree, shape)
+    
+
+
 class SpacePool(object):
     "A function space pool to reuse spaces across a program."
+    _existing = weakref.WeakValueDictionary()
+
+    def __new__(cls, mesh):
+        #key = mesh # mesh.id()
+        key = mesh.hash()
+        self = SpacePool._existing.get(key)
+        if self is None:
+            self = object.__new__(cls)
+            self._init(mesh)
+            SpacePool._existing[key] = self
+        return self
+
     def __init__(self, mesh):
+        pass
+
+    def _init(self, mesh):
         # Store mesh reference to create future spaces
         self.mesh = mesh
 
@@ -71,6 +95,24 @@ class SpacePool(object):
         shape = (self.gdim,)*rank
         return self.get_custom_space(family, degree, shape, boundary)
     
+    def get_grad_space(self, V, family="auto", degree="auto", shape="auto"):
+        element = V.ufl_element()
+
+        if degree == "auto":
+            degree = element.degree() - 1
+    
+        if family == "auto":
+            family = "DG"
+    
+        if family in ("CG", "Lagrange") and degree == 0:
+            family = "DG"
+    
+        if shape == "auto":
+            shape = grad(Coefficient(element)).shape()
+    
+        DV = self.get_custom_space(family, degree, shape)
+        return DV
+    
     @property
     def BoundaryMesh(self):
         if self._boundary == None:
@@ -78,14 +120,23 @@ class SpacePool(object):
         return self._boundary
         
 
-class NSSpacePool(SpacePool):
+class NSSpacePool():
     "A function space pool with custom named spaces for use with Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree, u_family="auto", p_family="auto"):
-        SpacePool.__init__(self, mesh)
+        #SpacePool._init(self, mesh)
         assert isinstance(u_degree, int)
         assert isinstance(p_degree, int)
         assert isinstance(u_family, str)
         assert isinstance(p_family, str)
+        
+        self._spacepool = SpacePool(mesh)
+        
+        # FIXME: Make this explicit?
+        for attr in dir(self._spacepool):
+            if attr[0] != "_":
+                if not hasattr(self, attr):
+                    setattr(self, attr, getattr(self._spacepool, attr))
+        
         self.u_degree = u_degree
         self.p_degree = p_degree
         self.u_family = u_family
@@ -183,3 +234,48 @@ class NSSpacePoolSegregated(NSSpacePool):
     def Qbc(self):
         "Scalar valued space for setting pressure BCs."
         return self.Q
+
+if __name__ == '__main__':
+    from dolfin import *
+    
+    mesh1 = UnitCubeMesh(8,8,8)
+    bmesh = BoundaryMesh(mesh1, 'exterior')
+    mesh2 = UnitSquareMesh(8,8)
+    
+    print SpacePool._existing.keys()
+    
+    print SpacePool(mesh1) is SpacePool(mesh1)
+    print SpacePool(mesh2) is SpacePool(mesh2)
+    
+    pool = SpacePool(mesh1)
+    print SpacePool(mesh1) is pool
+    
+    print SpacePool._existing.keys()
+    del pool
+    print SpacePool._existing.keys()
+    exit()
+    #spacepool = SpacePool(mesh1)
+    print SpacePool._existing.keys()
+    #spacepool_duplicate = SpacePool(mesh1)
+    spacepool2 = SpacePool(mesh2)
+    
+    
+    
+    
+    V = pool1.get_space(2,1)
+    u = Function(V)
+    DV = get_grad_space(u)
+    
+    print get_grad_space(u) is pool1.get_grad_space(V)
+    exit()
+    
+    print SpacePool._existing.keys()
+    
+    nspool1 = NSSpacePool(mesh1, 2, 1)
+    nspool2 = NSSpacePool(mesh1, 1, 1)
+    
+    print dir(nspool1)
+    import ipdb; ipdb.set_trace()
+    
+    print SpacePool._existing.keys()
+    
