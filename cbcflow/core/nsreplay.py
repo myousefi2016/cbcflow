@@ -22,7 +22,7 @@ import shelve
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
-from cbcflow.core.nspostprocessor import NSPostProcessor
+from cbcflow.post.Postprocessor import PostProcessor
 from cbcflow.utils.core import NSSpacePoolSplit
 from cbcflow.utils.common import cbcflow_print, Timer
 
@@ -256,7 +256,7 @@ class NSReplay(Parameterized):
                     
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
-                pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
+                pp = PostProcessor({"casedir": self.postproc.get_casedir()})
                 pp._timer = self.timer
                 #dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
                 fields = dep_fields + [field]
@@ -297,7 +297,7 @@ class NSReplay(Parameterized):
                     
             # Create new postprocessor if no suitable postprocessor found
             if not added_to_postprocessor:
-                pp = NSPostProcessor({"casedir": self.postproc.get_casedir()})
+                pp = PostProcessor({"casedir": self.postproc.get_casedir()})
                 dep_fields = list(set([self.postproc._fields[dep[0]] for dep in self.postproc._full_dependencies[fieldname] if dep[0] not in ["t", "timestep"]]))
                 fields = dep_fields + [field]
                 #import ipdb; ipdb.set_trace()

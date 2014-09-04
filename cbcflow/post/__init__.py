@@ -19,6 +19,7 @@
 from Postprocessor import PostProcessor
 
 from cbcflow.post.fieldbases import Field
+from cbcflow.post.fieldbases import SolutionField
 from cbcflow.post.fieldbases import MetaField
 from cbcflow.post.fieldbases import MetaField2
 

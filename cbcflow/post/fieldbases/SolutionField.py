@@ -15,12 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from os.path import join
-
-from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
-import shelve   
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
+from cbcflow.post.fieldbases.Field import Field
 
 class SolutionField(Field):
     def __init__(self, name, params=None, label=None):
