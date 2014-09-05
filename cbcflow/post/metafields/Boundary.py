@@ -15,21 +15,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.post.fieldbases.MetaField import MetaField
-from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
+from cbcflow.post.utils.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
+from cbcflow.post.spaces import SpacePool
+
 from dolfin import Function, ds, dx, assemble
 
 class Boundary(MetaField):
 
     def before_first_compute(self, get):
-        raise NotImplementedError("Currently awaiting rework of SpacePool")
         u = get(self.valuename)
         
         assert isinstance(u, Function), "Can only extract boundary values of Function-objects"
         
         FS = u.function_space()
         
-        #FS_boundary =
-        #spaces = SpacePool()
+        spaces = SpacePool(FS.mesh())
         FS_boundary = spaces.get_space(FS.ufl_element().degree(), FS.num_sub_spaces(), boundary=True)
         
         local_dofmapping = mesh_to_boundarymesh_dofmap(spaces.BoundaryMesh, FS, FS_boundary)

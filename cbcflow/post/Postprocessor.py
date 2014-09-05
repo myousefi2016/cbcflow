@@ -22,7 +22,7 @@ from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 
 #from cbcflow.utils.core.strip_code import strip_code
-from cbcflow.post.utils import strip_code, Timer, cbcflow_log, cbcflow_warning
+from cbcflow.post.utils.utils import strip_code, Timer, cbcflow_log, cbcflow_warning
 
 import inspect, re
 from collections import defaultdict
