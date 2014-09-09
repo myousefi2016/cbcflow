@@ -15,9 +15,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
+# Core functionality
+from postprocessor import PostProcessor
+from restart import Restart
+from replay import Replay
 
-from Postprocessor import PostProcessor
-from Restart import Restart
+# Helper functionality
+from spacepool import SpacePool
 
 from cbcflow.post.fieldbases import Field
 from cbcflow.post.fieldbases import SolutionField

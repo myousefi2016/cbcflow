@@ -21,7 +21,6 @@ import shelve
 
 from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.nsproblem import NSProblem
 from cbcflow.post.Postprocessor import PostProcessor
 from cbcflow.utils.common import cbcflow_print, Timer
 from cbcflow.post.spaces import SpacePool
@@ -74,7 +73,7 @@ class Loadable():
             shelvefile = shelve.open(self.filename)
             return shelvefile[str(timestep)]
     
-class NSReplay(Parameterized):
+class Replay(Parameterized):
     """ Replay class for postprocessing exisiting solution data. """
     def __init__(self, postprocessor, params=None):
         Parameterized.__init__(self, params)
