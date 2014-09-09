@@ -38,16 +38,16 @@ Note that we here use the :class:`IPCS` scheme.
 We then creates some fields to save for this solve: ::
         
         fields = [
-            Velocity(dict(save=True, stride_timestep=5)),
-            Pressure(dict(save=True, stride_timestep=10)),
-            L2norm("Velocity", dict(save=True, stride_timestep=2))
+            SolutionField("Velocity", dict(save=True, stride_timestep=5)),
+            SolutionField("Pressure", dict(save=True, stride_timestep=10)),
+            Norm("Velocity", dict(save=True, stride_timestep=2))
         ]
 
 Note that we *must* save velocity and pressure for restart to work.
 
-We then add the fields to a :class:`.NSPostProcessor` instance, ::
+We then add the fields to a :class:`.PostProcessor` instance, ::
 
-        postprocessor = NSPostProcessor(dict(casedir='results'))
+        postprocessor = PostProcessor(dict(casedir='results'))
         postprocessor.add_fields(fields)
 
 and solves the equation: ::
@@ -82,14 +82,14 @@ On the restart, we also set up a different set of fields ::
 
         # Set up postprocessor with new fields
         fields = [
-            Velocity(dict(save=True)),
-            Pressure(dict(save=True)),
+            SolutionField("Velocity", dict(save=True)),
+            SolutionField("Pressure", dict(save=True)),
             WSS(dict(save=True)),
         ]
         
-and a new :class:`NSPostProcessor` instance: ::
+and a new :class:`PostProcessor` instance: ::
         
-        postprocessor = NSPostProcessor(dict(casedir='results'))
+        postprocessor = PostProcessor(dict(casedir='results'))
         postprocessor.add_fields(fields)
         
 We then need to define our new solver, and set some restart-specific parameters: ::

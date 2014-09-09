@@ -194,11 +194,11 @@ Setting up postprocessing
 --------------------------------------
 The postprocessing is set up to determine what we want to do with our obtained solution.
 We start by creating a
-:class:`.NSPostProcessor`
+:class:`.PostProcessor`
 to handle all the logic: ::
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    postprocessor = NSPostProcessor({"casedir": casedir})
+    postprocessor = PostProcessor({"casedir": casedir})
 
 The *casedir* parameter points the postprocessor to the directory where it should save
 the data it is being asked to save. By default, it stores the mesh, all parameters and
@@ -208,7 +208,7 @@ Then, we have to choose what we want to compute from the solution. The command :
 
     show_fields()
 
-lists all available :class:`.PPField`
+lists all available :class:`.Field`
 to compute from the solution.
 
 In this case, we are interested in the velocity, pressure and stream function,
@@ -216,15 +216,15 @@ and we wish to both plot and save these at every timestep: ::
 
     plot_and_save = dict(plot=True, save=True)
     fields = [
-        Pressure(plot_and_save),
-        Velocity(plot_and_save),
+        SolutionField("Pressure", plot_and_save),
+        SolutionField("Velocity", plot_and_save),
         StreamFunction(plot_and_save),
         ]
 
 With no saveformat prescribed, the postprocessor will choose default saveformats based
 on the type of data. You can use ::
 
-    print PPField.default_parameters()
+    print Field.default_parameters()
 
 to see common parameters of these fields.
 
@@ -238,7 +238,7 @@ Solving the problem
 We now have instances of the classes
 :class:`.NSProblem`,
 :class:`.NSScheme`,
-and :class:`.NSPostProcessor`.
+and :class:`.PostProcessor`.
 
 These can be combined in a general class to handle the logic between the classes,
 namely a :class:`.NSSolver` instance: ::

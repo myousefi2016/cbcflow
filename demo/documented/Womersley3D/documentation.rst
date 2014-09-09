@@ -141,7 +141,7 @@ _________________________________________
 If one for example wants to validate a scheme, it is required to define the following functions: ::
     
     def test_fields(self):
-        return [Velocity(), Pressure()]
+        return [SolutionField("Velocity"), SolutionField("Pressure")]
     
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
@@ -210,10 +210,10 @@ Finally, we initate the problem, a scheme and postprocessor ::
         casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
         plot_and_save = dict(plot=True, save=True)
         fields = [
-            Pressure(plot_and_save),
-            Velocity(plot_and_save),
+            SolutionField("Pressure", plot_and_save),
+            SolutionField("Velocity", plot_and_save),
             ]
-        postproc = NSPostProcessor({"casedir": casedir})
+        postproc = PostProcessor({"casedir": casedir})
         postproc.add_fields(fields)
 
 and solves the problem ::

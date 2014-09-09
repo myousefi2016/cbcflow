@@ -4,7 +4,7 @@ Replay a problem
 =======================================
 
 This demo is based on the :ref:`FlowAroundCylinder` demo, and demonstrates how one
-can compute any :class:`PPField` from a stored solution, given that the dependencies
+can compute any :class:`Field` from a stored solution, given that the dependencies
 of the field are either saved to disk or computable from the fields saved to disk.
 
 This can be very useful when one needs additional information to the one specified
@@ -42,11 +42,11 @@ pressure at every third timestep. We plot the velocity, and we send keyword
 *mode=color* so the plot will show the velocity magnitude: ::
 
         
-        postprocessor = NSPostProcessor({"casedir": "Results"})
+        postprocessor = PostProcessor({"casedir": "Results"})
         
         postprocessor.add_fields([
-            Velocity({"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
-            Pressure({"save": True, "stride_timestep": 3}),
+            SolutionField("Velocity", {"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
+            SolutionField("Pressure", {"save": True, "stride_timestep": 3}),
         ])
         
 We then solve the problem: ::
@@ -63,7 +63,7 @@ case directory as the original solve: ::
     
     def replay():
         # Create postprocessor pointing to the same casedir
-        postprocessor = NSPostProcessor({"casedir": "Results"})
+        postprocessor = PostProcessor({"casedir": "Results"})
 
 We then define some new fields to store, and adds them to the postprocessor ::
     
@@ -71,10 +71,10 @@ We then define some new fields to store, and adds them to the postprocessor ::
     postprocessor.add_fields([
         Stress({"save": True}),
         StreamFunction({"save": True, "plot": True}),
-        L2norm("Velocity", {"save": True, "plot": True}),
+        Norm("Velocity", {"save": True, "plot": True}),
     ])
     
-The :class:`.StreamFunction` and :class:`.L2norm` of :class:`.Velocity` only depend on the
+The :class:`.StreamFunction` and :class:`.Norm` of :class:`.Velocity` only depend on the
 velocity, and we expect this to be computed at the same timesteps we computed the velocity
 in the original solve.
 

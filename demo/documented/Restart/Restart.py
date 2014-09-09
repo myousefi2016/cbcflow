@@ -14,12 +14,12 @@ def play():
     
     # Need to save velocity and pressure for restart to work
     fields = [
-        Velocity(dict(save=True, stride_timestep=5)),
-        Pressure(dict(save=True, stride_timestep=10)),
-        L2norm("Velocity", dict(save=True, stride_timestep=2))
+        SolutionField("Velocity", dict(save=True, stride_timestep=5)),
+        SolutionField("Pressure", dict(save=True, stride_timestep=10)),
+        Norm("Velocity", dict(save=True, stride_timestep=2))
     ]
     
-    postprocessor = NSPostProcessor(dict(casedir='results'))
+    postprocessor = PostProcessor(dict(casedir='results'))
     
     postprocessor.add_fields(fields)
     
@@ -41,11 +41,11 @@ def restart():
     
     # Set up postprocessor with new fields
     fields = [
-        Velocity(dict(save=True)),
-        Pressure(dict(save=True)),
-        WSS(dict(save=True)),
+        SolutionField("Velocity", dict(save=True)),
+        SolutionField("Pressure", dict(save=True)),
+        WSS(problem, dict(save=True)),
     ]
-    postprocessor = NSPostProcessor(dict(casedir='results'))
+    postprocessor = PostProcessor(dict(casedir='results'))
     postprocessor.add_fields(fields)
     
     # Set restart cbcflow-data

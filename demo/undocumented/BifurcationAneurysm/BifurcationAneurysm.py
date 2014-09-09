@@ -108,7 +108,7 @@ def main():
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
     
-    postproc = NSPostProcessor({"casedir": "Results/"})
+    postproc = PostProcessor({"casedir": "Results/"})
     
     
     def set_up_fields(problem):
@@ -116,14 +116,14 @@ def main():
         T1 = problem.params.T
         fields = []
         
-        plot = True
+        plot = False
         
         # Basic fields
-        fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
-        fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
+        fields.append(SolutionField("Pressure", dict(plot=plot, save=True, stride_timestep=10)))
+        fields.append(SolutionField("Velocity", dict(plot=plot, save=True, stride_timestep=10)))
     
         # On boundary
-        fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
+        fields.append(WSS(problem, dict(plot=plot, save=True, start_time=0)))
         fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
         
         # Time-integrated fields
@@ -131,8 +131,8 @@ def main():
         fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
         
         # SubFunctions and Restrictions
-        from cbcflow.utils.common.submesh import create_submesh
-        from cbcflow.utils.fields.Slice import Slice
+        from cbcflow.post.utils.submesh import create_submesh
+        from cbcflow.post.utils.Slice import Slice
         
         submesh = create_submesh(problem.mesh, problem.cell_domains, 1)
         fields.append(Restrict("Velocity", submesh, dict(save=True, plot=plot)))

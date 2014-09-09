@@ -5,17 +5,18 @@ sys.path.insert(0, path.join(path.dirname(path.realpath(__file__)),'../../../dem
 from FlowAroundCylinder import FlowAroundCylinder       
 
 from cbcflow import *
-
+from dolfin import set_log_level
+set_log_level(100)
 def play():
     # First solve the problem
     problem = FlowAroundCylinder({"refinement_level": 3})
     scheme = IPCS_Stable()
     
-    postprocessor = NSPostProcessor({"casedir": "Results"})
+    postprocessor = PostProcessor({"casedir": "Results"})
     
     postprocessor.add_fields([
-        Velocity({"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
-        Pressure({"save": True, "stride_timestep": 3}),
+        SolutionField("Velocity", {"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
+        SolutionField("Pressure", {"save": True, "stride_timestep": 3}),
     ])
     
     solver = NSSolver(problem, scheme, postprocessor)
@@ -23,17 +24,25 @@ def play():
     
 def replay():
     # Create postprocessor pointing to the same casedir
-    postprocessor = NSPostProcessor({"casedir": "Results"})
+    postprocessor = PostProcessor({"casedir": "Results"})
+    
+    import pickle
+    params = pickle.load(open('Results/params.pickle', 'r'))
+    problem = FlowAroundCylinder(params.problem)
+    
+    
+    replayer = NSReplay(postprocessor)
     
     # Add new fields to compute
     postprocessor.add_fields([
-        Stress({"save": True}),
+        SolutionField("Velocity"),
+        SolutionField("Pressure"),
+        Stress(problem, {"save": True}),
         StreamFunction({"save": True, "plot": True}),
-        L2norm("Velocity", {"save": True, "plot": True}),
+        Norm("Velocity", {"save": True, "plot": True}),
     ])
     
     # Replay
-    replayer = NSReplay(postprocessor)
     replayer.replay()
     
 if __name__ == '__main__':

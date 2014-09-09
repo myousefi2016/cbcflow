@@ -110,13 +110,13 @@ def main():
 
     # Create postprocessor instance pointing to a case directory
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    postprocessor = NSPostProcessor({"casedir": casedir})
+    postprocessor = PostProcessor({"casedir": casedir})
     
     # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
     fields = [
-        Pressure(plot_and_save),
-        Velocity(plot_and_save),
+        SolutionField("Pressure", plot_and_save),
+        SolutionField("Velocity", plot_and_save),
         StreamFunction(plot_and_save),
         ]
     

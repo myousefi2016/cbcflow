@@ -3,11 +3,11 @@
 TODO: Make a demo of this with full usage example.
 """
 
-from cbcflow import PPField
+from cbcflow import Field
 import dolfin
 import numpy
 
-class CustomPostprocessingField(PPField):
+class CustomPostprocessingField(Field):
     def before_first_compute(self, pp, spaces, problem):
         # Initialize internal variables once in this optional function
         self._my_private_variable = 0
