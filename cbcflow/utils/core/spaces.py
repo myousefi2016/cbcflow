@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.post.spaces import SpacePool
+from cbcflow.post import SpacePool
 
 class NSSpacePool():
     "A function space pool with custom named spaces for use with Navier-Stokes schemes."

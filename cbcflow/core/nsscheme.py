@@ -18,9 +18,7 @@ from __future__ import division
 
 from cbcflow.dol import *
 
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
-
+from cbcflow.post import Parameterized, ParamDict
 
 class NSScheme(Parameterized):
     """Base class for all Navier-Stokes schemes.

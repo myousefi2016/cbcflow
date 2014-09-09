@@ -19,11 +19,8 @@ import pickle
 import os
 import shelve
 
-from cbcflow.core.parameterized import Parameterized
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.post.Postprocessor import PostProcessor
+from cbcflow.post import Parameterized, ParamDict, PostProcessor, SpacePool
 from cbcflow.utils.common import cbcflow_print, Timer
-from cbcflow.post.spaces import SpacePool
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 

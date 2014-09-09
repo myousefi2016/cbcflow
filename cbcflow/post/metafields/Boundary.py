@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.post.fieldbases.MetaField import MetaField
 from cbcflow.post.utils.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
-from cbcflow.post.spaces import SpacePool
+from cbcflow.post import SpacePool
 
 from dolfin import Function, ds, dx, assemble
 

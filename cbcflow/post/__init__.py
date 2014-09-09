@@ -15,15 +15,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
+# Helper functionality
+from spacepool import SpacePool, get_grad_space
+from paramdict import ParamDict
+from parameterized import Parameterized
+
 # Core functionality
 from postprocessor import PostProcessor
 from restart import Restart
 from replay import Replay
-
-# Helper functionality
-from spacepool import SpacePool
-from paramdict import ParamDict
-from parameterized import Parameterized
 
 from cbcflow.post.fieldbases import Field
 from cbcflow.post.fieldbases import SolutionField

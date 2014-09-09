@@ -18,8 +18,7 @@ from __future__ import division
 
 import ufl
 
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
+from cbcflow.post import Parameterized, ParamDict
 from cbcflow.dol import Constant, MeshFunction
 
 class NSProblem(Parameterized):

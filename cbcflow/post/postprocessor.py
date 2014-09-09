@@ -18,8 +18,12 @@
 from dolfin import Function
 
 # TODO: No imports from cbcflow!
-from cbcflow.core.parameterized import Parameterized
-from cbcflow.core.paramdict import ParamDict
+#from cbcflow.post.parameterized import Parameterized
+#from cbcflow.post.paramdict import ParamDict
+from cbcflow.post import ParamDict, Parameterized
+from cbcflow.post.plotter import Plotter
+from cbcflow.post.planner import Planner
+from cbcflow.post.saver import Saver
 
 #from cbcflow.utils.core.strip_code import strip_code
 from cbcflow.post.utils.utils import strip_code, Timer, cbcflow_log, cbcflow_warning
@@ -27,9 +31,6 @@ from cbcflow.post.utils.utils import strip_code, Timer, cbcflow_log, cbcflow_war
 import inspect, re
 from collections import defaultdict
 
-from Plotter import Plotter
-from Planner import Planner
-from Saver import Saver
 
 class DependencyException(Exception):
     def __init__(self, fieldname=None, dependency=None, timestep=None, original_exception_msg=None):

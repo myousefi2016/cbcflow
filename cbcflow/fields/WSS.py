@@ -24,7 +24,7 @@ from dolfin import (TestFunction, Function,  FacetNormal,
 from cbcflow.utils.common.utils import cbcflow_warning
 #from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
 from cbcflow.post.utils.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
-from cbcflow.post.spaces import SpacePool
+from cbcflow.post import SpacePool
 from cbcflow.core.nsproblem import NSProblem
 
 class WSS(Field):

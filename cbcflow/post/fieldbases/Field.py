@@ -18,9 +18,8 @@
 from os.path import join
 
 from dolfin import Function, TestFunction, assemble, inner, dx, project, HDF5File, error
-import shelve   
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
+import shelve
+from cbcflow.post import ParamDict, Parameterized
 
 class Field(Parameterized):
     def __init__(self, params=None, name="default", label=None):

@@ -20,10 +20,8 @@ from cbcflow.dol import parameters, Mesh, MPI
 
 from time import time
 
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
+from cbcflow.post import Restart, ParamDict, Parameterized
 from cbcflow.utils.common import get_memory_usage, time_to_string, cbcflow_print
-from cbcflow.core.restart import Restart
 from cbcflow.utils.common import Timer, PressureConverter, VelocityConverter
 
 class NSSolver(Parameterized):
@@ -34,7 +32,7 @@ class NSSolver(Parameterized):
     instance, NSScheme instance and NSPostProcessor instance.
     
     """
-    def __init__(self, problem, scheme=None, postprocessor=None, params=None):
+    def __init__(self, problem, scheme=None, postprocessor=None, restart=None, params=None):
         Parameterized.__init__(self, params)
 
         self.problem = problem

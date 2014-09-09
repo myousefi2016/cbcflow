@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.post.fieldbases.Field import Field
-from cbcflow.post.spaces import SpacePool, get_grad_space
+from cbcflow.post import SpacePool, get_grad_space
 from cbcflow.utils.common import sigma
 from cbcflow.core.nsproblem import NSProblem
 from dolfin import Function

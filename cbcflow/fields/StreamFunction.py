@@ -19,7 +19,7 @@ from dolfin import (TrialFunction, TestFunction, dot, grad, DirichletBC,
                     DomainBoundary, dx, Constant, assemble, Vector, Function,
                     solve)
 
-from cbcflow.post.spaces import SpacePool
+from cbcflow.post import SpacePool
 
 class StreamFunction(Field):
     def before_first_compute(self, get):
