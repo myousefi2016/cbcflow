@@ -19,11 +19,16 @@ from dolfin import (TrialFunction, TestFunction, dot, grad, DirichletBC,
                     DomainBoundary, dx, Constant, assemble, Vector, Function,
                     solve)
 
+from cbcflow.post.spaces import SpacePool
+
 class StreamFunction(Field):
     def before_first_compute(self, get):
         u = get("Velocity")
         assert len(u) == 2, "Can only compute stream function for 2D problems"
-        V = spaces.U
+        
+        spaces = SpacePool(u.function_space().mesh())
+        V = spaces.get_space(u.function_space().ufl_element().degree(), 0)
+        
         psi = TrialFunction(V)
         self.q = TestFunction(V)
         a = dot(grad(psi), grad(self.q))*dx()

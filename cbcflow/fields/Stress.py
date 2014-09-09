@@ -15,21 +15,34 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcflow.post.fieldbases.Field import Field
+from cbcflow.post.spaces import SpacePool, get_grad_space
 from cbcflow.utils.common import sigma
+from cbcflow.core.nsproblem import NSProblem
 from dolfin import Function
 
+
 class Stress(Field):
+    def __init__(self, problem, params=None, name="default", label=None):
+        Field.__init__(self, params, name, label)
+        assert isinstance(problem, NSProblem)
+        self.problem = problem
+    
     def before_first_compute(self, get):
-        if self.params.assemble:
-            V = spaces.get_space(0, 2)
-        else:
-            V = spaces.DV
+        u = get("Velocity")
+        V = get_grad_space(u)
+        
+        #spaces = SpacePool(u.function_space().mesh())
+        #V = spaces.get_grad_space(u.function_space())
+        #if self.params.assemble:
+        #    V = spaces.get_space(0, 2)
+        #else:
+        #    V = spaces.DV
         self._function = Function(V, name=self.name)
 
     def compute(self, get):
         u = get("Velocity")
         p = get("Pressure")
-        mu = problem.params.mu
+        mu = self.problem.params.mu
 
         expr = sigma(u, p, mu)
         #u*epsilon(u) - p*Identity(u.cell().d) # TODO: is this with negative pressure?

@@ -22,13 +22,26 @@ from dolfin import (TestFunction, Function,  FacetNormal,
                     TrialFunction, LinearSolver)
 
 from cbcflow.utils.common.utils import cbcflow_warning
-from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
+#from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
+from cbcflow.post.utils.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
+from cbcflow.post.spaces import SpacePool
+from cbcflow.core.nsproblem import NSProblem
+
 class WSS(Field):
+    def __init__(self, problem, params=None, name="default", label=None):
+        Field.__init__(self, params, name, label)
+        assert isinstance(problem, NSProblem)
+        self.problem = problem
+        
+    
     def before_first_compute(self, get):
         #boundary = spaces.BoundaryMesh #BoundaryMesh(problem.mesh, "exterior") # TODO: Move construction to spaces?
-        degree = spaces.V.ufl_element().degree()
+        u = get("Velocity")
+        V = u.function_space()
+        spaces = SpacePool(V.mesh())
+        degree = V.ufl_element().degree()
         if degree <= 2:
-            Q = spaces.DU
+            Q = spaces.get_grad_space(V, shape=(spaces.d,))
         else:
             cbcflow_warning("Unable to handle higher order WSS space. Using CG1.")
             Q = spaces.get_space(1,1)
@@ -50,7 +63,7 @@ class WSS(Field):
 
         self.b = Function(Q_boundary).vector()
         
-        self._n = FacetNormal(problem.mesh)
+        self._n = FacetNormal(V.mesh())
 
 
     def compute(self, get):
@@ -58,10 +71,10 @@ class WSS(Field):
 
         u = get("Velocity")
         
-        if isinstance(problem.params.mu, (float, int)):
-            mu = Constant(problem.params.mu)
+        if isinstance(self.problem.params.mu, (float, int)):
+            mu = Constant(self.problem.params.mu)
         else:
-            mu = problem.params.mu
+            mu = self.problem.params.mu
 
         T = -mu*dot((grad(u) + grad(u).T), n)
         Tn = dot(T, n)
