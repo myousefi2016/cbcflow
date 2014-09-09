@@ -22,6 +22,8 @@ from replay import Replay
 
 # Helper functionality
 from spacepool import SpacePool
+from paramdict import ParamDict
+from parameterized import Parameterized
 
 from cbcflow.post.fieldbases import Field
 from cbcflow.post.fieldbases import SolutionField
