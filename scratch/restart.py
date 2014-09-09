@@ -24,7 +24,7 @@ from commands import getstatusoutput
 
 from cbcflow.utils.common import cbcflow_warning
 
-fetchable_formats = ["hdf5", "xml"]
+fetchable_formats = ["hdf5", "xml", "xml.gz"]
 
 def find_common_savetimesteps(play_log, fields):
     common_keys = []
@@ -34,11 +34,16 @@ def find_common_savetimesteps(play_log, fields):
         
         present = {}
         for f in fields:
-            present[f] = False
+            if f in data["fields"] and any([saveformat in fetchable_formats for saveformat in data["fields"][f]["save_as"]]):
+                present[f] = True
+            else:
+                present[f] = False
+            """
             for v in data["fields"].values():
                 if f == v['type'] and any([saveformat in fetchable_formats for saveformat in v["save_as"]]):
                     present[f] = True
-
+            """
+        #import ipdb; ipdb.set_trace()
         if all(present.values()):
             common_keys.append(int(ts))
     
@@ -100,6 +105,7 @@ class Restart(object):
         keys = {}
         for k,v in play_log_item['fields'].items():
             keys[v['type']] = k
+        import ipdb; ipdb.set_trace()
         
         u_metadata = shelve.open(os.path.join(self.casedir, keys["Velocity"], "metadata.db"), 'r')[str(timestep)]
         p_metadata = shelve.open(os.path.join(self.casedir, keys["Pressure"], "metadata.db"), 'r')[str(timestep)]

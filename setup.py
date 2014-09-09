@@ -66,6 +66,7 @@ setup(name = "cbcflow",
                   "cbcflow.post",
                   "cbcflow.post.fieldbases",
                   "cbcflow.post.metafields",
+                  "cbcflow.post.utils",
                   ],
       package_dir = {"cbcflow": "cbcflow"},
     )

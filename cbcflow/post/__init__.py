@@ -17,6 +17,7 @@
 
 
 from Postprocessor import PostProcessor
+from Restart import Restart
 
 from cbcflow.post.fieldbases import Field
 from cbcflow.post.fieldbases import SolutionField

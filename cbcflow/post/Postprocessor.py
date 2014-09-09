@@ -52,7 +52,8 @@ builtin_fields = ("t", "timestep")
 #class PostProcessor():
 #    def __init__(self, casedir='.', timer=False, extrapolate=True, initial_dt=1e-5):
 class PostProcessor(Parameterized):
-    def __init__(self, timer=None, params=None):
+    #def __init__(self, timer=None, params=None):
+    def __init__(self, params=None, timer=None):
         Parameterized.__init__(self, params)
         if isinstance(timer, Timer):
             self._timer = timer
@@ -204,14 +205,14 @@ class PostProcessor(Parameterized):
             elif field in self._fields.keys():
                 # Field of this name already exists, no need to add it again
                 return self._fields[field]
-            elif field in basic_fields:
+            #elif field in basic_fields:
                 # Create a proper field object from known field name with negative end time,
                 # so that it is never triggered directly
-                field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) 
-            elif field in meta_fields:
-                error("Meta field %s cannot be constructed by name because the field instance requires parameters." % field)
-            else:
-                error("Unknown field name %s" % field)
+                #field = field_classes[field](params={"end_time":-1e16, "end_timestep": -1e16}) 
+            #elif field in meta_fields:
+                #error("Meta field %s cannot be constructed by name because the field instance requires parameters." % field)
+            #else:
+                #error("Unknown field name %s" % field)
 
         # Note: If field already exists, replace anyway to overwrite params, this
         # typically happens when a fields has been created implicitly by dependencies.
@@ -224,10 +225,12 @@ class PostProcessor(Parameterized):
 
         # Analyze dependencies of field through source inspection
         deps = self._find_dependencies(field)
+        for dep in deps:
+            assert dep[0] in self._fields or dep[0] in builtin_fields, "%s has dependency %s, but %s has not been added to the postprocessor" %(field.name, dep[0], dep[0])
 
         # Add dependent fields to self._fields (this will add known fields by name)
-        for depname in set(d[0] for d in deps) - set(self._fields.keys()):
-            self.add_field(depname)
+        #for depname in set(d[0] for d in deps) - set(self._fields.keys()):
+        #    self.add_field(depname)
 
         # Build full dependency list
         full_deps = []
@@ -452,3 +455,12 @@ class PostProcessor(Parameterized):
 
     def store_params(self, params):
         self._saver.store_params(params)
+        
+    def get_casedir(self):
+        return self._saver.get_casedir()
+    
+    def get_savedir(self, fieldname):
+        return self._saver.get_savedir(fieldname)
+    
+    def get_playlog(self):
+        return self._saver._fetch_play_log()

@@ -92,8 +92,8 @@ class Plotter():
             ydata = list(plot_object.get_ydata())
             xdata.append(x)
             ydata.append(y)
-            newmin = min(ydata)
-            newmax = max(ydata)
+            newmin = 1.2*min(ydata)
+            newmax = 1.2*max(ydata)
 
             # Heuristics to avoid changing axis bit by bit, which results in fluttering plots
             # (Based on gut feeling, feel free to adjust these if you have a use case it doesnt work for)
@@ -116,7 +116,7 @@ class Plotter():
             plot_object.set_xdata(xdata)
             plot_object.set_ydata(ydata)
 
-        pylab.axis([xdata[0], 1.2*xdata[-1], ymin, ymax])
+            pylab.axis([xdata[0], 1.2*xdata[-1], ymin, ymax])
         
         # Set title and show
         title = "%s, t=%0.4g, timestep=%d, min=%.2g, max=%.2g" % (field.name, t, timestep, newmin, newmax)

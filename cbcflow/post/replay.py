@@ -23,12 +23,12 @@ from cbcflow.core.parameterized import Parameterized
 from cbcflow.core.paramdict import ParamDict
 from cbcflow.core.nsproblem import NSProblem
 from cbcflow.post.Postprocessor import PostProcessor
-from cbcflow.utils.core import NSSpacePoolSplit
 from cbcflow.utils.common import cbcflow_print, Timer
+from cbcflow.post.spaces import SpacePool
 
 from dolfin import HDF5File, Mesh, Function, FunctionSpace, VectorFunctionSpace, TensorFunctionSpace, BoundaryMesh
 
-fetchable_formats = ["hdf5", "xml", "shelve"]
+fetchable_formats = ["hdf5", "xml", "xml.gz", "shelve"]
 
 def print_replay_plan(plan):
     for timestep in sorted(plan.keys()):
@@ -47,8 +47,33 @@ def have_necessary_deps(solution, pp, field):
     for dep in deps:
         all_deps.append(have_necessary_deps(solution, pp, dep[0]))
     return all(all_deps)
-        
 
+
+class Loadable():
+    def __init__(self, filename, fieldname, timestep, time, saveformat, function):
+        self.filename = filename
+        self.fieldname = fieldname
+        self.timestep = timestep
+        self.time = time
+        self.saveformat = saveformat
+        self.function = function
+        
+        assert self.saveformat in fetchable_formats
+        
+    def __call__(self):
+        if self.saveformat == 'hdf5':
+            hdf5file = HDF5File(self.filename, 'r')
+            hdf5file.read(self.function, self.fieldname+str(self.timestep))
+            del hdf5file
+            return self.function
+        elif self.saveformat in ["xml", "xml.gz"]:
+            V = self.function.function_space()
+            self.function.assign(Function(V, self.filename))
+            return self.function
+        elif self.saveformat == "shelve":
+            shelvefile = shelve.open(self.filename)
+            return shelvefile[str(timestep)]
+    
 class NSReplay(Parameterized):
     """ Replay class for postprocessing exisiting solution data. """
     def __init__(self, postprocessor, params=None):
@@ -58,7 +83,7 @@ class NSReplay(Parameterized):
         
         self.timer = Timer(self.params.timer_frequency)
         self.timer._N = 0
-        
+    
     @classmethod
     def default_params(cls):
         params = ParamDict(
@@ -92,13 +117,18 @@ class NSReplay(Parameterized):
                 
                 if 'hdf5' in fieldnamedata["save_as"]:
                     function = self._get_function(fieldname, metadata_files[fieldname], 'hdf5')
-                    replay_solutions[timestep][fieldname] = {'format': 'hdf5', 'function': function}
+                    filename = os.path.join(self.postproc.get_savedir(fieldname), fieldname+'.hdf5')
                 elif 'xml' in fieldnamedata["save_as"]:
-                    replay_solutions[timestep][fieldname] = {'format': 'xml', 'function': function}
-                elif 'shelve' in fieldnamedata["save_as"]:
-                    replay_solutions[timestep][fieldname] = {'format': 'shelve'}
+                    function = self._get_function(fieldname, metadata_files[fieldname], 'xml')
+                    filename = os.path.join(self.postproc.get_savedir(fieldname), fieldname+str(timestep)+'.hdf5')
+                elif 'xml.gz' in fieldnamedata["save_as"]:
+                    function = self._get_function(fieldname, metadata_files[fieldname], 'xml.gz')
+                    filename = os.path.join(self.postproc.get_savedir(fieldname), fieldname+'.db')
                 else:
-                    continue
+                    function = None
+                
+                replay_solutions[timestep][fieldname] = Loadable(filename, fieldname, timestep, data[timestep]["t"], saveformat, function)
+                
         return replay_solutions    
         
     def _check_field_coverage(self, plan, fieldname):
@@ -151,13 +181,6 @@ class NSReplay(Parameterized):
 
         return self._boundarymesh
 
-    def _get_spaces(self):
-        if not hasattr(self, "_spaces"):
-            params = self._get_all_params()
-            self._spaces = NSSpacePoolSplit(self._get_mesh(), params.scheme.u_degree, params.scheme.p_degree)
-        
-        return self._spaces
-
     def _create_function_from_metadata(self, fieldname, metadata, saveformat):
         assert metadata['type'] == 'Function'
         
@@ -175,6 +198,9 @@ class NSReplay(Parameterized):
         family = eval(metadata["element_family"])
         
         # Get space from existing function spaces if mesh is the same
+        spaces = SpacePool(mesh)
+        space = spaces.get_custom_space(family, degree, shape)
+        """
         # TODO: Verify that this check is good enough
         if mesh.hash() != self._get_mesh().hash():
             if mesh.hash() == self._get_boundarymesh().hash():
@@ -189,13 +215,13 @@ class NSReplay(Parameterized):
         else:
             del mesh
             space = self._get_spaces().get_space(degree, len(shape), family)
-
+        """
         return Function(space, name=fieldname)
-
+    """
     def _get_all_params(self):
         paramfile = open(os.path.join(self.postproc.get_casedir(), "params.pickle"), 'rb')
         return pickle.load(paramfile)
-       
+    """
     def _get_function(self, fieldname, metadata, saveformat):
         if fieldname not in self._functions:
             self._functions[fieldname] = self._create_function_from_metadata(fieldname, metadata, saveformat)
@@ -203,14 +229,6 @@ class NSReplay(Parameterized):
        
     def replay(self):
         "Replay problem with given postprocessor."
-
-        # Initiate problem
-        params = self._get_all_params()
-        
-        problem = NSProblem({"T": 0})
-        problem.params.update_recursive(params.problem)
-        problem.mesh = self._get_mesh()
-
         # Set up for replay
         replay_plan = self._fetch_history()
         postprocessors = []
@@ -322,8 +340,9 @@ class NSReplay(Parameterized):
                     for field in pp._sorted_fields_keys:
                         for dep in reversed(pp._dependencies[field]):
                             if not have_necessary_deps(solution, pp, dep[0]):
-                                solution[dep[0]] = None
-                    pp.update_all(solution, t, timestep, self._get_spaces(), problem)
+                                solution[dep[0]] = lambda: None
+                    #pp.update_all(solution, t, timestep, self._get_spaces(), problem)
+                    pp.update_all(solution, t, timestep)
                     
                     # Clear None-objects from solution
                     [solution.pop(k) for k in solution.keys() if not solution[k]]
@@ -334,5 +353,5 @@ class NSReplay(Parameterized):
             self.timer.increment()
         
         for ppkeys, ppt_dep, pp in postprocessors:
-            pp.finalize_all(pp._spaces, problem)
+            pp.finalize_all()
 
