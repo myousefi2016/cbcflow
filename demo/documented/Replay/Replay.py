@@ -31,7 +31,7 @@ def replay():
     problem = FlowAroundCylinder(params.problem)
     
     
-    replayer = NSReplay(postprocessor)
+    replayer = Replay(postprocessor)
     
     # Add new fields to compute
     postprocessor.add_fields([

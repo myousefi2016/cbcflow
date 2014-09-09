@@ -82,10 +82,10 @@ The :class:`.Stress`, however, depends on both the :class:`.Velocity` and the :c
 Since the velocity was saved at every second timestep, and the pressure was only saved every
 third timestep, we expect this to be computed at timesteps 0, 6, 12, ... .
 
-We then initiate a :class:`.NSReplay` instance with the postprocessor-instance as argument,
+We then initiate a :class:`.Replay` instance with the postprocessor-instance as argument,
 and call its *replay*-function to execute the replay routine: ::
 
     # Replay
-    replayer = NSReplay(postprocessor)
+    replayer = Replay(postprocessor)
     replayer.replay()
 
