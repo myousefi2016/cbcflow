@@ -29,7 +29,7 @@ equations completely linear. Thus, we have a discretized version of the Navier-S
 .. math:: \frac{1}{\Delta t}\left( u^{n+1}-u^{n} \right)-\nabla\cdot\nu\nabla u^{n+\frac{1}{2}}+u^n\cdot\nabla u^{n}+\frac{1}{\rho}\nabla p^{n+1}=f^{n+1}, \\
     \nabla \cdot u^{n+1} = 0,
 
-where :math:`\tilde{u}^{n+\frac{1}{2}} = \frac{1}{2}\tilde{u}^{n+1}+\frac{1}{2}u^n.`
+where :math:`u^{n+\frac{1}{2}} = \frac{1}{2}u^{n+1}+\frac{1}{2}u^n.`
 
 For the operator splitting, we use the pressure solution from the previous timestep as an estimation, giving an equation for a tentative velocity, :math:`\tilde{u}^{n+1}`:
 
@@ -38,7 +38,7 @@ For the operator splitting, we use the pressure solution from the previous times
 This tenative velocity is not divergence free, and thus we define a velocity correction :math:`u^c=u^{n+1}-\tilde{u}^{n+1}`. Substracting the second equation from the first, we see that
 
 .. math:: 
-    \frac{1}{\Delta t}u^c-\nabla\cdot\nu\nabla u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
+    \frac{1}{\Delta t}u^c-\frac{1}{2}\nabla\cdot\nu\nabla u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
     \nabla \cdot u^c = -\nabla \cdot \tilde{u}^{n+1}.
 
 The operator splitting is a first order approximation, :math:`O(\Delta t)`, so we can, without reducing the order of the approximation simplify the above to
@@ -58,7 +58,7 @@ The corrected velocity is then easily calculated from
     u^{n+1} = \tilde{u}^{n+1}-\frac{\Delta t}{\rho}\nabla\left(p^{n+1}-p^n\right)
 
 The scheme can be summarized in the following steps:
-    #. Replace the pressure with a known approximation and solve for a tenative velocity :math:`u^{n+1}`.
+    #. Replace the pressure with a known approximation and solve for a tenative velocity :math:`\tilde{u}^{n+1}`.
 
     #. Solve a Poisson equation for the pressure, :math:`p^{n+1}`
 
