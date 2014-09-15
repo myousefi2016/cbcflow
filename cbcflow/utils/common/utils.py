@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-
+"""
 import os
 from time import time
 
@@ -308,3 +308,4 @@ class HDF5Link:
         self.cpp_link_module.link_dataset(hdf5filename, link_from, link_to)
 
 hdf5_link = HDF5Link().link
+"""
