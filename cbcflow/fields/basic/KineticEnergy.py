@@ -14,11 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 from math import sqrt
 from dolfin import assemble
 
-class KineticEnergy(PPField):
+class KineticEnergy(Field):
     def compute(self, pp, spaces, problem):
         u = pp.get("Velocity")
         dx = problem.dx

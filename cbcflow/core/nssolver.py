@@ -20,11 +20,9 @@ from cbcflow.dol import parameters, Mesh, MPI
 
 from time import time
 
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
-from cbcflow.utils.common import get_memory_usage, time_to_string, cbcflow_print
-from cbcflow.core.restart import Restart
-from cbcflow.utils.common import Timer
+from cbcpost import ParamDict, Parameterized
+from cbcpost.utils import get_memory_usage, time_to_string, cbc_print, Timer
+from cbcpost import Restart
 
 class NSSolver(Parameterized):
     """High level Navier-Stokes solver. This handles all logic between the cbcflow
@@ -132,13 +130,13 @@ class NSSolver(Parameterized):
         "Summarize time spent and memory (if requested)"
         final_time = time()
         msg = "Total time spent in NSSolver: %s" % time_to_string(final_time - self._initial_time)
-        cbcflow_print(msg)
+        cbc_print(msg)
 
         if self.params.check_memory_frequency > 0:
             final_memory = get_memory_usage()
             msg = "Memory usage before solve: %s\nMemory usage after solve: %s" % (
                 self._initial_memory, final_memory)
-            cbcflow_print(msg)
+            cbc_print(msg)
 
     def _update_timing(self, timestep, t, time_at_top):
         "Update timing and print solver status to screen."
@@ -177,13 +175,13 @@ class NSSolver(Parameterized):
                                           remaining,
                                           ))
         # TODO: Report to file, with additional info like memory usage, and make reporting configurable
-        cbcflow_print(msg)
+        cbc_print(msg)
 
     def _update_memory(self, timestep):
         fr = self.params.check_memory_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            cbcflow_print('Memory usage is: %s' % MPI.sum(get_memory_usage()))       
+            cbc_print('Memory usage is: %s' % MPI.sum(get_memory_usage()))       
 
     def update(self, u, p, t, timestep, spaces):
         """Callback from scheme.solve after each timestep to handle update of

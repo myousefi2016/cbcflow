@@ -50,9 +50,9 @@ to a large system D times the size.
 
 from __future__ import division
 
-
+from cbcpost.utils import cbc_log
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import is_periodic, cbcflow_log
+from cbcflow.utils.common import is_periodic
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,

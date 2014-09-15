@@ -9,10 +9,12 @@ the control and data flow between the classes.
 
 import inspect
 
-from cbcflow import ParamDict, NSProblem, all_schemes
+from cbcflow import NSProblem, all_schemes
+from cbcpost import ParamDict
 from cbcflow import *
 from cbcflow.dol import *
-from cbcflow.utils.common import Timer
+#from cbcflow.utils.common import Timer
+from cbcpost.utils import Timer
 
 class Left(SubDomain):
     def inside(self, x, on_boundary):

@@ -15,16 +15,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.fields.bases.PPField import PPField
-from cbcflow.fields.meta.Magnitude import Magnitude
-from cbcflow.fields.meta.TimeIntegral import TimeIntegral
+from cbcpost import Field, Magnitude, TimeIntegral
 
 from dolfin import Function, project, Constant, conditional
 
-class OSI(PPField):
+class OSI(Field):
     @classmethod
     def default_params(cls):
-        params = PPField.default_params()
+        params = Field.default_params()
         params.update(
             finalize=True,
             )

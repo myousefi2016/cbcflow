@@ -17,9 +17,7 @@
 from __future__ import division
 
 from cbcflow.dol import *
-
-from cbcflow.core.paramdict import ParamDict
-from cbcflow.core.parameterized import Parameterized
+from cbcpost import ParamDict, Parameterized
 
 
 class NSScheme(Parameterized):

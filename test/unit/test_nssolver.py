@@ -6,7 +6,8 @@ These tests should act as a documentation of
 the control and data flow between the classes.
 """
 
-from cbcflow import ParamDict, NSProblem, NSPostProcessor, NSScheme, NSSolver
+from cbcflow import NSProblem, NSScheme, NSSolver
+from cbcpost import ParamDict, PostProcessor
 
 class MockProblem(NSProblem):
     def __init__(self, params):
@@ -19,13 +20,13 @@ class MockProblem(NSProblem):
         params.update(p=1)
         return params
 
-class MockPostProcessor(NSPostProcessor):
+class MockPostProcessor(PostProcessor):
     def __init__(self, params):
-        NSPostProcessor.__init__(self, params)
+        PostProcessor.__init__(self, params)
 
     @classmethod
     def default_params(cls):
-        params = NSPostProcessor.default_params()
+        params = PostProcessor.default_params()
         params.update(pp=2)
         return params
 

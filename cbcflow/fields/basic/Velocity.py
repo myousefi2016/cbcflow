@@ -14,11 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 from dolfin import Function, FunctionAssigner, error
 from cbcflow.utils.core import NSSpacePoolMixed, NSSpacePoolSegregated
 
-class Velocity(PPField):
+class Velocity(Field):
     def convert(self, pp, spaces, problem):
         # Hack to get given u in whatever format it has,
         # avoiding circular reference to this field      

@@ -15,22 +15,22 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 
 from dolfin import (TestFunction, Function,  FacetNormal,
                     Constant, dot, grad, ds, assemble, inner, dx,
                     TrialFunction, LinearSolver)
 
-from cbcflow.utils.common.utils import cbcflow_warning
-from cbcflow.utils.fields.mesh_to_boundarymesh_dofmap import mesh_to_boundarymesh_dofmap
-class WSS(PPField):
+from cbcpost.utils import cbc_warning, mesh_to_boundarymesh_dofmap
+from cbcpost.utils import mesh_to_boundarymesh_dofmap
+class WSS(Field):
     def before_first_compute(self, pp, spaces, problem):
         #boundary = spaces.BoundaryMesh #BoundaryMesh(problem.mesh, "exterior") # TODO: Move construction to spaces?
         degree = spaces.V.ufl_element().degree()
         if degree <= 2:
             Q = spaces.DU
         else:
-            cbcflow_warning("Unable to handle higher order WSS space. Using CG1.")
+            cbc_warning("Unable to handle higher order WSS space. Using CG1.")
             Q = spaces.get_space(1,1)
 
         Q_boundary = spaces.get_space(Q.ufl_element().degree(), 1, boundary=True)

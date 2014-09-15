@@ -20,7 +20,7 @@ Basic postprocessing fields.
 These fields can all be created from the postprocessor from name only.
 This is useful when handling dependencies for a postprocessing field: ::
 
-    class DummyField(PPField):
+    class DummyField(Field):
         def __init__(self, field_dep):
             self.field_dep = field_dep
     

@@ -14,12 +14,12 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 from dolfin import (TrialFunction, TestFunction, dot, grad, DirichletBC,
                     DomainBoundary, dx, Constant, assemble, Vector, Function,
                     solve)
 
-class StreamFunction(PPField):
+class StreamFunction(Field):
     def before_first_compute(self, pp, spaces, problem):
         u = pp.get("Velocity")
         assert len(u) == 2, "Can only compute stream function for 2D problems"

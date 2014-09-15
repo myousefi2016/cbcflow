@@ -16,8 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 """Utility functions used by the core modules. """
 
-from strip_code import strip_code
-from spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit, SpacePool
+from spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit
 from show import show_problem
 
 __all__ = [k for k,v in globals().items()

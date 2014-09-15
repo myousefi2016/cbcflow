@@ -18,7 +18,7 @@ from __future__ import division
 
 
 from cbcflow.dol import as_vector, project, FacetNormal, DirichletBC, Constant, dot, Dn
-from cbcflow.utils.common import cbcflow_warning
+from cbcpost.utils import cbc_warning
 from numpy import linspace, zeros, append, arange
 
 # --- Functions for timestepping
@@ -44,7 +44,7 @@ def compute_regular_timesteps(problem):
     assert timesteps[-1] >= T-dt/1e6, "Timestep range not including end time."
     
     if timesteps[-1] > T+dt/1e6:
-        cbcflow_warning("End time for simulation does not match end time set for problem (T-T0 not a multiple of dt).")
+        cbc_warning("End time for simulation does not match end time set for problem (T-T0 not a multiple of dt).")
     
     return dt, timesteps, problem.params.start_timestep
 

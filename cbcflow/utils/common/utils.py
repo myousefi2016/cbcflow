@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-"""
+'''
 import os
 from time import time
 
@@ -29,15 +29,15 @@ def in_serial():
 
 # --- Logging ---
 
-def cbcflow_warning(msg):
+def cbc_warning(msg):
     if on_master_process():
         warning(msg)
 
-def cbcflow_print(msg):
+def cbc_print(msg):
     if on_master_process():
         print msg
 
-def cbcflow_log(level, msg):
+def cbc_log(level, msg):
     if on_master_process():
         log(level, msg)
 
@@ -68,7 +68,7 @@ def timeit(t0=None, msg=None):
         return time()
     else:
         t = time() - t0
-        cbcflow_print("%s: %g" % (msg, t))
+        cbc_print("%s: %g" % (msg, t))
         return t
 
 class Timer:
@@ -111,12 +111,12 @@ class Timer:
                 ss = ""
             s += ss
 
-            cbcflow_print(s)
+            cbc_print(s)
 
         self._timer = time()
     
     def _print_summary(self):
-        cbcflow_print("Timings summary: ")
+        cbc_print("Timings summary: ")
         
         for key in self._keys:
             tot = self._timings[key][0]
@@ -140,7 +140,7 @@ class Timer:
             else:
                 ss = ""
             s += ss
-            cbcflow_print(s)
+            cbc_print(s)
     
     def _reset(self):
         self._timings = {}
@@ -164,7 +164,7 @@ def get_memory_usage():
         from fenicstools import getMemoryUsage
         return getMemoryUsage()
     except:
-        cbcflow_warning("Unable to load fenicstools to check memory usage. Falling back to unsafe memory check.")
+        cbc_warning("Unable to load fenicstools to check memory usage. Falling back to unsafe memory check.")
         mypid = getpid()
         mymemory = getoutput("ps -o rss %s" % mypid).split()[1]
         return int(mymemory)/1024
@@ -195,7 +195,7 @@ def parallel_eval(func, point, gather=True):
     else:
         M = MPI.sum(M)/N
     return M
-
+'''
 # --- String formatting ---
 
 def time_to_string(t):
@@ -229,6 +229,7 @@ def as_object(u):
         return u[0]
 
 
+"""
 # --- Function space type stuff ---
 
 def as_scalar_spaces(V):
@@ -245,7 +246,7 @@ def as_scalar_space(V):
         return V
     else:
         return V.sub(0).collapse()
-
+"""
 
 # --- Maths ---
 from ufl import grad, Identity
@@ -268,9 +269,9 @@ tolerance = default_tolerance = 1e-4
 
 def has_converged(r, iter, method, maxiter=default_maxiter, tolerance=default_tolerance):
     "Check if solution has converged."
-    cbcflow_print("Residual = %.3g" % r)
+    cbc_print("Residual = %.3g" % r)
     if r < tolerance:
-        cbcflow_print("%s iteration converged in %d iteration(s)." % (method, iter + 1))
+        cbc_print("%s iteration converged in %d iteration(s)." % (method, iter + 1))
         return True
     elif iter == maxiter - 1:
         raise RuntimeError("%s iteration did not converge." % method)
@@ -279,33 +280,3 @@ def has_converged(r, iter, method, maxiter=default_maxiter, tolerance=default_to
 def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
     "Check if boundary conditions are periodic."
     return False # FIXME: all(isinstance(bc, PeriodicBC) for bc in bcs)
-
-# --- I/O stuff ---
-class HDF5Link:
-    cpp_link_module = None
-    def compile(self):
-        cpp_link_code = '''
-        #include <hdf5.h>
-        void link_dataset(const std::string hdf5_filename,
-                                  const std::string link_from,
-                                  const std::string link_to)
-        {
-            hid_t hdf5_file_id = HDF5Interface::open_file(hdf5_filename, "a", true);
-        
-            herr_t status = H5Lcreate_hard(hdf5_file_id, link_from.c_str(), H5L_SAME_LOC,
-                                link_to.c_str(), H5P_DEFAULT, H5P_DEFAULT);
-            dolfin_assert(status != HDF5_FAIL);
-            
-            HDF5Interface::close_file(hdf5_file_id);        
-        }
-        '''
-        
-        self.cpp_link_module = compile_extension_module(cpp_link_code, additional_system_headers=["dolfin/io/HDF5Interface.h"])
-    
-    def link(self, hdf5filename, link_from, link_to):
-        if self.cpp_link_module == None:
-            self.compile()
-        self.cpp_link_module.link_dataset(hdf5filename, link_from, link_to)
-
-hdf5_link = HDF5Link().link
-"""

@@ -18,6 +18,7 @@
 
 from cbcflow.dol import (FunctionSpace, VectorFunctionSpace,
                          TensorFunctionSpace, BoundaryMesh)
+from cbcpost import SpacePool
 
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"
@@ -25,10 +26,10 @@ def galerkin_family(degree):
 def decide_family(family, degree):
     return galerkin_family(degree) if family == "auto" else family
 
-class NSSpacePool(SpacePool):
-    "A function space pool with custom named spaces for use with Navier-Stokes schemes."
+class NSSpacePool():
+    "A function space pool with custom named spaces for use with Navier-Stokes schemes."   
     def __init__(self, mesh, u_degree, p_degree, u_family="auto", p_family="auto"):
-        SpacePool.__init__(self, mesh)
+        self.spaces = SpacePool(mesh)
         assert isinstance(u_degree, int)
         assert isinstance(p_degree, int)
         assert isinstance(u_family, str)
@@ -37,54 +38,67 @@ class NSSpacePool(SpacePool):
         self.p_degree = p_degree
         self.u_family = u_family
         self.p_family = p_family
+        self._spaces = {}
+        
+        # Get dimensions for convenience
+        cell = mesh.ufl_cell()
+        self.gdim = cell.geometric_dimension()
+        self.tdim = cell.topological_dimension()
+        self.gdims = range(self.gdim)
+        self.tdims = range(self.tdim)
+
+        # For compatibility, remove when code has been converted
+        self.d = self.gdim
+        self.dims = self.gdims
+        
 
     @property
     def U_CG1(self): # TODO: Remove, use get_space instead
-        return self.get_space(1, 0)
+        return self.spaces.get_space(1, 0)
 
     @property
     def V_CG1(self): # TODO: Remove, use get_space instead
-        return self.get_space(1, 1)
+        return self.spaces.get_space(1, 1)
 
     @property
     def U(self):
         "Scalar valued space for velocity components."
-        return self.get_space(self.u_degree, 0, family=self.u_family)
+        return self.spaces.get_space(self.u_degree, 0, family=self.u_family)
 
     @property
     def V(self):
         "Vector valued space for velocity vector."
-        return self.get_space(self.u_degree, 1, family=self.u_family)
+        return self.spaces.get_space(self.u_degree, 1, family=self.u_family)
 
     @property
     def Q(self):
         "Scalar valued space for pressure."
-        return self.get_space(self.p_degree, 0, family=self.p_family)
+        return self.spaces.get_space(self.p_degree, 0, family=self.p_family)
 
     @property
     def DU0(self):
         "Scalar valued space for gradient component of single velocity component."
-        return self.get_space(self.u_degree-1, 0, family=self.u_family)
+        return self.spaces.get_space(self.u_degree-1, 0, family=self.u_family)
 
     @property
     def DU(self):
         "Vector valued space for gradients of single velocity components."
-        return self.get_space(self.u_degree-1, 1, family=self.u_family)
+        return self.spaces.get_space(self.u_degree-1, 1, family=self.u_family)
 
     @property
     def DV(self):
         "Tensor valued space for gradients of velocity vector."
-        return self.get_space(self.u_degree-1, 2, family=self.u_family)
+        return self.spaces.get_space(self.u_degree-1, 2, family=self.u_family)
 
     @property
     def DQ0(self):
         "Scalar valued space for pressure gradient component."
-        return self.get_space(self.p_degree-1, 0, family=self.p_family)
+        return self.spaces.get_space(self.p_degree-1, 0, family=self.p_family)
 
     @property
     def DQ(self):
         "Vector valued space for pressure gradient."
-        return self.get_space(self.p_degree-1, 1, family=self.p_family)
+        return self.spaces.get_space(self.p_degree-1, 1, family=self.p_family)
 
     @property
     def W(self):
@@ -124,7 +138,7 @@ class NSSpacePoolSegregated(NSSpacePool):
     @property
     def Ubc(self):
         "List of scalar valued spaces for setting velocity BCs."
-        return [self.U for d in self.gdims]
+        return [self.U for d in self.spaces.gdims]
 
     @property
     def Qbc(self):

@@ -14,11 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 from dolfin import Function, FunctionAssigner
 from cbcflow.utils.core import NSSpacePoolMixed
 
-class PhysicalPressure(PPField):
+class PhysicalPressure(Field):
     "The physical pressure is the solver pressure scaled by density."
     def compute(self, pp, spaces, problem):
         # Get solver pressure

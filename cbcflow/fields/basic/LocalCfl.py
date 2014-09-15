@@ -14,10 +14,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcflow.fields.bases.PPField import PPField
+from cbcpost import Field
 from dolfin import assemble, dx, sqrt, TestFunction, Function, Constant
 
-class LocalCfl(PPField):
+class LocalCfl(Field):
     def before_first_compute(self, pp, spaces, problem):
         DG0 = spaces.get_space(0, 0)
         self._v = TestFunction(DG0)
