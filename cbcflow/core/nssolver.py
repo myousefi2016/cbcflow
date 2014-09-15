@@ -17,12 +17,14 @@
 from __future__ import division
 
 from cbcflow.dol import parameters, Mesh, MPI
+from cbcflow.utils.common.utils import PressureConverter, VelocityConverter
 
 from time import time
 
 from cbcpost import ParamDict, Parameterized
 from cbcpost.utils import get_memory_usage, time_to_string, cbc_print, Timer
 from cbcpost import Restart
+
 
 class NSSolver(Parameterized):
     """High level Navier-Stokes solver. This handles all logic between the cbcflow
@@ -38,6 +40,9 @@ class NSSolver(Parameterized):
         self.problem = problem
         self.scheme = scheme
         self.postprocessor = postprocessor
+        
+        self.velocity_converter = VelocityConverter()
+        self.pressure_converter = PressureConverter()
 
     @classmethod
     def default_params(cls):
@@ -111,7 +116,7 @@ class NSSolver(Parameterized):
         spaces = scheme_namespace["spaces"]
         
         if self.postprocessor != None:
-            self.postprocessor.finalize_all(spaces, self.problem)
+            self.postprocessor.finalize_all()
 
         self._summarize()
         
@@ -201,7 +206,9 @@ class NSSolver(Parameterized):
 
         # Run postprocessor
         if self.postprocessor:
-            self.postprocessor.update_all({"Velocity": u, "Pressure": p}, t, timestep, spaces, self.problem)
+            self.postprocessor.update_all({"Velocity": lambda: self.velocity_converter(u, spaces),
+                                           "Pressure": lambda: self.pressure_converter(p, spaces)},
+                                            t, timestep)
         self.timer.completed("postprocessor update")
 
         # Check memory usage
