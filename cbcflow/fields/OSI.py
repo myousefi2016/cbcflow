@@ -53,17 +53,17 @@ class OSI(Field):
                 
         return fields
         
-    def before_first_compute(self, pp, spaces, problem):
-        tau = pp.get("WSS")
+    def before_first_compute(self, get):
+        tau = get("WSS")
         self.osi = Function(tau.sub(0).function_space().collapse())
 
-    def compute(self, pp, spaces, problem):
+    def compute(self, get):
         # Requires the fields Magnitude(TimeIntegral("WSS", label="OSI")) and
         # TimeIntegral(Magnitude("WSS"), label="OSI")
-        #self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
-        #self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
-        self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
-        self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
+        #self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
+        #self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
+        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
+        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
         
         if self.params.finalize:
             return None
@@ -73,9 +73,9 @@ class OSI(Field):
             self.osi.assign(project(conditional(self.ta_mag_wss<1e-15, 0.0, Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss)), self.osi.function_space()))
             return self.osi
     
-    def after_last_compute(self, pp, spaces, problem):
-        self.mag_ta_wss = pp.get("Magnitude_TimeIntegral_WSS_OSI")
-        self.ta_mag_wss = pp.get("TimeIntegral_Magnitude_WSS_OSI")
+    def after_last_compute(self, get):
+        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
+        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
         #print self.name, " Calling after_last_compute"
 
         #self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))

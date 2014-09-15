@@ -14,26 +14,67 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-"""A collection of postprocessing fields (Fields) to be used by a NSPostProcessor object."""
+"""
+Basic postprocessing fields.
 
-# Lists of available field names
-from cbcflow.fields.basic import basic_fields
-from cbcpost import Field
+These fields can all be created from the postprocessor from name only.
+This is useful when handling dependencies for a postprocessing field: ::
 
-# Import field classes from modules with same name
+    class DummyField(Field):
+        def __init__(self, field_dep):
+            self.field_dep = field_dep
+    
+        def compute(self, get):
+            val = get(field_dep)
+            return val/2.0
+    
+If a postprocessing field depends only on basic fields to be calculated, the
+dependencies will be implicitly added to the postprocessor "on the fly" from
+the name alone: ::
+    
+    field = DummyField("ABasicField")
+    pp = NSPostProcessor()
+    pp.add_field(field) # Implicitly adds ABasicField object
+            
+For non-basic dependencies, the dependencies have to be explicitly added *before*
+the field depending on it: ::
+
+    dependency = ANonBasicField("ABasicField")
+    field = DummyField(dependency.name)
+    pp.add_field(dependency) # Added before field
+    pp.add_field(field) # pp now knows about dependency
+
+"""
+
+# Fields that can be constructed just by name
+basic_fields = [
+    # The basic solution fields:
+    "Velocity",
+    "Pressure",
+    "PhysicalPressure",
+
+    # Errors w.r.t. analytical solution if provided by problem:
+    "AnalyticalVelocity",
+    "AnalyticalPressure",
+    "VelocityError",
+    "PressureError",
+
+    # Derived fields:
+    "VelocityGradient",
+    "VelocityCurl",
+    "VelocityDivergence",
+    "StreamFunction",
+    "PressureGradient",
+    "Strain",
+    "Stress",
+    "WSS",
+    "LocalCfl",
+    "KineticEnergy",
+    "Q",
+    "Delta",
+    "Lambda2",
+    "OSI",
+    ]
+
 for f in basic_fields:
-    exec("from cbcflow.fields.basic.%s import %s" % (f, f))
-#for f in meta_fields:
-#    exec("from cbcflow.fields.meta.%s import %s" % (f, f))
-
-# Make a mapping from name to type, for use in NSPostProcessor
-field_classes = { f: eval(f) for f in basic_fields }
-assert all(issubclass(c, Field) for c in field_classes.itervalues())
-
-def show_fields():
-    "Lists which fields are available."
-    print "Postprocessing fields available by name:"
-    print "\n".join("    " + f for f in basic_fields)
-    print "Postprocessing fields available with parameters:"
-    print "\n".join("    " + f for f in meta_fields)
-
+    exec("from cbcflow.fields.%s import %s" % (f, f))

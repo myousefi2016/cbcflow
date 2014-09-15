@@ -45,9 +45,9 @@ We then creates some fields to save for this solve: ::
 
 Note that we *must* save velocity and pressure for restart to work.
 
-We then add the fields to a :class:`.NSPostProcessor` instance, ::
+We then add the fields to a :class:`.PostProcessor` instance, ::
 
-        postprocessor = NSPostProcessor(dict(casedir='results'))
+        postprocessor = PostProcessor(dict(casedir='results'))
         postprocessor.add_fields(fields)
 
 and solves the equation: ::
@@ -87,9 +87,9 @@ On the restart, we also set up a different set of fields ::
             WSS(dict(save=True)),
         ]
         
-and a new :class:`NSPostProcessor` instance: ::
+and a new :class:`PostProcessor` instance: ::
         
-        postprocessor = NSPostProcessor(dict(casedir='results'))
+        postprocessor = PostProcessor(dict(casedir='results'))
         postprocessor.add_fields(fields)
         
 We then need to define our new solver, and set some restart-specific parameters: ::

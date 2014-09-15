@@ -17,9 +17,9 @@
 
 from cbcpost import Field
 
-from dolfin import Function, grad
+from dolfin import Function, grad, det
 
-class Lambda2(Field):
+class Delta(Field):
     @classmethod
     def default_params(cls):
         params = Field.default_params()
@@ -30,20 +30,21 @@ class Lambda2(Field):
             )
         return params
 
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         if self.params.assemble:
             V = spaces.get_space(0, 0)
         else:
-            # Accurate degree is 2*(spaces.u_degree-1)
+            # Accurate degree is 6*(spaces.u_degree-1)
             degree = 1
             V = spaces.get_space(degree, 0)
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
+    def compute(self, get):
+        u = get("Velocity")
+        Q = get("Q")
 
-        S = (grad(u) + grad(u).T)/2
-        Omega = (grad(u) - grad(u).T)/2
-        expr = (Omega**2 + S**2)
+        #S = (grad(u) + grad(u).T)/2
+        #Omega = (grad(u) - grad(u).T)/2
+        expr = (Q**3 / 3 + det(grad(u))**2 / 2 )
 
         return self.expr2function(expr, self._function)

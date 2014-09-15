@@ -15,23 +15,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcpost import Field
-from cbcflow.utils.common import sigma
-from dolfin import Function
+from dolfin import Function, grad
 
-class Stress(Field):
-    def before_first_compute(self, pp, spaces, problem):
+class Strain(Field):
+    def before_first_compute(self, get):
         if self.params.assemble:
             V = spaces.get_space(0, 2)
         else:
             V = spaces.DV
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-        p = pp.get("Pressure")
-        mu = problem.params.mu
+    def compute(self, get):
+        u = get("Velocity")
+        Du = grad(u)
 
-        expr = sigma(u, p, mu)
-        #u*epsilon(u) - p*Identity(u.cell().d) # TODO: is this with negative pressure?
+        expr = 0.5*(Du + Du.T)
 
         return self.expr2function(expr, self._function)

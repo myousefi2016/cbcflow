@@ -14,21 +14,36 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcpost import Field
-from dolfin import Function, grad
 
-class Strain(Field):
-    def before_first_compute(self, pp, spaces, problem):
+from cbcpost import Field
+
+from dolfin import Function, grad, Constant
+
+class Q(Field):
+    @classmethod
+    def default_params(cls):
+        params = Field.default_params()
+        params.replace(
+            assemble=False, # Change to this to use assemble into DG0 by default
+            project=True,
+            interpolate=False,
+            )
+        return params
+
+    def before_first_compute(self, get):
         if self.params.assemble:
-            V = spaces.get_space(0, 2)
+            V = spaces.get_space(0, 0)
         else:
-            V = spaces.DV
+            # Accurate degree is 2*(spaces.u_degree-1)
+            degree = 1
+            V = spaces.get_space(degree, 0)
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-        Du = grad(u)
+    def compute(self, get):
+        u = get("Velocity")
 
-        expr = 0.5*(Du + Du.T)
+        S = (grad(u) + grad(u).T)/2
+        Omega = (grad(u) - grad(u).T)/2
+        expr = Constant(0.5) * (Omega**2 - S**2)
 
         return self.expr2function(expr, self._function)

@@ -24,8 +24,8 @@ This is useful when handling dependencies for a postprocessing field: ::
         def __init__(self, field_dep):
             self.field_dep = field_dep
     
-        def compute(self, pp, spaces, problem):
-            val = pp.get(field_dep)
+        def compute(self, get):
+            val = get(field_dep)
             return val/2.0
     
 If a postprocessing field depends only on basic fields to be calculated, the

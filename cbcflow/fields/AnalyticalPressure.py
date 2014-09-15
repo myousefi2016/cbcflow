@@ -17,7 +17,7 @@
 from cbcpost import Field
 from dolfin import Function
 
-class PressureError(Field):
+class AnalyticalPressure(Field):
     @classmethod
     def default_params(cls):
         params = Field.default_params()
@@ -26,9 +26,10 @@ class PressureError(Field):
             project=True,
             interpolate=False,
             )
+        # TODO: Perhaps we should require that analytical_solution returns an Expression or Function and use interpolate instead?
         return params
 
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         if self.params.assemble:
             degree = 0
         else:
@@ -36,11 +37,9 @@ class PressureError(Field):
         V = spaces.get_space(degree, 0)
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        p = pp.get("Pressure")
-        t = pp.get("t")
+    def compute(self, get):
+        t = get("t")
 
         ua, pa = problem.analytical_solution(spaces, t)
-        pe = pa - p
 
-        return self.expr2function(pe, self._function)
+        return self.expr2function(pa, self._function)

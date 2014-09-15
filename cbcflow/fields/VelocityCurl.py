@@ -15,19 +15,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcpost import Field
-from dolfin import grad, Function
+from dolfin import assemble, curl, dx, sqrt
 
-class PressureGradient(Field):
-    def before_first_compute(self, pp, spaces, problem):
-        if self.params.assemble:
-            V = spaces.get_space(0, 1)
-        else:
-            V = spaces.DQ
-        self._function = Function(V, name=self.name)
-
-    def compute(self, pp, spaces, problem):
-        p = pp.get("Pressure")
-
-        expr = grad(p)
-
-        return self.expr2function(expr, self._function)
+class VelocityCurl(Field):
+    def compute(self, get):
+        u = get("Velocity")
+        return sqrt(assemble(curl(u)**2*dx()))

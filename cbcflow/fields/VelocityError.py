@@ -28,7 +28,7 @@ class VelocityError(Field):
             )
         return params
 
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         if self.params.assemble:
             degree = 0
         else:
@@ -36,9 +36,9 @@ class VelocityError(Field):
         V = spaces.get_space(degree, 1)
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-        t = pp.get("t")
+    def compute(self, get):
+        u = get("Velocity")
+        t = get("t")
 
         ua, pa = problem.analytical_solution(spaces, t)
         ua = as_vector(ua)

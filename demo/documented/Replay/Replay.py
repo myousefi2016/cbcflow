@@ -11,7 +11,7 @@ def play():
     problem = FlowAroundCylinder({"refinement_level": 3})
     scheme = IPCS_Stable()
     
-    postprocessor = NSPostProcessor({"casedir": "Results"})
+    postprocessor = PostProcessor({"casedir": "Results"})
     
     postprocessor.add_fields([
         Velocity({"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
@@ -23,7 +23,7 @@ def play():
     
 def replay():
     # Create postprocessor pointing to the same casedir
-    postprocessor = NSPostProcessor({"casedir": "Results"})
+    postprocessor = PostProcessor({"casedir": "Results"})
     
     # Add new fields to compute
     postprocessor.add_fields([

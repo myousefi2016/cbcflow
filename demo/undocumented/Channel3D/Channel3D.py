@@ -2,6 +2,7 @@
 
 from cbcflow import *
 from cbcflow.dol import *
+from cbcpost import PostProcessor
 
 from numpy import array
 
@@ -114,7 +115,7 @@ def main():
         Pressure(plot_and_save),
         Velocity(plot_and_save),
         ]
-    postproc = NSPostProcessor({"casedir": casedir})
+    postproc = PostProcessor({"casedir": casedir})
     postproc.add_fields(fields)
 
     solver = NSSolver(problem, scheme, postproc)

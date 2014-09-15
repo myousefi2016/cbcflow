@@ -14,37 +14,20 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-
 from cbcpost import Field
+from dolfin import grad, Function
 
-from dolfin import Function, grad, det
-
-class Delta(Field):
-    @classmethod
-    def default_params(cls):
-        params = Field.default_params()
-        params.replace(
-            assemble=False, # Change to this to use assemble into DG0 by default
-            project=True,
-            interpolate=False,
-            )
-        return params
-
-    def before_first_compute(self, pp, spaces, problem):
+class PressureGradient(Field):
+    def before_first_compute(self, get):
         if self.params.assemble:
-            V = spaces.get_space(0, 0)
+            V = spaces.get_space(0, 1)
         else:
-            # Accurate degree is 6*(spaces.u_degree-1)
-            degree = 1
-            V = spaces.get_space(degree, 0)
+            V = spaces.DQ
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-        Q = pp.get("Q")
+    def compute(self, get):
+        p = get("Pressure")
 
-        #S = (grad(u) + grad(u).T)/2
-        #Omega = (grad(u) - grad(u).T)/2
-        expr = (Q**3 / 3 + det(grad(u))**2 / 2 )
+        expr = grad(p)
 
         return self.expr2function(expr, self._function)

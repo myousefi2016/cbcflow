@@ -18,6 +18,6 @@ from cbcpost import Field
 from dolfin import assemble, div, dx, sqrt
 
 class VelocityDivergence(Field):
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
+    def compute(self, get):
+        u = get("Velocity")
         return sqrt(assemble(div(u)**2*dx()))

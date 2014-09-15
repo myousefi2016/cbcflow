@@ -42,7 +42,7 @@ pressure at every third timestep. We plot the velocity, and we send keyword
 *mode=color* so the plot will show the velocity magnitude: ::
 
         
-        postprocessor = NSPostProcessor({"casedir": "Results"})
+        postprocessor = PostProcessor({"casedir": "Results"})
         
         postprocessor.add_fields([
             Velocity({"save": True, "stride_timestep": 2, "plot": True, "plot_args": {"mode": "color"}}),
@@ -63,7 +63,7 @@ case directory as the original solve: ::
     
     def replay():
         # Create postprocessor pointing to the same casedir
-        postprocessor = NSPostProcessor({"casedir": "Results"})
+        postprocessor = PostProcessor({"casedir": "Results"})
 
 We then define some new fields to store, and adds them to the postprocessor ::
     

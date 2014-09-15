@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from cbcflow import *
 from dolfin import *
+from cbcpost import PostProcessor
 
 class Lid(SubDomain):
     def inside(self, x, on_boundary):
@@ -74,7 +75,7 @@ def main():
         Pressure(plot_and_save),
         Velocity(plot_and_save),
         ]
-    postproc = NSPostProcessor({"casedir": casedir})
+    postproc = PostProcessor({"casedir": casedir})
     postproc.add_fields(fields)
 
     solver = NSSolver(problem, scheme, postproc)

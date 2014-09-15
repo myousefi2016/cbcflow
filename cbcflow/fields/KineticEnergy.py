@@ -15,19 +15,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcpost import Field
-from dolfin import Function, grad
+from math import sqrt
+from dolfin import assemble
 
-class VelocityGradient(Field):
-    def before_first_compute(self, pp, spaces, problem):
-        if self.params.assemble:
-            V = spaces.get_space(0, 2)
-        else:
-            V = spaces.DV
-        self._function = Function(V, name=self.name)
-
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-
-        expr = grad(u)
-
-        return self.expr2function(expr, self._function)
+class KineticEnergy(Field):
+    def compute(self, get):
+        u = get("Velocity")
+        dx = problem.dx
+        u_norms = [assemble(u[d]**2*dx()) for d in range(u.shape()[0])]
+        energy = sqrt(sum(u_norms[d] for d in range(u.shape()[0])))
+        return energy

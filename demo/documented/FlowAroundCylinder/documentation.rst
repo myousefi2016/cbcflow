@@ -194,11 +194,11 @@ Setting up postprocessing
 --------------------------------------
 The postprocessing is set up to determine what we want to do with our obtained solution.
 We start by creating a
-:class:`.NSPostProcessor`
+:class:`.PostProcessor`
 to handle all the logic: ::
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    postprocessor = NSPostProcessor({"casedir": casedir})
+    postprocessor = PostProcessor({"casedir": casedir})
 
 The *casedir* parameter points the postprocessor to the directory where it should save
 the data it is being asked to save. By default, it stores the mesh, all parameters and
@@ -238,7 +238,7 @@ Solving the problem
 We now have instances of the classes
 :class:`.NSProblem`,
 :class:`.NSScheme`,
-and :class:`.NSPostProcessor`.
+and :class:`.PostProcessor`.
 
 These can be combined in a general class to handle the logic between the classes,
 namely a :class:`.NSSolver` instance: ::

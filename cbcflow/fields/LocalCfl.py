@@ -15,9 +15,26 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from cbcpost import Field
-from dolfin import assemble, curl, dx, sqrt
+from dolfin import assemble, dx, sqrt, TestFunction, Function, Constant
 
-class VelocityCurl(Field):
-    def compute(self, pp, spaces, problem):
-        u = pp.get("Velocity")
-        return sqrt(assemble(curl(u)**2*dx()))
+class LocalCfl(Field):
+    def before_first_compute(self, get):
+        DG0 = spaces.get_space(0, 0)
+        self._v = TestFunction(DG0)
+        self._cfl = Function(DG0)
+
+    def compute(self, get):
+        t1 = get("t")
+        t0 = get("t", -1)
+        dt = Constant(t1 - t0)
+        u = get("Velocity")
+
+        cell = problem.mesh.ufl_cell()
+        hF = cell.circumradius
+        hK = cell.volume
+        scaling = 1.0 / hK
+
+        assemble((dt * sqrt(u**2) / hF)*self._v*scaling*dx(),
+                 tensor=self._cfl.vector())
+
+        return self._cfl

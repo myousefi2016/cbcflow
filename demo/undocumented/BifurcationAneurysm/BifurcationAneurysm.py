@@ -2,6 +2,7 @@
 
 from cbcflow import *
 from cbcflow.dol import *
+from cbcpost import PostProcessor
 from os import path
 
 files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/dog_mesh_37k.xml.gz"),
@@ -108,7 +109,7 @@ def main():
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
     
-    postproc = NSPostProcessor({"casedir": "Results/"})
+    postproc = PostProcessor({"casedir": "Results/"})
     
     
     def set_up_fields(problem):

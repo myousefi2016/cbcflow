@@ -213,7 +213,7 @@ Finally, we initate the problem, a scheme and postprocessor ::
             Pressure(plot_and_save),
             Velocity(plot_and_save),
             ]
-        postproc = NSPostProcessor({"casedir": casedir})
+        postproc = PostProcessor({"casedir": casedir})
         postproc.add_fields(fields)
 
 and solves the problem ::

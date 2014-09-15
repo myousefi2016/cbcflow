@@ -14,33 +14,36 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-from cbcpost import Field
-from dolfin import as_vector, Function
 
-class AnalyticalVelocity(Field):
+from cbcpost import Field
+
+from dolfin import Function, grad
+
+class Lambda2(Field):
     @classmethod
     def default_params(cls):
         params = Field.default_params()
         params.replace(
-            assemble=False,
+            assemble=False, # Change to this to use assemble into DG0 by default
             project=True,
             interpolate=False,
             )
-        # TODO: Perhaps we should require that analytical_solution returns an Expression or Function and use interpolate instead?
         return params
 
-    def before_first_compute(self, pp, spaces, problem):
+    def before_first_compute(self, get):
         if self.params.assemble:
-            degree = 0
+            V = spaces.get_space(0, 0)
         else:
-            degree = spaces.u_degree + 1 # TODO: Is +1 sufficient?
-        V = spaces.get_space(degree, 1)
+            # Accurate degree is 2*(spaces.u_degree-1)
+            degree = 1
+            V = spaces.get_space(degree, 0)
         self._function = Function(V, name=self.name)
 
-    def compute(self, pp, spaces, problem):
-        t = pp.get("t")
+    def compute(self, get):
+        u = get("Velocity")
 
-        ua, pa = problem.analytical_solution(spaces, t)
-        ua = as_vector(ua)
+        S = (grad(u) + grad(u).T)/2
+        Omega = (grad(u) - grad(u).T)/2
+        expr = (Omega**2 + S**2)
 
-        return self.expr2function(ua, self._function)
+        return self.expr2function(expr, self._function)

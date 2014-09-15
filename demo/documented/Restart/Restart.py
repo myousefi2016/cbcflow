@@ -19,7 +19,7 @@ def play():
         Norm("Velocity", dict(save=True, stride_timestep=2))
     ]
     
-    postprocessor = NSPostProcessor(dict(casedir='results'))
+    postprocessor = PostProcessor(dict(casedir='results'))
     
     postprocessor.add_fields(fields)
     
@@ -45,7 +45,7 @@ def restart():
         Pressure(dict(save=True)),
         WSS(dict(save=True)),
     ]
-    postprocessor = NSPostProcessor(dict(casedir='results'))
+    postprocessor = PostProcessor(dict(casedir='results'))
     postprocessor.add_fields(fields)
     
     # Set restart cbcflow-data

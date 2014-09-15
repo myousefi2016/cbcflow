@@ -20,9 +20,9 @@ from cbcflow.utils.core import NSSpacePoolMixed
 
 class PhysicalPressure(Field):
     "The physical pressure is the solver pressure scaled by density."
-    def compute(self, pp, spaces, problem):
+    def compute(self, get):
         # Get solver pressure
-        p = pp.get("Pressure")
+        p = get("Pressure")
 
         if not hasattr(self, "_p"):
             self._p = Function(spaces.Q)

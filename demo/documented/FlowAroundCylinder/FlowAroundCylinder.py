@@ -2,6 +2,7 @@
 
 from cbcflow import *
 from cbcflow.dol import *
+from cbcpost import PostProcessor
 
 from os import path
 
@@ -110,7 +111,7 @@ def main():
 
     # Create postprocessor instance pointing to a case directory
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
-    postprocessor = NSPostProcessor({"casedir": casedir})
+    postprocessor = PostProcessor({"casedir": casedir})
     
     # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
