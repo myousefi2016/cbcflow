@@ -8,6 +8,7 @@ from collections import defaultdict
 import argparse
 
 from cbcflow import *
+from cbcpost import ParamDict
 
 
 # Hacks to import problem classes from demo directories

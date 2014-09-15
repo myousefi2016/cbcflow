@@ -10,6 +10,7 @@ from ufl.classes import ListTensor
 from dolfin import *
 
 from cbcflow import *
+from cbcpost import PostProcessor, ParamDict
 
 import time
 
@@ -68,7 +69,7 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
     print "** Refinement level: %2d ** dt: %.8f" % (refinement_level, dt)
     print "**"
 
-    pp = NSPostProcessor({"casedir": "test"})
+    pp = PostProcessor({"casedir": "test"})
     test_fields = problem.test_fields()
     pp.add_fields(test_fields)
 
