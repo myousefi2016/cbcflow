@@ -16,10 +16,16 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from cbcpost import Field, Magnitude, TimeIntegral
-
+from cbcflow import NSProblem
+from cbcflow.fields import WSS
 from dolfin import Function, project, Constant, conditional
 
 class OSI(Field):
+    def __init__(self, problem, params=None, name="default", label=None):
+        Field.__init__(self, params, name, label)
+        assert isinstance(problem, NSProblem)
+        self.problem = problem
+    
     @classmethod
     def default_params(cls):
         params = Field.default_params()
@@ -36,7 +42,9 @@ class OSI(Field):
         #params.pop("finalize")
 
         fields = []
+        fields.append(WSS(self.problem, params=params))
         #return fields
+        
         f = TimeIntegral("WSS", params=params, label="OSI")
         fields.append(f)
         fields.append(Magnitude(f, params=params))
@@ -50,7 +58,6 @@ class OSI(Field):
         #f = Magnitude("WSS")
         #fields.append(f)
         #fields.append(TimeIntegral(f, label="OSI"))
-                
         return fields
         
     def before_first_compute(self, get):
@@ -62,8 +69,8 @@ class OSI(Field):
         # TimeIntegral(Magnitude("WSS"), label="OSI")
         #self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
         #self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
-        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
-        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
+        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS-OSI")
+        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS-OSI")
         
         if self.params.finalize:
             return None
@@ -74,8 +81,8 @@ class OSI(Field):
             return self.osi
     
     def after_last_compute(self, get):
-        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS_OSI")
-        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS_OSI")
+        self.mag_ta_wss = get("Magnitude_TimeIntegral_WSS-OSI")
+        self.ta_mag_wss = get("TimeIntegral_Magnitude_WSS-OSI")
         #print self.name, " Calling after_last_compute"
 
         #self.osi.assign(project(Constant(0.5)-Constant(0.5)*(self.mag_ta_wss/self.ta_mag_wss), self.osi.function_space()))

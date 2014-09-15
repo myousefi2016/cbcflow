@@ -29,7 +29,7 @@ def decide_family(family, degree):
 class NSSpacePool():
     "A function space pool with custom named spaces for use with Navier-Stokes schemes."   
     def __init__(self, mesh, u_degree, p_degree, u_family="auto", p_family="auto"):
-        self.spaces = SpacePool(mesh)
+        self.spacepool = SpacePool(mesh)
         assert isinstance(u_degree, int)
         assert isinstance(p_degree, int)
         assert isinstance(u_family, str)
@@ -54,51 +54,51 @@ class NSSpacePool():
 
     @property
     def U_CG1(self): # TODO: Remove, use get_space instead
-        return self.spaces.get_space(1, 0)
+        return self.spacepool.get_space(1, 0)
 
     @property
     def V_CG1(self): # TODO: Remove, use get_space instead
-        return self.spaces.get_space(1, 1)
+        return self.spacepool.get_space(1, 1)
 
     @property
     def U(self):
         "Scalar valued space for velocity components."
-        return self.spaces.get_space(self.u_degree, 0, family=self.u_family)
+        return self.spacepool.get_space(self.u_degree, 0, family=self.u_family)
 
     @property
     def V(self):
         "Vector valued space for velocity vector."
-        return self.spaces.get_space(self.u_degree, 1, family=self.u_family)
+        return self.spacepool.get_space(self.u_degree, 1, family=self.u_family)
 
     @property
     def Q(self):
         "Scalar valued space for pressure."
-        return self.spaces.get_space(self.p_degree, 0, family=self.p_family)
+        return self.spacepool.get_space(self.p_degree, 0, family=self.p_family)
 
     @property
     def DU0(self):
         "Scalar valued space for gradient component of single velocity component."
-        return self.spaces.get_space(self.u_degree-1, 0, family=self.u_family)
+        return self.spacepool.get_space(self.u_degree-1, 0, family=self.u_family)
 
     @property
     def DU(self):
         "Vector valued space for gradients of single velocity components."
-        return self.spaces.get_space(self.u_degree-1, 1, family=self.u_family)
+        return self.spacepool.get_space(self.u_degree-1, 1, family=self.u_family)
 
     @property
     def DV(self):
         "Tensor valued space for gradients of velocity vector."
-        return self.spaces.get_space(self.u_degree-1, 2, family=self.u_family)
+        return self.spacepool.get_space(self.u_degree-1, 2, family=self.u_family)
 
     @property
     def DQ0(self):
         "Scalar valued space for pressure gradient component."
-        return self.spaces.get_space(self.p_degree-1, 0, family=self.p_family)
+        return self.spacepool.get_space(self.p_degree-1, 0, family=self.p_family)
 
     @property
     def DQ(self):
         "Vector valued space for pressure gradient."
-        return self.spaces.get_space(self.p_degree-1, 1, family=self.p_family)
+        return self.spacepool.get_space(self.p_degree-1, 1, family=self.p_family)
 
     @property
     def W(self):
@@ -138,7 +138,7 @@ class NSSpacePoolSegregated(NSSpacePool):
     @property
     def Ubc(self):
         "List of scalar valued spaces for setting velocity BCs."
-        return [self.U for d in self.spaces.gdims]
+        return [self.U for d in self.spacepool.gdims]
 
     @property
     def Qbc(self):

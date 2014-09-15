@@ -259,7 +259,7 @@ class IPCS_Stable(NSScheme):
         elif self.params.solver_u_corr == "WeightedGradient":
             from fenicstools.WeightedGradient import compiled_gradient_module
             DG = spaces.DQ0
-            CG1 = spaces.get_space(1, 0)
+            CG1 = spaces.spacepool.get_space(1, 0)
             C = assemble(u*v*dx())
             G = assemble(TrialFunction(DG)*v*dx())
             dPdX = []

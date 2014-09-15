@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from cbcflow import *
+from cbcpost import PostProcessor
 from dolfin import *
 
 from os import path

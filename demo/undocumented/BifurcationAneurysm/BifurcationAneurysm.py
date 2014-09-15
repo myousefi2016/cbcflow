@@ -2,7 +2,7 @@
 
 from cbcflow import *
 from cbcflow.dol import *
-from cbcpost import PostProcessor
+from cbcpost import *
 from os import path
 
 files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/dog_mesh_37k.xml.gz"),
@@ -124,16 +124,15 @@ def main():
         fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
     
         # On boundary
-        fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
+        fields.append(WSS(problem, dict(plot=plot, save=True, start_time=0)))
         fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
         
         # Time-integrated fields
         fields.append(TimeIntegral("WSS", dict(save=True, start_time=T0, end_time=T1)))
-        fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
+        fields.append(OSI(problem, dict(save=True, start_time=T0, end_time=T1)))
         
         # SubFunctions and Restrictions
-        from cbcflow.utils.common.submesh import create_submesh
-        from cbcflow.utils.fields.Slice import Slice
+        from cbcpost.utils import create_submesh, Slice
         
         submesh = create_submesh(problem.mesh, problem.cell_domains, 1)
         fields.append(Restrict("Velocity", submesh, dict(save=True, plot=plot)))
