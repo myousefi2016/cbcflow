@@ -87,7 +87,7 @@ class BifurcationAneurysm(NSProblem):
 
 
 def main():
-    set_log_level(60)
+    set_log_level(30)
     dt = 1e-2
     problem = BifurcationAneurysm(dict(refinement_level=0, dt=dt, T=2.0))
     print problem.mesh
@@ -117,7 +117,7 @@ def main():
         T1 = problem.params.T
         fields = []
         
-        plot = True
+        plot = False
         
         # Basic fields
         fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
@@ -158,7 +158,7 @@ def main():
 
     postproc.add_fields(set_up_fields(problem))
     
-    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=10))
+    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=100))
     solver.solve()
     
 

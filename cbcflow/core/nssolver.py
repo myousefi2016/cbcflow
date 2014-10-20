@@ -16,13 +16,14 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-from cbcflow.dol import parameters, Mesh, MPI
+from cbcflow.dol import parameters, Mesh, MPI, mpi_comm_world
 from cbcflow.utils.common.utils import PressureConverter, VelocityConverter
 
 from time import time
 
 from cbcpost import ParamDict, Parameterized
-from cbcpost.utils import get_memory_usage, time_to_string, cbc_print, Timer
+from cbcpost.utils import get_memory_usage, cbc_print, Timer
+from cbcflow.utils.common.utils import time_to_string
 from cbcpost import Restart
 
 
@@ -97,7 +98,7 @@ class NSSolver(Parameterized):
                 self.timer.completed("set up restart")
             else:
                 # If no restart, remove any existing data coming from cbcflow
-                self.postprocessor._clean_casedir()
+                self.postprocessor.clean_casedir()
                 self.timer.completed("cleaned casedir")
             
             params = ParamDict(solver=self.params,
@@ -186,7 +187,7 @@ class NSSolver(Parameterized):
         fr = self.params.check_memory_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            cbc_print('Memory usage is: %s' % MPI.sum(get_memory_usage()))       
+            cbc_print('Memory usage is: %s' % MPI.sum(mpi_comm_world(), get_memory_usage()))       
 
     def update(self, u, p, t, timestep, spaces):
         """Callback from scheme.solve after each timestep to handle update of

@@ -38,7 +38,7 @@ class OSI(Field):
         params = self.params.copy_recursive()
         params["save"] = False
         params["plot"] = False
-        params["callback"] = False
+        #params["callback"] = False
         #params.pop("finalize")
 
         fields = []

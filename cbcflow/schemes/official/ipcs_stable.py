@@ -257,17 +257,20 @@ class IPCS_Stable(NSScheme):
             solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
             
         elif self.params.solver_u_corr == "WeightedGradient":
-            from fenicstools.WeightedGradient import compiled_gradient_module
-            DG = spaces.DQ0
-            CG1 = spaces.spacepool.get_space(1, 0)
-            C = assemble(u*v*dx())
-            G = assemble(TrialFunction(DG)*v*dx())
-            dPdX = []
-            dg = Function(DG)
-            for d in dims:
-                dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
-                compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
-                dPdX.append(C.copy())
+            #from fenicstools.WeightedGradient import compiled_gradient_module
+            from fenicstools.WeightedGradient import weighted_gradient_matrix
+            dPdX = weighted_gradient_matrix(mesh, dims, "CG", 1)
+            
+            #DG = spaces.DQ0
+            #CG1 = spaces.spacepool.get_space(1, 0)
+            #C = assemble(u*v*dx())
+            #G = assemble(TrialFunction(DG)*v*dx())
+            #dPdX = []
+            #dg = Function(DG)
+            #for d in dims:
+            #    dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
+            #    compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
+            #    dPdX.append(C.copy())
         
         timer.completed("create velocity correction solver")
 
@@ -290,11 +293,11 @@ class IPCS_Stable(NSScheme):
             # also stored in rhs. (And it's faster).
             if Kconv.size(0) == 0:
                 # First time, just assemble normally
-                assemble(a_conv, tensor=Kconv, reset_sparsity=True)
+                assemble(a_conv, tensor=Kconv)
             else:
                 # Subtract the convection for previous time step before re-assembling Kconv
                 A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
-                assemble(a_conv, tensor=Kconv, reset_sparsity=False)
+                assemble(a_conv, tensor=Kconv)
 
             # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
             # the axpy (it doesn't matter which)
