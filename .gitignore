@@ -3,3 +3,5 @@
 *.pvd
 *.py~
 *~
+cbcflow-data
+test/cbcflow-reference-data
