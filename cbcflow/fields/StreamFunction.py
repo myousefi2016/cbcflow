@@ -14,47 +14,40 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import (TrialFunction, TestFunction, dot, grad, DirichletBC,
                     DomainBoundary, dx, Constant, assemble, Vector, Function,
                     solve)
 
-from cbcpost import SpacePool
-
 class StreamFunction(Field):
     def before_first_compute(self, get):
         u = get("Velocity")
         assert len(u) == 2, "Can only compute stream function for 2D problems"
-        
-        spaces = SpacePool(u.function_space().mesh())
-        V = spaces.get_space(u.function_space().ufl_element().degree(), 0)
-        
+        V = u.function_space()
+        spaces = SpacePool(V.mesh())
+        degree = V.ufl_element().degree()
+        V = spaces.get_space(degree, 0)
+
         psi = TrialFunction(V)
         self.q = TestFunction(V)
         a = dot(grad(psi), grad(self.q))*dx()
-        
-        
+
         self.bc = DirichletBC(V, Constant(0), DomainBoundary())
         self.A = assemble(a)
         self.L = Vector()
         self.bc.apply(self.A)
         #self.solver = KrylovSolver(A, "cg")
         self.psi = Function(V)
-        
+
 
     def compute(self, get):
         u = get("Velocity")
         assemble(dot(u[1].dx(0)-u[0].dx(1), self.q)*dx(), tensor=self.L)
         self.bc.apply(self.L)
-        
+
         #self.solver.solve(self.psi.vector(), self.L)
         solve(self.A, self.psi.vector(), self.L)
-        
+
         return self.psi
-        
-        
-        
-        
-        
-        
-     

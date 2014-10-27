@@ -14,14 +14,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
-from dolfin import assemble, dx, sqrt, TestFunction, Function, Constant
+from dolfin import assemble, dx, sqrt, TestFunction, Function, Constant, CellVolume, Circumradius
 
 class LocalCfl(Field):
     def before_first_compute(self, get):
+        u = get("Velocity")
+        mesh = u.function_space().mesh()
+        spaces = SpacePool(mesh)
         DG0 = spaces.get_space(0, 0)
         self._v = TestFunction(DG0)
         self._cfl = Function(DG0)
+        self._hF = Circumradius(mesh)
+        self._hK = CellVolume(mesh)
 
     def compute(self, get):
         t1 = get("t")
@@ -29,11 +36,9 @@ class LocalCfl(Field):
         dt = Constant(t1 - t0)
         u = get("Velocity")
 
-        cell = problem.mesh.ufl_cell()
-        hF = cell.circumradius
-        hK = cell.volume
+        hF = self._hF
+        hK = self._hK
         scaling = 1.0 / hK
-
         assemble((dt * sqrt(u**2) / hF)*self._v*scaling*dx(),
                  tensor=self._cfl.vector())
 

@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import Function, FunctionAssigner, error
 from cbcflow.utils.core import NSSpacePoolMixed, NSSpacePoolSegregated
@@ -22,11 +24,11 @@ class Velocity(Field):
     #def convert(self, pp, spaces, problem):
     def convert_velocity(u, spaces):
         # Hack to get given u in whatever format it has,
-        # avoiding circular reference to this field      
+        # avoiding circular reference to this field
         #u = super(Velocity, self).convert(pp, spaces, problem)
         #if u == None:
         #    return None
-        
+
         d = spaces.d
 
         if not isinstance(u, Function):

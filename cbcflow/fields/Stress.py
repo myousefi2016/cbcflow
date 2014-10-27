@@ -14,22 +14,22 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from cbcpost import SpacePool, get_grad_space, Field
 from cbcflow.utils.common import sigma
 from cbcflow.core.nsproblem import NSProblem
 from dolfin import Function
-
 
 class Stress(Field):
     def __init__(self, problem, params=None, name="default", label=None):
         Field.__init__(self, params, name, label)
         assert isinstance(problem, NSProblem)
         self.problem = problem
-    
+
     def before_first_compute(self, get):
         u = get("Velocity")
         V = get_grad_space(u)
-        
+
         #spaces = SpacePool(u.function_space().mesh())
         #V = spaces.get_grad_space(u.function_space())
         #if self.params.expr2function == "assemble":

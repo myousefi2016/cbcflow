@@ -14,15 +14,20 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import grad, Function
 
 class PressureGradient(Field):
     def before_first_compute(self, get):
+        u = get("Velocity")
+        spaces = SpacePool(u.function_space().mesh())
+
         if self.params.expr2function == "assemble":
             V = spaces.get_space(0, 1)
         else:
-            V = spaces.DQ
+            V = spaces.DQ # FIXME
         self._function = Function(V, name=self.name)
 
     def compute(self, get):

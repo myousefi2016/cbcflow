@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import Function, FunctionAssigner
 from cbcflow.utils.core import NSSpacePoolMixed

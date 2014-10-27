@@ -6,7 +6,7 @@ from setuptools import setup
 # Version number
 major = 1
 minor = 3
-maintenance = 0
+maintenance = 9
 
 with open("README", 'r') as file:
     readme = file.read()
@@ -57,13 +57,10 @@ setup(name = "cbcflow",
                   "cbcflow.schemes.experimental",
                   "cbcflow.bcs",
                   "cbcflow.fields",
-                  #"cbcflow.fields.bases",
-                  "cbcflow.fields.basic",
                   "cbcflow.utils",
                   "cbcflow.utils.bcs",
                   "cbcflow.utils.common",
                   "cbcflow.utils.core",
-                  #"cbcflow.utils.fields",
                   "cbcflow.utils.schemes",
                   ],
       package_dir = {"cbcflow": "cbcflow"},

@@ -14,14 +14,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from cbcpost import Field
 from math import sqrt
-from dolfin import assemble
+from dolfin import assemble, dx
 
 class KineticEnergy(Field):
     def compute(self, get):
         u = get("Velocity")
-        dx = problem.dx
-        u_norms = [assemble(u[d]**2*dx()) for d in range(u.shape()[0])]
+
+        u_norms = [assemble(u[d]**2*dx) for d in range(u.shape()[0])]
         energy = sqrt(sum(u_norms[d] for d in range(u.shape()[0])))
         return energy

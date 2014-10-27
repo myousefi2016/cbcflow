@@ -14,6 +14,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
+from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import as_vector, Function
 
@@ -28,6 +30,9 @@ class AnalyticalVelocity(Field):
         return params
 
     def before_first_compute(self, get):
+        u = get("Velocity")
+        spaces = SpacePool(u.function_space().mesh())
+
         if self.params.expr2function == "assemble":
             degree = 0
         else:

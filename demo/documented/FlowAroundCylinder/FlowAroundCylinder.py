@@ -118,7 +118,20 @@ def main():
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
+        Strain(plot_and_save),
+        Stress(problem, plot_and_save),
+        WSS(problem, plot_and_save),
+        PhysicalPressure(plot_and_save),
+        PressureGradient(plot_and_save),
+        VelocityCurl(plot_and_save),
+        VelocityDivergence(plot_and_save),
         StreamFunction(plot_and_save),
+        Lambda2(plot_and_save),
+        Q(plot_and_save),
+        Delta(plot_and_save),
+        KineticEnergy(plot_and_save),
+        LocalCfl(plot_and_save),
+        OSI(problem, plot_and_save),
         ]
 
     # Add fields to postprocessor
