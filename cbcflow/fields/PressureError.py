@@ -22,14 +22,12 @@ class PressureError(Field):
     def default_params(cls):
         params = Field.default_params()
         params.replace(
-            assemble=False,
-            project=True,
-            interpolate=False,
+            expr2function="project", # "assemble" | "project" | "interpolate"
             )
         return params
 
     def before_first_compute(self, get):
-        if self.params.assemble:
+        if self.params.expr2function == "assemble":
             degree = 0
         else:
             degree = spaces.p_degree + 1 # TODO: Is +1 sufficient?

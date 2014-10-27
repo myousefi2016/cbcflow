@@ -20,18 +20,17 @@ from cbcpost import Field
 from dolfin import Function, grad
 
 class Lambda2(Field):
+
     @classmethod
     def default_params(cls):
         params = Field.default_params()
         params.replace(
-            assemble=False, # Change to this to use assemble into DG0 by default
-            project=True,
-            interpolate=False,
+            expr2function="project", # "assemble" | "project" | "interpolate"
             )
         return params
 
     def before_first_compute(self, get):
-        if self.params.assemble:
+        if self.params.expr2function == "assemble":
             V = spaces.get_space(0, 0)
         else:
             # Accurate degree is 2*(spaces.u_degree-1)

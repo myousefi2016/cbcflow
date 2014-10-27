@@ -19,7 +19,7 @@ from dolfin import grad, Function
 
 class PressureGradient(Field):
     def before_first_compute(self, get):
-        if self.params.assemble:
+        if self.params.expr2function == "assemble":
             V = spaces.get_space(0, 1)
         else:
             V = spaces.DQ

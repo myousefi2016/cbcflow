@@ -32,7 +32,7 @@ class Stress(Field):
         
         #spaces = SpacePool(u.function_space().mesh())
         #V = spaces.get_grad_space(u.function_space())
-        #if self.params.assemble:
+        #if self.params.expr2function == "assemble":
         #    V = spaces.get_space(0, 2)
         #else:
         #    V = spaces.DV

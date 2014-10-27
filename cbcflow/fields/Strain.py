@@ -19,7 +19,7 @@ from dolfin import Function, grad
 
 class Strain(Field):
     def before_first_compute(self, get):
-        if self.params.assemble:
+        if self.params.expr2function == "assemble":
             V = spaces.get_space(0, 2)
         else:
             V = spaces.DV
