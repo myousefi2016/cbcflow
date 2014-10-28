@@ -57,21 +57,14 @@ basic_fields = [
     "KinematicViscosity",
     "DynamicViscosity",
 
-    # Errors w.r.t. analytical solution if provided by problem:
-    "AnalyticalVelocity",
-    "AnalyticalPressure",
-    "VelocityError",
-    "PressureError",
-
     # Derived fields:
-    "VelocityGradient",
+    "PressureGradient",
     "VelocityCurl",
     "VelocityDivergence",
-    "StreamFunction",
-    "PressureGradient",
     "StrainRate",
     "Stress",
     "WSS",
+    "StreamFunction",
     "LocalCfl",
     "KineticEnergy",
     "Q",

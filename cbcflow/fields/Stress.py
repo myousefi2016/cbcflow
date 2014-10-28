@@ -15,22 +15,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import get_grad_space, get_avg_grad_space, Field
+from cbcpost import get_grad_space, Field
 from dolfin import Function, Constant, grad, Identity
 from cbcflow.fields.DynamicViscosity import DynamicViscosity
 
 class Stress(Field):
 
     def add_fields(self):
-        fields = []
-        fields.append(DynamicViscosity())
-        return fields
+        return [DynamicViscosity()]
 
     def before_first_compute(self, get):
         u = get("Velocity")
 
         if self.params.expr2function == "assemble":
-            V = get_avg_grad_space(u)
+            V = get_grad_space(u, family="DG", degree=0)
         else:
             V = get_grad_space(u)
 

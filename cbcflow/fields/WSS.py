@@ -27,9 +27,7 @@ from cbcflow.fields.DynamicViscosity import DynamicViscosity
 class WSS(Field):
 
     def add_fields(self):
-        fields = []
-        fields.append(DynamicViscosity())
-        return fields
+        return [DynamicViscosity()]
 
     def before_first_compute(self, get):
         u = get("Velocity")

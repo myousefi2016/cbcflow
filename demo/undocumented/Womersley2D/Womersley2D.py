@@ -189,6 +189,7 @@ def main():
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
+        KineticEnergy(plot_and_save),
         ]
     postproc = PostProcessor({"casedir": casedir})
     postproc.add_fields(fields)

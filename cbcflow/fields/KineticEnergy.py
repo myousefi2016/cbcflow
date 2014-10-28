@@ -15,14 +15,33 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import Field
-from math import sqrt
-from dolfin import assemble, dx
+from cbcpost import Field, SpacePool
+from dolfin import assemble, dx, Function, Constant
+from cbcflow.fields.Density import Density
 
 class KineticEnergy(Field):
+
+    def add_fields(self):
+        return [Density()]
+
+    def before_first_compute(self, get):
+        u = get("Velocity")
+        U = u.function_space()
+        spaces = SpacePool(U.mesh())
+
+        if self.params.expr2function == "assemble":
+            V = spaces.get_space(0, 0)
+        else:
+            V = spaces.get_space(2*U.ufl_element().degree(), 0)
+
+        self._function = Function(V, name=self.name)
+
     def compute(self, get):
         u = get("Velocity")
+        rho = get("Density")
+        if isinstance(rho, (float, int)):
+            rho = Constant(rho)
 
-        u_norms = [assemble(u[d]**2*dx) for d in range(u.shape()[0])]
-        energy = sqrt(sum(u_norms[d] for d in range(u.shape()[0])))
-        return energy
+        expr = 0.5*rho*u**2
+
+        return self.expr2function(expr, self._function)
