@@ -67,10 +67,10 @@ class WSS(Field):
 
         u = get("Velocity")
 
-        if isinstance(self.problem.params.mu, (float, int)):
-            mu = Constant(self.problem.params.mu)
-        else:
-            mu = self.problem.params.mu
+        # FIXME: Implement get("mu") instead
+        mu = self.problem.params.mu
+        if isinstance(mu, (float, int)):
+            mu = Constant(mu)
 
         T = -mu*dot((grad(u) + grad(u).T), n)
         Tn = dot(T, n)

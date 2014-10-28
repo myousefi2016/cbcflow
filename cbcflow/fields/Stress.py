@@ -18,7 +18,7 @@
 from cbcpost import SpacePool, get_grad_space, Field
 from cbcflow.utils.common import sigma
 from cbcflow.core.nsproblem import NSProblem
-from dolfin import Function
+from dolfin import Function, Constant
 
 class Stress(Field):
     def __init__(self, problem, params=None, name="default", label=None):
@@ -42,7 +42,11 @@ class Stress(Field):
     def compute(self, get):
         u = get("Velocity")
         p = get("Pressure")
+
+        # FIXME: Implement get("mu") instead
         mu = self.problem.params.mu
+        if isinstance(mu, (float, int)):
+            mu = Constant(mu)
 
         expr = sigma(u, p, mu)
         #u*epsilon(u) - p*Identity(u.cell().d) # TODO: is this with negative pressure?

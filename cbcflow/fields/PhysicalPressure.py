@@ -46,6 +46,12 @@ class PhysicalPressure(Field):
         # Get solver pressure
         p = get("Pressure")
 
+        # FIXME: Implement get("rho") instead
+        rho = self.problem.params.rho
+        if not isinstance(rho, (float, int)):
+            rho = float(rho)
+
+        # Copy p into _p
         if isinstance(p, Function):
             self._p.assign(p)
         else:
@@ -53,8 +59,7 @@ class PhysicalPressure(Field):
             #       (w = Function(V*Q); p = Indexed(w)):
             self._assigner.assign(self._p, p.operands()[0].sub(1))
 
-        # Scale by density
-        rho = self.problem.params.rho
+        # Scale _p by density
         pv = self._p.vector()
         pv *= rho
         return self._p
