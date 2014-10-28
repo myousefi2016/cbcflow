@@ -19,11 +19,17 @@ from dolfin import (TestFunction, Function,  FacetNormal,
                     Constant, dot, grad, ds, assemble, inner, dx,
                     TrialFunction, LinearSolver)
 
-from cbcpost import Field
-from cbcpost import SpacePool
+from cbcpost import Field, SpacePool
 from cbcpost.utils import mesh_to_boundarymesh_dofmap, cbc_warning
 
+from cbcflow.fields.DynamicViscosity import DynamicViscosity
+
 class WSS(Field):
+
+    def add_fields(self):
+        fields = []
+        fields.append(DynamicViscosity())
+        return fields
 
     def before_first_compute(self, get):
         u = get("Velocity")

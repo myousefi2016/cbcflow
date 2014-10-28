@@ -91,15 +91,15 @@ class FlowAroundCylinder(NSProblem):
         c0 = Constant(0)
         c1 = Constant(1)
 
-        # Create no-slip boundary condition for velocity
-        bcu0 = ([c0, c0], 0)
-        bcu1 = ([c1, c0], 1)
+        # Create inflow and no-slip boundary conditions for velocity
+        inflow = ([c1, c0], 1)
+        noslip = ([c0, c0], 0)
 
         # Create boundary conditions for pressure
         bcp0 = (c0, 2)
 
         # Collect and return
-        bcu = [bcu0, bcu1]
+        bcu = [inflow, noslip]
         bcp = [bcp0]
         return (bcu, bcp)
 
@@ -118,10 +118,6 @@ def main():
     save = dict(plot=False, save=True)
     silent = dict(plot=False, save=False)
     fields = [
-        Density(silent),
-        KinematicViscosity(silent),
-        DynamicViscosity(silent),
-
         Pressure(plot_and_save),
         Velocity(plot_and_save),
 
@@ -133,7 +129,7 @@ def main():
         StrainRate(save),
         Stress(save),
         WSS(plot_and_save),
-        #OSI(plot_and_save),
+        #OSI(plot_and_save), # FIXME: Doesn't work!
 
         LocalCfl(plot_and_save),
         StreamFunction(plot_and_save),

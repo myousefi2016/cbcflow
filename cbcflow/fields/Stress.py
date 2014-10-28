@@ -17,8 +17,15 @@
 
 from cbcpost import get_grad_space, get_avg_grad_space, Field
 from dolfin import Function, Constant, grad, Identity
+from cbcflow.fields.DynamicViscosity import DynamicViscosity
 
 class Stress(Field):
+
+    def add_fields(self):
+        fields = []
+        fields.append(DynamicViscosity())
+        return fields
+
     def before_first_compute(self, get):
         u = get("Velocity")
 
