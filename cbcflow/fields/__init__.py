@@ -23,19 +23,19 @@ This is useful when handling dependencies for a postprocessing field: ::
     class DummyField(Field):
         def __init__(self, field_dep):
             self.field_dep = field_dep
-    
+
         def compute(self, get):
             val = get(field_dep)
             return val/2.0
-    
+
 If a postprocessing field depends only on basic fields to be calculated, the
 dependencies will be implicitly added to the postprocessor "on the fly" from
 the name alone: ::
-    
+
     field = DummyField("ABasicField")
     pp = NSPostProcessor()
     pp.add_field(field) # Implicitly adds ABasicField object
-            
+
 For non-basic dependencies, the dependencies have to be explicitly added *before*
 the field depending on it: ::
 
@@ -52,6 +52,11 @@ basic_fields = [
     "Velocity",
     "Pressure",
 
+    # The basic problem parameters:
+    "Density",
+    "KinematicViscosity",
+    "DynamicViscosity",
+
     # Errors w.r.t. analytical solution if provided by problem:
     "AnalyticalVelocity",
     "AnalyticalPressure",
@@ -64,14 +69,13 @@ basic_fields = [
     "VelocityDivergence",
     "StreamFunction",
     "PressureGradient",
-    "Strain",
+    "StrainRate",
     "Stress",
     "WSS",
     "LocalCfl",
     "KineticEnergy",
     "Q",
     "Delta",
-    "Lambda2",
     "OSI",
     ]
 

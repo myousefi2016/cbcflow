@@ -23,20 +23,15 @@ from cbcpost import Field
 from cbcpost import SpacePool
 from cbcpost.utils import mesh_to_boundarymesh_dofmap, cbc_warning
 
-from cbcflow.core.nsproblem import NSProblem
-
 class WSS(Field):
-    def __init__(self, problem, params=None, name="default", label=None):
-        Field.__init__(self, params, name, label)
-        assert isinstance(problem, NSProblem)
-        self.problem = problem
 
     def before_first_compute(self, get):
-        #boundary = spaces.BoundaryMesh #BoundaryMesh(problem.mesh, "exterior") # TODO: Move construction to spaces?
         u = get("Velocity")
         V = u.function_space()
+
         spaces = SpacePool(V.mesh())
         degree = V.ufl_element().degree()
+
         if degree <= 2:
             Q = spaces.get_grad_space(V, shape=(spaces.d,))
         else:
@@ -63,15 +58,12 @@ class WSS(Field):
         self._n = FacetNormal(V.mesh())
 
     def compute(self, get):
-        n = self._n
-
         u = get("Velocity")
-
-        # FIXME: Implement get("mu") instead
-        mu = self.problem.params.mu
+        mu = get("DynamicViscosity")
         if isinstance(mu, (float, int)):
             mu = Constant(mu)
 
+        n = self._n
         T = -mu*dot((grad(u) + grad(u).T), n)
         Tn = dot(T, n)
         Tt = T - Tn*n
@@ -79,7 +71,7 @@ class WSS(Field):
         tau_form = dot(self.v, Tt)*ds()
         assemble(tau_form, tensor=self.tau.vector())
 
-        self.b[self._keys] = self.tau.vector()[self._values]
+        self.b[self._keys] = self.tau.vector()[self._values] # FIXME: This is not safe!!!
 
         # Ensure proper scaling
         self.solver.solve(self.tau_boundary.vector(), self.b)

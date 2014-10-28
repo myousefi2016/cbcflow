@@ -15,40 +15,27 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import SpacePool, get_grad_space, Field
-from cbcflow.utils.common import sigma
-from cbcflow.core.nsproblem import NSProblem
-from dolfin import Function, Constant
+from cbcpost import get_grad_space, get_avg_grad_space, Field
+from dolfin import Function, Constant, grad, Identity
 
 class Stress(Field):
-    def __init__(self, problem, params=None, name="default", label=None):
-        Field.__init__(self, params, name, label)
-        assert isinstance(problem, NSProblem)
-        self.problem = problem
-
     def before_first_compute(self, get):
         u = get("Velocity")
-        V = get_grad_space(u)
 
-        #spaces = SpacePool(u.function_space().mesh())
-        #V = spaces.get_grad_space(u.function_space())
-        #if self.params.expr2function == "assemble":
-        #    V = spaces.get_space(0, 2)
-        #else:
-        #    V = spaces.DV
+        if self.params.expr2function == "assemble":
+            V = get_avg_grad_space(u)
+        else:
+            V = get_grad_space(u)
 
         self._function = Function(V, name=self.name)
 
     def compute(self, get):
         u = get("Velocity")
         p = get("Pressure")
-
-        # FIXME: Implement get("mu") instead
-        mu = self.problem.params.mu
+        mu = get("DynamicViscosity")
         if isinstance(mu, (float, int)):
             mu = Constant(mu)
 
-        expr = sigma(u, p, mu)
-        #u*epsilon(u) - p*Identity(u.cell().d) # TODO: is this with negative pressure?
+        expr = mu*(grad(u) + grad(u).T) - p*Identity(len(u))
 
         return self.expr2function(expr, self._function)

@@ -124,12 +124,12 @@ def main():
         fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
     
         # On boundary
-        fields.append(WSS(problem, dict(plot=plot, save=True, start_time=0)))
+        fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
         fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
         
         # Time-integrated fields
         fields.append(TimeIntegral("WSS", dict(save=True, start_time=T0, end_time=T1)))
-        fields.append(OSI(problem, dict(save=True, start_time=T0, end_time=T1)))
+        fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
         
         # SubFunctions and Restrictions
         from cbcpost.utils import create_submesh, Slice

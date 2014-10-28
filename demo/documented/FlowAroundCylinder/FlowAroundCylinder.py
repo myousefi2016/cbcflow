@@ -116,22 +116,29 @@ def main():
     # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
     save = dict(plot=False, save=True)
+    silent = dict(plot=False, save=False)
     fields = [
+        Density(silent),
+        KinematicViscosity(silent),
+        DynamicViscosity(silent),
+
         Pressure(plot_and_save),
         Velocity(plot_and_save),
-        Strain(save),
-        Stress(problem, save),
-        WSS(problem, plot_and_save),
+
         PressureGradient(plot_and_save),
         VelocityCurl(plot_and_save),
         VelocityDivergence(plot_and_save),
+        KineticEnergy(plot_and_save),
+
+        StrainRate(save),
+        Stress(save),
+        WSS(plot_and_save),
+        #OSI(plot_and_save),
+
+        LocalCfl(plot_and_save),
         StreamFunction(plot_and_save),
-        Lambda2(plot_and_save),
         Q(plot_and_save),
         Delta(plot_and_save),
-        KineticEnergy(plot_and_save),
-        LocalCfl(plot_and_save),
-        #OSI(problem, plot_and_save),
         ]
 
     # Add fields to postprocessor
