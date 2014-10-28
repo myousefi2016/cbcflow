@@ -36,7 +36,7 @@ class Mock(object):
 # No need to actually import these, just avoid import errors when using sphinx autodoc/autoclass/autmodule
 MOCK_MODULES = ['dolfin', 'ufl', 'cbcflow.dol', 'numpy', 'scipy', 'scipy.interpolate',
                 'scipy.integrate', 'scipy.special', 'matplotlib', 'matplotlib.pyplot',
-                'scipy.spatial', 'scipy.spatial.ckdtree']
+                'scipy.spatial', 'scipy.spatial.ckdtree', 'cbcpost', 'cbcpost.utils']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
