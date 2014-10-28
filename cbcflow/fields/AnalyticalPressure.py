@@ -39,6 +39,7 @@ class AnalyticalPressure(Field):
         else:
             degree = Q.ufl_element().degree() + 1 # TODO: Is +1 sufficient?
         V = spaces.get_space(degree, 0)
+
         self._function = Function(V, name=self.name)
 
     def compute(self, get):

@@ -15,8 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import SpacePool
-from cbcpost import Field
+from cbcpost import Field, SpacePool
 from dolfin import Function, grad, Constant
 
 class Q(Field):
@@ -30,14 +29,19 @@ class Q(Field):
 
     def before_first_compute(self, get):
         u = get("Velocity")
-        spaces = SpacePool(u.function_space().mesh())
+        U = u.function_space()
+        spaces = SpacePool(U.mesh())
 
         if self.params.expr2function == "assemble":
-            V = spaces.get_space(0, 0)
-        else:
-            # Accurate degree is 2*(spaces.u_degree-1)
+            degree = 0
+        elif True:
             degree = 1
-            V = spaces.get_space(degree, 0)
+        else:
+            # TODO: Use accurate degree? Plotting will be projected to CG1 anyway...
+            degree = 2 * (U.ufl_element().degree() - 1)
+
+        V = spaces.get_space(degree, 0)
+
         self._function = Function(V, name=self.name)
 
     def compute(self, get):
@@ -45,6 +49,6 @@ class Q(Field):
 
         S = (grad(u) + grad(u).T)/2
         Omega = (grad(u) - grad(u).T)/2
-        expr = Constant(0.5) * (Omega**2 - S**2)
+        expr = 0.5*(Omega**2 - S**2)
 
         return self.expr2function(expr, self._function)

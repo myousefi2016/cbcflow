@@ -31,12 +31,15 @@ class PressureError(Field):
     def before_first_compute(self, get):
         p = get("Pressure")
         Q = p.function_space()
+
         spaces = SpacePool(Q.mesh())
         if self.params.expr2function == "assemble":
             degree = 0
         else:
             degree = Q.ufl_element().degree() + 1 # TODO: Is +1 sufficient?
+
         V = spaces.get_space(degree, 0)
+
         self._function = Function(V, name=self.name)
 
     def compute(self, get):

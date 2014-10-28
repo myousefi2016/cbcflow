@@ -30,10 +30,10 @@ from cbcpost import Restart
 class NSSolver(Parameterized):
     """High level Navier-Stokes solver. This handles all logic between the cbcflow
     components.
-    
+
     For full functionality, the user should instantiate this class with a NSProblem
     instance, NSScheme instance and NSPostProcessor instance.
-    
+
     """
     def __init__(self, problem, scheme=None, postprocessor=None, params=None):
         Parameterized.__init__(self, params)
@@ -41,7 +41,7 @@ class NSSolver(Parameterized):
         self.problem = problem
         self.scheme = scheme
         self.postprocessor = postprocessor
-        
+
         self.velocity_converter = VelocityConverter()
         self.pressure_converter = PressureConverter()
 
@@ -55,15 +55,15 @@ class NSSolver(Parameterized):
           - restart: bool, turn restart mode on or off
           - restart_time: float, time to search for restart data
           - restart_timestep: int, timestep to search for restart data
-          
+
           If restart=True, maximum one of restart_time and restart_timestep can be set.
-          
+
         """
         # TODO: Insert generic nssolver params here
         params = ParamDict(
             debug=False,
             check_memory_frequency=0,
-            restart = False, 
+            restart = False,
             restart_time = -1.0,
             restart_timestep = -1,
             enable_annotation=False,
@@ -73,26 +73,26 @@ class NSSolver(Parameterized):
 
     def solve(self):
         """ Handles top level logic related to solve.
-        
+
         Cleans casedir or loads restart data, stores parameters and mesh in
         casedir, calls scheme.solve, and lets postprocessor finalize all
         fields.
-        
+
         Returns: namespace dict returned from scheme.solve
         """
         params = ParamDict(solver=self.params,
                            problem=self.problem.params,
                            scheme=self.scheme.params)
-        
-        
+
+
         self.timer = Timer(self.params.timer_frequency)
         self.timer._N = -1
-        
+
         self._reset()
-        
+
         if self.postprocessor != None:
             self.postprocessor._timer = self.timer
-        
+
             if self.params.restart:
                 Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
                 self.timer.completed("set up restart")
@@ -100,7 +100,7 @@ class NSSolver(Parameterized):
                 # If no restart, remove any existing data coming from cbcflow
                 self.postprocessor.clean_casedir()
                 self.timer.completed("cleaned casedir")
-            
+
             params = ParamDict(solver=self.params,
                                problem=self.problem.params,
                                scheme=self.scheme.params,
@@ -109,18 +109,18 @@ class NSSolver(Parameterized):
             assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
             self.postprocessor.store_mesh(self.problem.mesh)
             self.timer.completed("stored mesh")
-            
+
         # FIXME: Pick other details to reuse from old ns script, here or other places
 
         scheme_namespace = self.scheme.solve(self.problem, self.update, self.timer)
 
         spaces = scheme_namespace["spaces"]
-        
+
         if self.postprocessor != None:
             self.postprocessor.finalize_all()
 
         self._summarize()
-        
+
         return scheme_namespace
 
     def _reset(self):
@@ -187,13 +187,13 @@ class NSSolver(Parameterized):
         fr = self.params.check_memory_frequency
         if fr > 0 and timestep % fr == 0:
             # TODO: Report to file separately for each process
-            cbc_print('Memory usage is: %s' % MPI.sum(mpi_comm_world(), get_memory_usage()))       
+            cbc_print('Memory usage is: %s' % MPI.sum(mpi_comm_world(), get_memory_usage()))
 
     def update(self, u, p, t, timestep, spaces):
         """Callback from scheme.solve after each timestep to handle update of
         postprocessor, timings, memory etc."""
         self.timer.completed("completed solve")
-        
+
         # Do not run this if restarted from this timestep
         if self.params.restart and timestep==self.problem.params.start_timestep:
             return
@@ -207,14 +207,21 @@ class NSSolver(Parameterized):
 
         # Run postprocessor
         if self.postprocessor:
-            self.postprocessor.update_all({"Velocity": lambda: self.velocity_converter(u, spaces),
-                                           "Pressure": lambda: self.pressure_converter(p, spaces)},
-                                            t, timestep)
+            fields = {}
+            # Add solution fields
+            fields["Velocity"] = lambda: self.velocity_converter(u, spaces)
+            fields["Pressure"] = lambda: self.pressure_converter(p, spaces)
+            # Add physical problem parameters
+            fields["Density"] = lambda: self.problem.params.rho # .density()
+            fields["KinematicViscosity"] = lambda: self.problem.params.mu / self.problem.params.rho # .kinematic_viscosity()
+            fields["DynamicViscosity"] = lambda: self.problem.params.mu # .dynamic_viscosity()
+            # Trigger postprocessor update
+            self.postprocessor.update_all(fields, t, timestep)
         self.timer.completed("postprocessor update")
 
         # Check memory usage
         self._update_memory(timestep)
-        
+
         # Update timing data
         self.timer.increment()
         self._update_timing(timestep, t, time_at_top)
@@ -222,3 +229,7 @@ class NSSolver(Parameterized):
         # Enable dolfin-adjoint annotation before getting back to solve
         if self.params.enable_annotation:
             parameters["adjoint"]["stop_annotating"] = False
+
+    def minimize(self):
+        """Solve control problem minimizing the problem cost functional."""
+        pass # FIXME!

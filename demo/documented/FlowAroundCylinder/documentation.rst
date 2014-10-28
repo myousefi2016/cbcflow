@@ -35,15 +35,15 @@ of the domain is specified as: ::
     class LeftBoundary(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and near(x[0], 0.0)
-    
+
     class RightBoundary(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and near(x[0], 10.0)
-    
+
     class Cylinder(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and (sqrt((x[0]-2.0)**2+(x[1]-0.5)**2) < 0.12+DOLFIN_EPS)
-    
+
     class Wall(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and (near(x[1], 0.0) or near(x[1], 1.0))
@@ -57,7 +57,7 @@ To define a problem class recognized by cbcflow, the class must inherit from
 .. code-block:: python
 
     class FlowAroundCylinder(NSProblem):
-    
+
 Parameters
 --------------------------------------
 This class inherit from the :class:`.Parameterized` class,
@@ -80,7 +80,7 @@ the problem: ::
             refinement_level=0,
             )
         return params
-        
+
 This takes the default parameters from NSProblem and replaces some parameters common
 for all NSProblems. We set the end time to 5.0 with a timestep of 0.1, the density
 :math:`\rho=1.0` and dynamic viscosity :math:`\mu=0.001`. In addition, we add
@@ -94,7 +94,7 @@ geometry: ::
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        
+
         # Load mesh
         mesh = Mesh(files[self.params.refinement_level])
 
@@ -108,7 +108,7 @@ geometry: ::
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
-        
+
 The first call to NSProblem.__init__ updates the default parameters with any parameters
 passed to the constructor as a dict or
 :class:`.ParamDict`. This sets params as an
@@ -126,7 +126,7 @@ These initial conditions are prescribed by ::
         u0 = [c0, c0]
         p0 = c0
         return (u0, p0)
-        
+
 The argument *spaces* is a :class:`.NSSpacePool`
 helper object used to construct and contain the common function spaces related
 to the Navier-Stokes solution. This is used to limit the memory consumption and
@@ -150,33 +150,35 @@ To determine domain to apply boundary condition, we utilize the definition of
         c0 = Constant(0)
         c1 = Constant(1)
 
-        # Create no-slip boundary condition for velocity
-        bcu0 = ([c0, c0], 0)
-        bcu1 = ([c1, c0], 1)
+        # Create inflow and no-slip boundary conditions for velocity
+        inflow = ([c1, c0], 1)
+        noslip = ([c0, c0], 0)
 
         # Create boundary conditions for pressure
         bcp0 = (c0, 2)
 
         # Collect and return
-        bcu = [bcu1, bcu2]
+        bcu = [inflow, noslip]
         bcp = [bcp0]
         return (bcu, bcp)
 
 The way these boundary conditions are applied to the equations are determined by
-the scheme used to solve the equation.
+the scheme used to solve the equation. Note that the ordering of the
+boundary conditions in the lists bcu and bcp matters, in this case
+setting noslip last ensures the velocity is zero in the inflow corner.
 
 Setting up the solver
 _____________________________________
 
 Now that our *FlowAroundCylinder*-class is sufficiently defined, we can start
-thinking about solving our equations. We start by creating an instance of 
+thinking about solving our equations. We start by creating an instance of
 *FlowAroundCylinder* class: ::
 
     problem = FlowAroundCylinder({"refinement_level": 2})
 
 Note that we can pass a dict to the constructor to set, in this example, the
 desired refinement level of our mesh.
-    
+
 Selecting a scheme
 --------------------------------------
 Several schemes are implemented in cbcflow, but only a couple are properly tested
@@ -229,10 +231,10 @@ on the type of data. You can use ::
 to see common parameters of these fields.
 
 Finally, we need to add these fields to the postprocessor: ::
-   
+
     postprocessor.add_fields(fields)
-    
-    
+
+
 Solving the problem
 ----------------------------------------
 We now have instances of the classes
@@ -249,6 +251,3 @@ This class has functionality to pass the solution from scheme on to the postproc
 report progress to screen and so on. To solve the problem, simply execute ::
 
     solver.solve()
-
-    
-

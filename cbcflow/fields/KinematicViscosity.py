@@ -15,26 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import SpacePool
-from cbcpost import Field
-from dolfin import Function, grad
+from cbcpost import SolutionField
 
-class Strain(Field):
-    def before_first_compute(self, get):
-        u = get("Velocity")
-        spaces = SpacePool(u.function_space().mesh())
-
-        if self.params.expr2function == "assemble":
-            V = spaces.get_space(0, 2)
-        else:
-            V = spaces.DV # FIXME
-
-        self._function = Function(V, name=self.name)
-
-    def compute(self, get):
-        u = get("Velocity")
-        Du = grad(u)
-
-        expr = 0.5*(Du + Du.T)
-
-        return self.expr2function(expr, self._function)
+class KinematicViscosity(SolutionField):
+    def __init__(self, params=None, label=None):
+        SolutionField.__init__(self, "KinematicViscosity", params, label)
