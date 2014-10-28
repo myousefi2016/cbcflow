@@ -122,7 +122,6 @@ def main():
         Strain(save),
         Stress(problem, save),
         WSS(problem, plot_and_save),
-        PhysicalPressure(problem, plot_and_save),
         PressureGradient(plot_and_save),
         VelocityCurl(plot_and_save),
         VelocityDivergence(plot_and_save),

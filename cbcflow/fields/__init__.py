@@ -51,7 +51,6 @@ basic_fields = [
     # The basic solution fields:
     "Velocity",
     "Pressure",
-    "PhysicalPressure",
 
     # Errors w.r.t. analytical solution if provided by problem:
     "AnalyticalVelocity",

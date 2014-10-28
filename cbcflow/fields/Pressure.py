@@ -15,32 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcpost import SpacePool
-from cbcpost import Field
-from dolfin import Function, FunctionAssigner
-from cbcflow.utils.core import NSSpacePoolMixed
+from cbcpost import SolutionField
 
-class Pressure(Field):
-    def convert(self, pp, spaces, problem):
-        # Hack to get given p in whatever format it has
-        p = super(Pressure, self).convert(pp, spaces, problem)
-        if p == None:
-            return None
-
-        if not isinstance(p, Function):
-            if not hasattr(self, "_p"):
-                self._p = Function(spaces.Q)
-                assert isinstance(spaces, NSSpacePoolMixed)
-                self._assigner = FunctionAssigner(spaces.Q, spaces.W.sub(1))
-
-            # Hack: p is a Indexed(Coefficient()),
-            # get the underlying mixed function
-            w = p.operands()[0]
-            self._assigner.assign(self._p, w.sub(1))
-
-            p = self._p
-
-        assert isinstance(p, Function)
-        return p
-
-SolverPressure = Pressure
+class Pressure(SolutionField):
+    def __init__(self, params=None, label=None):
+        SolutionField.__init__(self, "Pressure", params, label)
