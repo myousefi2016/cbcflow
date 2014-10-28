@@ -63,7 +63,7 @@ class NSProblem(Parameterized):
 
           - mu: float, kinematic viscosity
           - rho: float, mass density
-            
+
         Space discretization parameters:
 
           - mesh_file: str, filename to load mesh from (if any)
@@ -79,7 +79,7 @@ class NSProblem(Parameterized):
             dt=None,
             T0=0.0,
             T=None,
-            period=None, 
+            period=None,
             num_periods=None,
 
             # Spatial discretization parameters:
@@ -115,16 +115,16 @@ class NSProblem(Parameterized):
                 self.cell_domains = MeshFunction("size_t", mesh, dim, domains)
 
         # Attach domains to measures for convenience
-        self.ds = ufl.ds if self.facet_domains is None else ufl.ds[self.facet_domains]
-        self.dS = ufl.dS if self.facet_domains is None else ufl.dS[self.facet_domains]
-        self.dx = ufl.dx if self.cell_domains  is None else ufl.dx[self.cell_domains]
+        self.ds = ufl.Measure("ds", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dS = ufl.Measure("dS", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dx = ufl.Measure("dx", domain=self.mesh, subdomain_data=self.cell_domains)
 
     def observations(self, spaces, t):
         """Return observations of velocity for optimization problem.
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
-        
+
         TODO: Document expected observations behaviour here.
         """
         return []
@@ -134,20 +134,42 @@ class NSProblem(Parameterized):
 
         Optimization problem support is currently experimental.
         Can be ignored for non-control problems.
-        
+
         TODO: Document expected controls behaviour here.
         """
         return []
 
+    def __cost_functionals(self, spaces, t): # TODO: Enable and use this
+        """Return cost functionals for optimization problem.
+
+        Optimization problem support is currently experimental.
+        Can be ignored for non-control problems.
+
+        TODO: Document expected cost functionals behaviour here.
+        """
+        return []
+
+    def __kinematic_viscosity(self, controls): # TODO: Enable and use this
+        """Return the kinematic viscosity nu=mu/rho."""
+        return Constant(self.params.mu / self.params.rho)
+
+    def __dynamic_viscosity(self, controls): # TODO: Enable and use this
+        """Return the dynamic viscosity mu."""
+        return Constant(self.params.mu)
+
+    def __density(self, controls): # TODO: Enable and use this
+        """Return the density rho."""
+        return Constant(self.params.rho)
+
     def initial_conditions(self, spaces, controls):
         """Return initial conditions.
-        
+
         The initial conditions should be specified as follows: ::
             # Return u=(x,y,0) and p=0 as initial conditions
             u0 = [Expression("x[0]"), Expression("x[1]"), Constant(0)]
             p0 = Constant(0)
             return u0, p0
-            
+
         Note that the velocity is specified as a list of scalars instead of
         vector expressions.
 
@@ -162,64 +184,66 @@ class NSProblem(Parameterized):
 
         Boundary conditions should . The boundary conditions
         can be specified as follows: ::
-            
+
             # Specify u=(0,0,0) on mesh domain 0 and u=(x,y,z) on mesh domain 1
             bcu = [
                 ([Constant(0), Constant(0), Constant(0)], 0),
                 ([Expression("x[0]"), Expression("x[1]"), Expression("x[2]")], 1)
                 ]
-            
+
             # Specify p=x^2+y^2 on mesh domain 2 and p=0 on mesh domain 3
             bcp = [
                 (Expression("x[0]*x[0]+x[1]*x[1]"), 2),
                 (Constant(0), 3)
             ]
-            
+
             return bcu, bcp
-        
+
         Note that the velocity is specified as a list of scalars instead of
         vector expressions.
-        
+
         For schemes applying Dirichlet boundary conditions, the domain
         argument(s) are parsed to DirichletBC and can be specified in a matter
         that matches the signature of this class.
-        
+
         This function must be overridden py subclass.
-        
+
         Returns: a tuple with boundary conditions for velocity and pressure
-        
+
         """
         raise NotImplementedError("boundary_conditions must be overridden in subclass")
 
     def body_force(self, spaces, t):
         """ Return body force, defaults to 0.
-        
+
         If not overridden by subclass this function will return zero.
-        
+
         Returns: list of scalars.
         """
         d = self.mesh.geometry().dim()
         c0 = Constant(0.0)
         return [c0]*d
 
-    def update(self, spaces, u, p, t, timestep, boundary_conditions, observations=None, controls=None): # TODO: Add body_force here
+    # TODO: Add body_force and cost_functionals here
+    def update(self, spaces, u, p, t, timestep, boundary_conditions,
+               observations=None, controls=None):
         """Update functions previously returned to new timestep.
 
         This function is called before computing the solution at a new timestep.
 
         The arguments boundary_conditions, observations, controls should be the
         exact lists of objects returned by boundary_conditions, observations, controls.
-        
+
         Typical usage of this function would be to update time-dependent boundary
         conditions: ::
-            
+
             bcu, bcp = boundary_conditions
             for bc, _ in bcu:
                 bc.t = t
-            
+
             for bc, _ in bcp:
                 bc.t = t
-                
+
         returns None
 
         """
@@ -259,4 +283,3 @@ class NSProblem(Parameterized):
         Returns: list of reference values.
         """
         return []
-    
