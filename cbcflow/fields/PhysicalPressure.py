@@ -18,33 +18,43 @@
 from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import Function, FunctionAssigner
-from cbcflow.utils.core import NSSpacePoolMixed
+from cbcflow import NSProblem
 
 class PhysicalPressure(Field):
     "The physical pressure is the solver pressure scaled by density."
+    def __init__(self, problem, params=None, name="default", label=None):
+        Field.__init__(self, params, name, label)
+        assert isinstance(problem, NSProblem)
+        self.problem = problem
+
+    def before_first_compute(self, get):
+        p = get("Pressure")
+
+        if isinstance(p, Function):
+            Q = p.function_space()
+        else:
+            # p is part of a mixed function w=(u,p)
+            w = p.operands()[0]
+            W = w.function_space()
+            W1 = W.sub(1)
+            Q = W1.collapse() # TODO: This creates a new function space
+            self._assigner = FunctionAssigner(Q, W1)
+
+        self._p = Function(Q)
+
     def compute(self, get):
         # Get solver pressure
         p = get("Pressure")
 
-        if not hasattr(self, "_p"):
-            self._p = Function(spaces.Q)
-
         if isinstance(p, Function):
             self._p.assign(p)
         else:
-            assert isinstance(spaces, NSSpacePoolMixed)
-            if not hasattr(self, "_assigner"):
-                self._assigner = FunctionAssigner(spaces.Q, spaces.W.sub(1))
-            # Hack: p is a Indexed(Coefficient()),
-            # get the underlying mixed function
-            w = p.operands()[0]
-            self._assigner.assign(self._p, w.sub(1))
+            # Hack: get the underlying subfunction from mixed function w
+            #       (w = Function(V*Q); p = Indexed(w)):
+            self._assigner.assign(self._p, p.operands()[0].sub(1))
 
         # Scale by density
-        rho = problem.params.rho
+        rho = self.problem.params.rho
         pv = self._p.vector()
         pv *= rho
-        p = self._p
-
-        assert isinstance(p, Function)
-        return p
+        return self._p
