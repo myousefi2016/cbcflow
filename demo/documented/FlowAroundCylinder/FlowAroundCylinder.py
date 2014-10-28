@@ -115,13 +115,14 @@ def main():
 
     # Creating fields to plot and save
     plot_and_save = dict(plot=True, save=True)
+    save = dict(plot=False, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
-        Strain(plot_and_save),
-        Stress(problem, plot_and_save),
+        Strain(save),
+        Stress(problem, save),
         WSS(problem, plot_and_save),
-        PhysicalPressure(plot_and_save),
+        PhysicalPressure(problem, plot_and_save),
         PressureGradient(plot_and_save),
         VelocityCurl(plot_and_save),
         VelocityDivergence(plot_and_save),
