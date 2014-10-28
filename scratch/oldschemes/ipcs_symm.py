@@ -137,7 +137,7 @@ class IPCS_symm(NSScheme):
             # Assemble the u0-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because it is stored in
             # rhs. (And it's faster).
-            assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
+            assemble(a_conv, tensor=Kconv)
             timer.completed("assemble a_conv")
 
             # Compute tentative velocity step

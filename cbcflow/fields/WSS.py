@@ -77,7 +77,7 @@ class WSS(Field):
         Tt = T - Tn*n
 
         tau_form = dot(self.v, Tt)*ds()
-        assemble(tau_form, tensor=self.tau.vector(), reset_sparsity=False)
+        assemble(tau_form, tensor=self.tau.vector())
 
         self.b[self._keys] = self.tau.vector()[self._values]
 

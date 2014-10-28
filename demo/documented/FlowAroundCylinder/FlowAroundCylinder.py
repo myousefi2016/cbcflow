@@ -132,7 +132,7 @@ def main():
         Delta(plot_and_save),
         KineticEnergy(plot_and_save),
         LocalCfl(plot_and_save),
-        OSI(problem, plot_and_save),
+        #OSI(problem, plot_and_save),
         ]
 
     # Add fields to postprocessor

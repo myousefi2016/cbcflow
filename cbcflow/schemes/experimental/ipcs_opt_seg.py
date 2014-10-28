@@ -183,7 +183,7 @@ class SegregatedIPCS_Optimized(NSScheme):
 
             # Assemble the u0-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because it is stored in rhs.
-            assemble(a_conv, tensor=Kconv, reset_sparsity=(Kconv.size(0)==0))
+            assemble(a_conv, tensor=Kconv)
             timer.completed("u0 reassemble convection matrix")
 
             # Compute tentative velocity step

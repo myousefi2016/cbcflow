@@ -159,7 +159,7 @@ class CoupledNonLinear(NSScheme):
                 for bc in bcu: bc.apply(b)
 
                 # Reassemble convection term
-                assemble(a2, tensor=A2, reset_sparsity=False)
+                assemble(a2, tensor=A2)
 
                 # Compute matrix from linear and nonlinear terms
                 A.assign(A1+A2)

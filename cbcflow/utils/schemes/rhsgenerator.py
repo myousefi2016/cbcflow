@@ -85,7 +85,7 @@ class RhsGenerator(object):
         for vec in self.vecs:
             b += vec
         if self.form:
-            assemble(self.form, tensor=b, add_values=True, reset_sparsity=False)
+            assemble(self.form, tensor=b, add_values=True)
         for bc in self._wrap_in_list(bcs, "bcs", DirichletBC):
             bc.apply(b)
         if symmetric_mod:
