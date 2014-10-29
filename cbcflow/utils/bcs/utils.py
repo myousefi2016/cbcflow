@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from cbcflow.dol import (SubsetIterator, MPI, ds, assemble, Constant, sqrt,
                          FacetNormal, as_vector, mpi_comm_world, SpatialCoordinate)
 import numpy as np
@@ -45,9 +46,9 @@ def compute_radius(mesh, facet_domains, ind, center):
 def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
     # Some convenient variables
     assert facet_domains is not None
-    dsi = ds[facet_domains](ind, domain=mesh)
-    cell = mesh.ufl_cell()
-    d = cell.geometric_dimension()
+    dsi = ds(ind, domain=mesh, subdomain_data=facet_domains)
+
+    d = mesh.geometry().dim()
     x = SpatialCoordinate(mesh)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
@@ -73,15 +74,15 @@ def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
 def compute_area(mesh, ind, facet_domains):
     # Some convenient variables
     assert facet_domains is not None
-    dsi = ds[facet_domains](ind, domain=mesh)
+    dsi = ds(ind, domain=mesh, subdomain_data=facet_domains)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
-    A = assemble(Constant(1.0)*dsi, mesh=mesh)
+    A = assemble(Constant(1.0)*dsi)
     assert A > 0.0, "Expecting positive area, probably mismatch between mesh and markers!"
     return A
 
 def compute_transient_scale_value(bc, period, mesh, facet_domains, ind, scale_value):
-    dsi = ds[facet_domains](ind, domain=mesh)
+    dsi = ds(ind, domain=mesh, subdomain_data=facet_domains)
     form = sqrt(as_vector(bc)**2) * dsi
 
     N = 100

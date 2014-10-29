@@ -14,12 +14,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.schemes import compute_regular_timesteps,assign_ics_mixed, make_velocity_bcs, make_rhs_pressure_bcs
 from cbcflow.utils.core import NSSpacePoolMixed
+from cbcflow.utils.schemes import compute_regular_timesteps
+from cbcflow.utils.schemes import assign_ics_mixed
+from cbcflow.utils.schemes import make_velocity_bcs, make_rhs_pressure_bcs
 
 
 class CoupledPicard(NSScheme):
@@ -124,6 +126,10 @@ class CoupledPicard(NSScheme):
                 - p*div(v)*dx() - q*div(u)*dx()
                 )
             L = (1.0/k)*dot(u0, v)*dx() + dot(f, v)*dx() + Lbc
+
+        # Add weak bc terms
+        # FIXME
+
         # Build residual form from a, L
         F = action(a, up1) - L
 
@@ -134,14 +140,14 @@ class CoupledPicard(NSScheme):
 
         # Turn on the noise
         if self.params.verbose:
-            solver.parameters["lu_solver"]["report"] = True
-            solver.parameters["lu_solver"]["verbose"] = True
+            #solver.parameters["lu_solver"]["report"] = True
+            #solver.parameters["lu_solver"]["verbose"] = True
             solver.parameters["newton_solver"]["report"] = True
 
         # Speed up solvers with reuse
         if self.params.reuse_lu_data:
-            solver.parameters["lu_solver"]["reuse_factorization"] = True
-            solver.parameters["lu_solver"]["same_nonzero_pattern"] = True
+            #solver.parameters["lu_solver"]["reuse_factorization"] = True
+            #solver.parameters["lu_solver"]["same_nonzero_pattern"] = True
             solver.parameters["reset_jacobian"] = False
 
         # Define stricter stopping criteria for "newton" (actually fixed point) solver

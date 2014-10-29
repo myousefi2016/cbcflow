@@ -16,9 +16,14 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 
-# TODO: Get rid of these or at least not import from here
-from cbcflow.utils.schemes import epsilon, sigma
+# --- Maths ---
 
-def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
-    "Check if boundary conditions are periodic."
-    return False # FIXME: all(isinstance(bc, PeriodicBC) for bc in bcs)
+from ufl import grad, Identity
+
+def epsilon(u):
+    "Return symmetric gradient."
+    return 0.5*(grad(u) + grad(u).T)
+
+def sigma(u, p, mu):
+    "Return stress tensor."
+    return 2.0*mu*epsilon(u) - p*Identity(len(u))

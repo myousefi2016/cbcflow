@@ -16,15 +16,15 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-from cbcflow.dol import parameters, Mesh, MPI, mpi_comm_world
-from cbcflow.utils.common.utils import PressureConverter, VelocityConverter
-
 from time import time
 
 from cbcpost import ParamDict, Parameterized
-from cbcpost.utils import get_memory_usage, cbc_print, Timer
-from cbcflow.utils.common.utils import time_to_string
+from cbcpost.utils import get_memory_usage, cbc_print, Timer, time_to_string
 from cbcpost import Restart
+
+from cbcflow.dol import parameters, Mesh, MPI, mpi_comm_world
+
+from cbcflow.fields.converters import VelocityConverter, PressureConverter
 
 
 class NSSolver(Parameterized):
