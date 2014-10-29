@@ -16,15 +16,15 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import epsilon, sigma, is_periodic
+
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_rhs_pressure_bcs)
+                                   make_rhs_pressure_bcs,
+                                   epsilon, sigma)
 from cbcflow.utils.core import NSSpacePoolSplit
 
 from time import time

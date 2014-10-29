@@ -17,11 +17,11 @@
 r"""
 This incremental pressure correction scheme (IPCS) is an operator splitting scheme that
 follows the idea of Goda [1]_.
-This scheme preserves the exact same stability properties 
+This scheme preserves the exact same stability properties
 as Navier-Stokes and hence does not introduce additional dissipation in the flow.
 
-The idea is to replace the unknown pressure with an approximation. This is chosen as 
-the pressure solution from the previous solution. 
+The idea is to replace the unknown pressure with an approximation. This is chosen as
+the pressure solution from the previous solution.
 
 The time discretization is done using backward Euler, the diffusion term is handled with Crank-Nicholson, and the convection is handled explicitly, making the
 equations completely linear. Thus, we have a discretized version of the Navier-Stokes equations as
@@ -37,24 +37,24 @@ For the operator splitting, we use the pressure solution from the previous times
 
 This tenative velocity is not divergence free, and thus we define a velocity correction :math:`u^c=u^{n+1}-\tilde{u}^{n+1}`. Substracting the second equation from the first, we see that
 
-.. math:: 
+.. math::
     \frac{1}{\Delta t}u^c-\frac{1}{2}\nabla\cdot\nu\nabla u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
     \nabla \cdot u^c = -\nabla \cdot \tilde{u}^{n+1}.
 
 The operator splitting is a first order approximation, :math:`O(\Delta t)`, so we can, without reducing the order of the approximation simplify the above to
 
-.. math:: 
+.. math::
     \frac{1}{\Delta t}u^c+\frac{1}{\rho}\nabla\left( p^{n+1} - p^n\right)=0, \\
     \nabla \cdot u^c = -\nabla \cdot \tilde{u}^{n+1},
 
 which is reducible to a Poisson problem:
 
-.. math:: 
+.. math::
    \Delta p^{n+1} = \Delta p^n+\frac{\rho}{\Delta t}\nabla \cdot \tilde{u}^{n+1}.
 
 The corrected velocity is then easily calculated from
 
-.. math:: 
+.. math::
     u^{n+1} = \tilde{u}^{n+1}-\frac{\Delta t}{\rho}\nabla\left(p^{n+1}-p^n\right)
 
 The scheme can be summarized in the following steps:
@@ -72,15 +72,14 @@ The scheme can be summarized in the following steps:
 
 from __future__ import division
 
-
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import epsilon, sigma, is_periodic
-from cbcflow.utils.schemes import (compute_regular_timesteps,
-                                         assign_ics_split,
-                                         make_velocity_bcs,
-                                         make_pressure_bcs,
-                                         make_penalty_pressure_bcs)
+from cbcflow.utils.schemes import (epsilon, sigma,
+                                   compute_regular_timesteps,
+                                   assign_ics_split,
+                                   make_velocity_bcs,
+                                   make_pressure_bcs,
+                                   make_penalty_pressure_bcs,
+                                   is_periodic)
 from cbcflow.utils.core import NSSpacePoolSplit
 
 
@@ -111,7 +110,7 @@ class IPCS(NSScheme):
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
         t = Time(t0=timesteps[start_timestep])
-        
+
         # Define function spaces
         spaces = NSSpacePoolSplit(mesh, self.params.u_degree, self.params.p_degree)
         V = spaces.V
@@ -197,7 +196,7 @@ class IPCS(NSScheme):
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
-            
+
             # Scale to solver pressure
             p0.vector()[:] *= 1.0/rho
 
@@ -237,7 +236,7 @@ class IPCS(NSScheme):
             # Rotate functions for next timestep
             u0.assign(u1)
             p0.assign(p1)
-            
+
             # Scale to physical pressure
             p0.vector()[:] *= rho
 

@@ -19,6 +19,10 @@ from __future__ import division
 
 from cbcflow.dol import FacetNormal, DirichletBC, Constant, dot, Dn
 
+def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
+    "Check if boundary conditions are periodic."
+    return False # FIXME: all(isinstance(bc, PeriodicBC) for bc in bcs)
+
 # --- Boundary condition helper functions for schemes
 
 def _domainargs(problem, D):

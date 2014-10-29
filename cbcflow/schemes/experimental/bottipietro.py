@@ -16,14 +16,13 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import is_periodic
 from cbcflow.utils.schemes import (compute_regular_timesteps,
-                                         assign_ics_split,
-                                         make_velocity_bcs,
-                                         make_pressure_bcs,
-                                         make_penalty_pressure_bcs)
+                                   assign_ics_split,
+                                   make_velocity_bcs,
+                                   make_pressure_bcs,
+                                   make_penalty_pressure_bcs,
+                                   is_periodic)
 from cbcflow.utils.core import NSSpacePoolSplit
 
 

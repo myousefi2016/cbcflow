@@ -16,15 +16,16 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
 
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.common import is_periodic, epsilon
+
 from cbcflow.utils.schemes import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_penalty_pressure_bcs)
+                                   make_penalty_pressure_bcs,
+                                   is_periodic)
+
 from cbcflow.utils.core import NSSpacePoolSegregated
 
 class SegregatedIPCS_Optimized(NSScheme):
