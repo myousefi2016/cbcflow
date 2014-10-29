@@ -45,7 +45,7 @@ class Womersley3D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            refinement_level=0,
+            refinement_level=2,
             # Analytical solution parameters
             Q=1.0,
             )
@@ -53,7 +53,7 @@ class Womersley3D(NSProblem):
 
     def __init__(self, params=None):
         NSProblem.__init__(self, params)
-        
+
         # Load mesh
         mesh = Mesh(files[self.params.refinement_level])
         #mesh = Mesh(self.params.mesh_filename)
@@ -62,13 +62,13 @@ class Womersley3D(NSProblem):
         self.wall_boundary_id = 0
         self.left_boundary_id = 1
         self.right_boundary_id = 2
-        
+
         facet_domains = FacetFunction("size_t", mesh)
         facet_domains.set_all(3)
         DomainBoundary().mark(facet_domains, self.wall_boundary_id)
         Inflow().mark(facet_domains, self.left_boundary_id)
         Outflow().mark(facet_domains, self.right_boundary_id)
-        
+
          # Setup analytical solution constants
         Q = self.params.Q
         self.nu = self.params.mu / self.params.rho
@@ -101,11 +101,11 @@ class Womersley3D(NSProblem):
         pa = Expression("-beta * x[0]", beta=1.0)
         pa.beta = self.beta # TODO: This is not correct unless stationary...
         return (ua, pa)
-    
-    
+
+
     def test_fields(self):
         return [Velocity(), Pressure()]
-    
+
     def test_references(self, spaces, t):
         return self.analytical_solution(spaces, t)
 
@@ -147,10 +147,10 @@ class Womersley3D(NSProblem):
 
 
 def main():
-    problem = Womersley3D({"refinement_level": 0})
+    problem = Womersley3D({"refinement_level": 2})
     scheme = IPCS_Stable()
 
-    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    casedir = "results_demo_%s_%s_%d" % (problem.shortname(), scheme.shortname(), problem.params.refinement_level)
     plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
