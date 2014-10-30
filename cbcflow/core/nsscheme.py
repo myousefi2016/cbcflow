@@ -14,11 +14,12 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
 from cbcflow.dol import *
-from cbcpost import ParamDict, Parameterized
 
+from cbcpost import ParamDict, Parameterized
 
 class NSScheme(Parameterized):
     """Base class for all Navier-Stokes schemes.
@@ -52,5 +53,5 @@ class NSScheme(Parameterized):
         return params
 
     def solve(self, problem, update):
-        "Solve Navier-Stokes problem by executing scheme."
+        """Solve Navier-Stokes problem by executing scheme."""
         raise NotImplementedError("Scheme must implement solve method!")

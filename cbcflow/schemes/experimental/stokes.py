@@ -14,16 +14,16 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
-
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.schemes import (compute_regular_timesteps,
-                                      assign_ics_mixed,
-                                      make_velocity_bcs,
-                                      make_rhs_pressure_bcs)
-from cbcflow.utils.core import NSSpacePoolMixed
 
+from cbcflow.schemes.utils import (compute_regular_timesteps,
+                                   assign_ics_mixed,
+                                   make_velocity_bcs,
+                                   make_rhs_pressure_bcs,
+                                   NSSpacePoolMixed)
 
 class Stokes(NSScheme):
     "Coupled solver for the transient Stokes problem."

@@ -73,14 +73,15 @@ The scheme can be summarized in the following steps:
 from __future__ import division
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.schemes import (epsilon, sigma,
+
+from cbcflow.schemes.utils import (epsilon, sigma,
                                    compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
                                    make_penalty_pressure_bcs,
-                                   is_periodic)
-from cbcflow.utils.core import NSSpacePoolSplit
+                                   is_periodic,
+                                   NSSpacePoolSplit)
 
 
 class IPCS(NSScheme):

@@ -1,7 +1,7 @@
 from cbcflow import *
 from cbcflow.dol import *
 
-#from cbcflow.core.spaces import NSSpacePool
+#from cbcflow.schemes.utils import NSSpacePool
 
 set_log_level(100)
 parameters["allow_extrapolation"] = True
@@ -18,7 +18,7 @@ class Scheme(NSScheme):
             p = Function(Q, "pressure%d.xml.gz" %i)
             u = Function(V, "velocity%d.xml.gz" %i)
             update(u, p, i*0.1, i, spaces)
-            
+
         return {"spaces": spaces}
 
 
@@ -27,7 +27,7 @@ mesh = Mesh("dog_mesh_37k.xml.gz")
 problem = NSProblem({"T": 10.0})
 problem.mesh = mesh
 problem.params.mu = 1.0
-    
+
 V = FunctionSpace(mesh, "CG", 1)
 
 # "Random" points

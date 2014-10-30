@@ -14,30 +14,18 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.utils.schemes import (RhsGenerator,
+from cbcflow.schemes.utils import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_penalty_pressure_bcs)
-from cbcflow.utils.core import NSSpacePoolSegregated
-
-from dolfin import *
-#from os import getpid, path, makedirs, getcwd
-import os
-from commands import getoutput
-import time as tme
-from numpy import ceil
-
-#####################################################################
-#from solverbase import *
-
-#master=MPI.process_number()==0
-#parameters["std_out_all_processes"] = False;
+                                   make_penalty_pressure_bcs,
+                                   NSSpacePoolSegregated)
 
 class IPCS_ABI_CN(NSScheme):
     def __init__(self, params=None):

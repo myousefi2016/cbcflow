@@ -18,11 +18,11 @@
 from __future__ import division
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.core import NSSpacePoolMixed
-from cbcflow.utils.schemes import compute_regular_timesteps
-from cbcflow.utils.schemes import assign_ics_mixed
-from cbcflow.utils.schemes import make_velocity_bcs, make_rhs_pressure_bcs
 
+from cbcflow.schemes.utils import (compute_regular_timesteps,
+                                   assign_ics_mixed,
+                                   make_velocity_bcs, make_rhs_pressure_bcs,
+                                   NSSpacePoolMixed)
 
 class CoupledPicard(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
@@ -160,7 +160,7 @@ class CoupledPicard(NSScheme):
         update(u0, p0, float(t), start_timestep, spaces)
 
         # Loop over fixed timesteps
-        for timestep in xrange(start_timestep+1,len(timesteps)):
+        for timestep in xrange(start_timestep+1, len(timesteps)):
             assign_time(t, timesteps[timestep])
 
             # Update various functions

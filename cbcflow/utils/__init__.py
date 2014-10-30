@@ -14,5 +14,10 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+"""Utility functions used by the core modules. """
 
-"""A collection of internal utilities."""
+from show import show_problem
+
+__all__ = [k for k,v in globals().items()
+           if hasattr(v, "__module__")
+           and __package__ in v.__module__]

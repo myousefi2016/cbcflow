@@ -14,17 +14,18 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
 from cbcflow.core.nsscheme import *
-from cbcflow.utils.schemes import (compute_regular_timesteps,
+
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
                                    make_penalty_pressure_bcs,
-                                   epsilon, sigma, is_periodic)
-from cbcflow.utils.core import NSSpacePoolSplit
-
+                                   epsilon, sigma, is_periodic,
+                                   NSSpacePoolSplit)
 
 class PISO(NSScheme):
     "PISO, Issa 1985, implemented according to algorithm in Versteeg and Malalasekera"

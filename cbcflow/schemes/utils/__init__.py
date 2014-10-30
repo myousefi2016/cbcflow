@@ -14,10 +14,15 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-"""Utility functions used by the core modules. """
 
-from spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit
-from show import show_problem
+"""Utility functions and classes shared between scheme implementations."""
+
+from .mechanics import *
+from .ics import *
+from .bcs import *
+from .timestepping import *
+from .rhsgenerator import RhsGenerator
+from .spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit
 
 __all__ = [k for k,v in globals().items()
            if hasattr(v, "__module__")

@@ -1,7 +1,7 @@
 #!/usr/bin/env py.test
 
 from dolfin import UnitSquareMesh
-from cbcflow.utils.core import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
+from cbcflow.schemes.utils import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSplit, NSSpacePoolSegregated
 
 def test_nsspacepool_named_spaces():
     mesh = UnitSquareMesh(4,4)

@@ -4,7 +4,7 @@ Tests of timestepping utilities.
 """
 
 from cbcflow import NSProblem
-from cbcflow.utils.schemes import compute_regular_timesteps
+from cbcflow.schemes.utils import compute_regular_timesteps
 #from cbcflow.core.adaptivetimestepping import AdaptiveTimestepping
 
 class MockProblem(NSProblem):

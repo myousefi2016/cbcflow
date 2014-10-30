@@ -14,17 +14,18 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
+
 from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.utils.schemes import (compute_regular_timesteps,
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
                                    make_rhs_pressure_bcs,
-                                   epsilon)
-from cbcflow.utils.core import NSSpacePoolSplit
+                                   epsilon,
+                                   NSSpacePoolSplit)
 
 from time import time
 
@@ -180,10 +181,9 @@ class Yosida(NSScheme):
         for timestep in xrange(start_timestep+1,len(timesteps)):
             assign_time(t, timesteps[timestep])
 
-            t0 = time()
             # Update various functions
+            t0 = time()
             problem.update(spaces, u1, p0, t, timestep, bcs, observations, controls)
-
             t1 = time()
             print "Time spent updating: ", t1-t0
 

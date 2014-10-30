@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 from dolfin import Function, FunctionAssigner
-from cbcflow.utils.core.spaces import NSSpacePoolMixed, NSSpacePoolSegregated
+from cbcflow.schemes.utils import NSSpacePoolMixed, NSSpacePoolSegregated
 
 class PressureConverter():
     def __call__(self, p, spaces):

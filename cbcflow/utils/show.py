@@ -16,7 +16,7 @@
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
 import dolfin
-from cbcflow.utils.core import NSSpacePoolSplit
+from cbcflow.schemes.utils import NSSpacePoolSplit
 from cbcflow.dol import Function, plot, Constant, as_vector
 
 def animate_expression(f, name, V, t, timesteps):

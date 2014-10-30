@@ -14,29 +14,22 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-r"""This is the base module of cbcflow.
+
+"""This is the base module of cbcflow.
 
 To use cbcflow, do::
 
     from cbcflow import *
 """
 
-__version__ = "1.3.0"
-
-# Basic utilities
-#from cbcflow.core.paramdict import ParamDict
+__version__ = "1.3.9"
 
 # Core component interfaces
 from cbcflow.core.nsproblem import NSProblem
-#from cbcflow.core.nspostprocessor import NSPostProcessor
 from cbcflow.core.nsscheme import NSScheme
 from cbcflow.core.nssolver import NSSolver
-#from cbcflow.core.nsreplay import NSReplay
 
-# Problem inspection utilities
-from cbcflow.utils.core.show import show_problem
-
-# Boundary condition utilities
+# Boundary condition utilities for problem setup
 from cbcflow.bcs import *
 
 # Postprocessing utilities and fields
@@ -45,5 +38,5 @@ from cbcflow.fields import *
 # Navier-Stokes solver schemes
 from cbcflow.schemes import *
 
-# This is too broad:
-#from cbcflow.utils import *
+# Problem inspection utilities
+#from cbcflow.utils.show import show_problem

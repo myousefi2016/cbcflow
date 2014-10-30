@@ -53,15 +53,14 @@ from cbcpost.utils import cbc_log
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.utils.schemes import (RhsGenerator,
+from cbcflow.schemes.utils import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_segregated,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
                                    make_penalty_pressure_bcs,
+                                   NSSpacePoolSegregated,
                                    is_periodic)
-from cbcflow.utils.core import NSSpacePoolSegregated
-
 
 class ModifiedCross:
     def __init__(self, mesh, problem, spaces):

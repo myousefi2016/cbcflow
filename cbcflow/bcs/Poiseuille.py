@@ -19,7 +19,8 @@ from cbcflow.dol import Expression, Mesh, MeshFunction
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from cbcflow.utils.bcs import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
+
+from cbcflow.bcs.utils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
 
 class PoiseuilleComponent(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
