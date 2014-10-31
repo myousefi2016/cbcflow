@@ -198,7 +198,7 @@ def main():
     problem = Womersley2D(
         ParamDict(
             dt=1e-3,
-            T=0.8,
+            T=0.2,#8,
             num_periods=None,
             refinement_level=2,
             )
@@ -208,16 +208,17 @@ def main():
         ParamDict(
             nietche=ParamDict(
                 enable=True,
-                symmetrize=True,
-                stabilize=False,
-                gamma=100.0,
+                formulation=1,
+                stabilize=True,
+                gamma=1000.0,
                 ),
             scale_by_dt=True,
-            enable_convection=True,
+            enable_convection=True, # False = Stokes
             )
         )
     params_string = "__".join("{}_{}".format(k, scheme.params.nietche[k]) for k in scheme.params.nietche)
-    casedir = "results_demo_%s_%s_%s" % (problem.shortname(), scheme.shortname(), params_string)
+    equation = "NavierStokes" if scheme.params.enable_convection else "Stokes"
+    casedir = "results_demo_%s_%s_%s_%s" % (problem.shortname(), scheme.shortname(), equation, params_string)
     plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),

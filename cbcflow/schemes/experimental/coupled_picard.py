@@ -47,9 +47,10 @@ class CoupledPicard(NSScheme):
             )
         nietche = ParamDict(
             enable=False,
-            symmetrize=True,
-            stabilize=False,
-            gamma=10.0,
+            #symmetric=True,
+            formulation=1,
+            stabilize=True,
+            gamma=1000.0,
             )
         params.update(
             # Default to P2-P1 (Taylor-Hood)
@@ -137,7 +138,7 @@ class CoupledPicard(NSScheme):
 
             # Define Nitche discretization constants
             gamma = Constant(self.params.nietche.gamma, name="gamma")
-            hE = MaxFacetEdgeLength(mesh)
+            hE = MinFacetEdgeLength(mesh)
 
             # Collect Nietche terms for each subboundary
             for g, region in bcu_nietche:
@@ -148,13 +149,19 @@ class CoupledPicard(NSScheme):
                 abc += dot(p*n - nu*Dn(u), v)*dsr
 
                 # Add Nietche terms
-                if self.params.nietche.symmetrize:
+                # (all these formulations seem to work well _with_ stabilization but fail miserably without)
+                s = self.params.nietche.formulation
+                if s == 0:
+                    pass
+                elif s == 1:
                     abc += dot(u, q*n - nu*Dn(v))*dsr
                     Lbc += dot(g, q*n - nu*Dn(v))*dsr
-                else:
-                    # This is unstable!
-                    abc += dot(u, - nu*Dn(v))*dsr
-                    Lbc += dot(g, - nu*Dn(v))*dsr
+                elif s == 2:
+                    abc += -dot(u, q*n - nu*Dn(v))*dsr
+                    Lbc += -dot(g, q*n - nu*Dn(v))*dsr
+                elif s == 3:
+                    abc += -dot(u, -nu*Dn(v))*dsr
+                    Lbc += -dot(g, -nu*Dn(v))*dsr
 
                 # Add Nietche stabilization terms
                 if self.params.nietche.stabilize:
@@ -169,9 +176,9 @@ class CoupledPicard(NSScheme):
 
         # Create Dirichlet boundary terms for velocity where it should be applied strongly
         # Note that this implies v = 0 and thus (p*n - nu*Dn(u)) . v = 0 on the same regions.
-        bcu = [DirichletBC(spaces.Ubc[i], function, problem.facet_domains, region)
-               for functions, region in bcu_strong
-               for i, function in enumerate(functions)]
+        bc_strong = [DirichletBC(spaces.Ubc[i], function, problem.facet_domains, region)
+                     for functions, region in bcu_strong
+                     for i, function in enumerate(functions)]
 
         # Add pressure boundary terms (should not overlap with velocity bc regions)
         # Note that this implies (p*n - nu*Dn(u)) = function*n, i.e. Dn(u) = 0.
@@ -195,7 +202,7 @@ class CoupledPicard(NSScheme):
         F = action(a, up1) - L
 
         # Create solver
-        picard_problem = NonlinearVariationalProblem(F, up1, bcu, J=a,
+        picard_problem = NonlinearVariationalProblem(F, up1, bc_strong, J=a,
                                                      form_compiler_parameters=self.params.form_compiler_parameters)
         solver = NonlinearVariationalSolver(picard_problem)
 
