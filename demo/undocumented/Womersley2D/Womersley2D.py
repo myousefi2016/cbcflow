@@ -48,7 +48,7 @@ class Womersley2D(NSProblem):
         Left().mark(facet_domains, self.left_boundary_id)
         Right().mark(facet_domains, self.right_boundary_id)
 
-         # Setup analytical solution constants
+        # Setup analytical solution constants
         Q = self.params.Q
         self.nu = self.params.mu / self.params.rho
 
@@ -107,7 +107,6 @@ class Womersley2D(NSProblem):
             )
         params.update(
             # Spatial parameters
-            #N=32,
             refinement_level=2,
             # Analytical solution parameters
             Q=1.0,

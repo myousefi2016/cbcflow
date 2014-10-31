@@ -17,7 +17,7 @@ class Right(SubDomain):
     def inside(self, x, on_boundary):
         return x[0] > LENGTH*(1.0 - DOLFIN_EPS)
 
-class Poiseuille2D(NSProblem):
+class Womersley2D(NSProblem):
     "2D pipe test problem with known stationary analytical solution."
 
     def __init__(self, params=None):
@@ -50,26 +50,41 @@ class Poiseuille2D(NSProblem):
 
         # Setup analytical solution constants
         Q = self.params.Q
-        nu = self.params.mu / self.params.rho
+        self.nu = self.params.mu / self.params.rho
         self.alpha = 2.0 * Q / (pi * RADIUS**4)
-        self.beta = 2.0 * nu * self.alpha
+        self.beta = 2.0 * self.nu * self.alpha
 
-        # Toggle to test using Poiseuille-shaped bcs with transient flow rate
-        if 1:
-            #print "Using stationary bcs. Analytical solution should hold."
-            #print "Expected peak velocity:", self.alpha * RADIUS**2
-            #print "Expected total pressure drop:", self.beta * LENGTH
+        # Toggle between constant and transient flow rate
+        if 0:
             self.Q_coeffs = [(0.0, Q), (1.0, Q)]
         else:
-            print "Using transient bcs. Analytical solution will not hold."
             T = self.params.T
             P = self.params.period
             tvalues = np.linspace(0.0, P)
-            Qvalues = Q * (0.3 + 0.7*np.sin(pi*((P-tvalues)/P)**2)**2)
+            Qfloor = 0.25
+            Qpeak = 1.0
+            Qvalues = Q * (Qfloor + (Qpeak-Qfloor)*np.sin(pi*np.mod((P-tvalues)/P, P)**3)**2)
             self.Q_coeffs = zip(tvalues, Qvalues)
 
         # Store mesh and markers
         self.initialize_geometry(mesh, facet_domains=facet_domains)
+
+        # To be able to compare womersley profiles based on midpoint velocity and flow rate,
+        # we here sample the flow rate based womersley profile in the midpoints to get
+        # matching midpoint velocity coefficients
+        if self.params.coeffstype == "V":
+            # Build midpoint velocity coefficients from evaluating flow rate based womersley profile
+            ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains, "Q",
+                                    num_fourier_coefficients=self.params.num_womersley_coefficients)
+            ua = ua[0]
+            V_coeffs = []
+            x = ua.center
+            value = np.zeros((1,))
+            for t,Q in self.Q_coeffs:
+                ua.set_t(t)
+                ua.eval(value, x)
+                V_coeffs.append((float(t), float(value[0])))
+            self.Q_coeffs = V_coeffs
 
     @classmethod
     def default_params(cls):
@@ -79,20 +94,34 @@ class Poiseuille2D(NSProblem):
             T=None,
             dt=1e-2,
             period=0.8,
-            num_periods=0.1,
+            num_periods=1.0,
             # Physical parameters
-            rho = 10.0,
+            rho = 1.0,
             mu=1.0/30.0,
             )
         params.update(
             # Spatial parameters
-            refinement_level=0,
+            refinement_level=2,
             # Analytical solution parameters
             Q=1.0,
+            coeffstype="Q",
+            num_womersley_coefficients=25,
             )
         return params
 
-    def analytical_solution(self, spaces, t):
+    def womersley_solution(self, spaces, t):
+        # Create womersley objects
+        ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains,
+                                self.params.coeffstype, num_fourier_coefficients=self.params.num_womersley_coefficients)
+        #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
+        for uc in ua:
+            uc.set_t(t)
+
+        pa = Expression("-beta * x[0]", beta=1.0)
+        pa.beta = self.beta # TODO: This is not correct unless stationary...
+        return (ua, pa)
+
+    def __poiseuille_solution(self, spaces, t):
         A = 2*RADIUS
         Q = self.params.Q
         mu = self.params.mu
@@ -118,7 +147,7 @@ class Poiseuille2D(NSProblem):
         return []
 
     def initial_conditions(self, spaces, controls):
-        return self.analytical_solution(spaces, 0.0)
+        return self.womersley_solution(spaces, 0.0)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Create no-slip bcs
@@ -126,8 +155,9 @@ class Poiseuille2D(NSProblem):
         u0 = [Constant(0.0) for i in range(d)]
         noslip = (u0, self.wall_boundary_id, "strong")
 
-        # Create Poiseuille inflow bcs
-        uin = make_poiseuille_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.params.Q, self.facet_domains)
+        # Create Womersley inflow bcs
+        ua, pa = self.womersley_solution(spaces, t)
+        uin = ua
         for ucomp in uin:
             ucomp.set_t(t)
         inflow = (uin, self.left_boundary_id, "nietche")
@@ -136,15 +166,15 @@ class Poiseuille2D(NSProblem):
         outflow = (Constant(0.0), self.right_boundary_id, "natural")
 
         # Return bcs in two lists
-        bcu = [noslip, inflow]
+        bcu = [inflow, noslip]
         bcp = [outflow]
         return (bcu, bcp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
-        # TODO: Drop this
+        # TODO: Drop this for optimization run
         # Update time in boundary condition expressions
         bcu, bcp = bcs
-        noslip, inflow = bcu
+        inflow, noslip = bcu
         uin = inflow[0]
         for ucomp in uin:
             ucomp.set_t(t)
@@ -165,12 +195,12 @@ class Poiseuille2D(NSProblem):
 def main():
     set_log_level(100)
 
-    problem = Poiseuille2D(
+    problem = Womersley2D(
         ParamDict(
             dt=1e-3,
-            T=1e-2,
+            T=0.8,
             num_periods=None,
-            refinement_level=1,
+            refinement_level=2,
             )
         )
 
@@ -180,18 +210,19 @@ def main():
                 enable=True,
                 symmetrize=True,
                 stabilize=False,
-                gamma=10.0,
+                gamma=100.0,
                 ),
             scale_by_dt=True,
             enable_convection=True,
             )
         )
-
-    casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
+    params_string = "__".join("{}_{}".format(k, scheme.params.nietche[k]) for k in scheme.params.nietche)
+    casedir = "results_demo_%s_%s_%s" % (problem.shortname(), scheme.shortname(), params_string)
     plot_and_save = dict(plot=True, save=True)
     fields = [
         Pressure(plot_and_save),
         Velocity(plot_and_save),
+        LocalCfl(plot_and_save),
         ]
     postproc = PostProcessor({"casedir": casedir})
     postproc.add_fields(fields)
