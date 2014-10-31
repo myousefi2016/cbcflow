@@ -19,10 +19,16 @@ from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.schemes.utils import (compute_regular_timesteps,
-                                   assign_ics_mixed,
-                                   make_velocity_bcs, make_rhs_pressure_bcs,
-                                   NSSpacePoolMixed)
+from cbcflow.schemes.utils import (
+    # Time
+    compute_regular_timesteps,
+    # Spaces
+    NSSpacePoolMixed,
+    # ICs
+    assign_ics_mixed,
+    # BCs
+    # ... implemented inline below for now
+    )
 
 class CoupledPicard(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
@@ -39,17 +45,30 @@ class CoupledPicard(NSScheme):
             cpp_optimize_flags="-O2", #"-O3 -march=native -fno-math-errno",
             quadrature_degree="auto",
             )
+        nietche = ParamDict(
+            enable=False,
+            symmetrize=True,
+            stabilize=False,
+            gamma=10.0,
+            )
         params.update(
             # Default to P2-P1 (Taylor-Hood)
-            u_degree = 2,
-            p_degree = 1,
+            u_degree=2,
+            p_degree=1,
 
+            # Choice of equation formulation
+            scale_by_dt=True,
+            enable_convection=True, # False for Stokes
+
+            # Boundary condition method
+            nietche=nietche,
+
+            # Nonlinear solver parameters
             picard_tolerance=1e-13,
             picard_max_iterations=20,
             picard_error_on_nonconvergence=False,
 
-            equation=1,
-
+            # Various parameters for optimizing run time
             reuse_lu_data=True,
             verbose=False,
             form_compiler_parameters=fc,
@@ -84,51 +103,93 @@ class CoupledPicard(NSScheme):
         # Get problem specific functions
         observations = problem.observations(spaces, t)
         controls = problem.controls(spaces)
+        cost_functionals = problem.cost_functionals(spaces, t, observations, controls)
         ics = problem.initial_conditions(spaces, controls)
         bcs = problem.boundary_conditions(spaces, u0, p0, t, controls)
-
-        # Apply initial conditions and use it as initial guess
-        assign_ics_mixed(up0, spaces, ics)
-        up1.assign(up0)
-
-        # Make scheme-specific representation of bcs
-        bcu = make_velocity_bcs(problem, spaces, bcs)
-        Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Problem parameters
         nu = Constant(problem.params.mu/problem.params.rho, name="nu")
         k  = Constant(dt, name="dt")
         f  = as_vector(problem.body_force(spaces, t))
 
-        # Picard linearization of Navier-Stokes, F = a*u - L = 0
-        eqchoice = self.params.equation
-        if eqchoice == 1:
-            # Not scaled by k
-            a = (
-                dot((1.0/k)*u + (grad(u)*u1), v)*dx()
-                + nu*inner(grad(u), grad(v))*dx()
-                - p*div(v)*dx() - q*div(u)*dx()
-                )
-            L = dot((1.0/k)*u0 + f, v)*dx() + Lbc
-        if eqchoice == 2:
+        if self.params.scale_by_dt:
             # Scaled by k (smaller residual, nonlinear solver hits absolute stopping criteria faster)
-            a = (
-                dot(u + k*(grad(u)*u1), v)*dx()
-                + (k*nu)*inner(grad(u), grad(v))*dx()
-                - (k*p)*div(v)*dx() - (k*div(u))*q*dx()
-                )
-            L = dot(u0 + k*f, v)*dx() + k*Lbc
-        if eqchoice == 3:
-            # Stokes
-            a = (
-                (1.0/k)*dot(u, v)*dx()
-                + nu*inner(grad(u), grad(v))*dx()
-                - p*div(v)*dx() - q*div(u)*dx()
-                )
-            L = (1.0/k)*dot(u0, v)*dx() + dot(f, v)*dx() + Lbc
+            kinv = 1
+            kval = k
+        else:
+            # Not scaled by k (keep u_t = (u1-u0)/dt, larger residual, nonlinear solver may not converge properly)
+            kinv = 1.0 / k
+            kval = 1
 
-        # Add weak bc terms
-        # FIXME
+        # Apply initial conditions and use it as initial guess
+        assign_ics_mixed(up0, spaces, ics)
+        up1.assign(up0)
+
+        # Make scheme-specific representation of bcs
+        abc, Lbc = 0, 0
+        if self.params.nietche.enable:
+            # Extract boundary conditions from bcs list (somewhat cumbersome now)
+            bcu, bcp = bcs
+            bcu_nietche = [bc[:2] for bc in bcu if bc[2] == "nietche"]
+            bcu_strong = [bc[:2] for bc in bcu if bc[2] == "strong"]
+            bcp_natural = [bc[:2] for bc in bcp]
+            assert len(bcu) == len(bcu_strong) + len(bcu_nietche)
+
+            # Define Nitche discretization constants
+            gamma = Constant(self.params.nietche.gamma, name="gamma")
+            hE = MaxFacetEdgeLength(mesh)
+
+            # Collect Nietche terms for each subboundary
+            for g, region in bcu_nietche:
+                g = as_vector(g)
+                dsr = ds(region)
+
+                # Add natural BC term
+                abc += dot(p*n - nu*Dn(u), v)*dsr
+
+                # Add Nietche terms
+                if self.params.nietche.symmetrize:
+                    abc += dot(u, q*n - nu*Dn(v))*dsr
+                    Lbc += dot(g, q*n - nu*Dn(v))*dsr
+                else:
+                    # This is unstable!
+                    abc += dot(u, - nu*Dn(v))*dsr
+                    Lbc += dot(g, - nu*Dn(v))*dsr
+
+                # Add Nietche stabilization terms
+                if self.params.nietche.stabilize:
+                    abc += (nu*gamma/hE)*dot(u, v)*dsr
+                    Lbc += (nu*gamma/hE)*dot(g, v)*dsr
+
+        else:
+            # Extract boundary conditions from bcs list (somewhat cumbersome now)
+            bcu, bcp = bcs
+            bcu_strong = [bc[:2] for bc in bcu]
+            bcp_natural = [bc[:2] for bc in bcp]
+
+        # Create Dirichlet boundary terms for velocity where it should be applied strongly
+        # Note that this implies v = 0 and thus (p*n - nu*Dn(u)) . v = 0 on the same regions.
+        bcu = [DirichletBC(spaces.Ubc[i], function, problem.facet_domains, region)
+               for functions, region in bcu_strong
+               for i, function in enumerate(functions)]
+
+        # Add pressure boundary terms (should not overlap with velocity bc regions)
+        # Note that this implies (p*n - nu*Dn(u)) = function*n, i.e. Dn(u) = 0.
+        Lbc += sum(-dot(function*n, v)*ds(region) for (function, region) in bcp_natural)
+
+        # Set up Picard linearization of (Navier-)Stokes, F = a*u - L = 0
+        # Stokes terms
+        a = kinv*dot(u, v)*dx + kval*(nu*inner(grad(u), grad(v)) - p*div(v) - q*div(u))*dx
+        L = kinv*dot(u0, v)*dx + kval*dot(f, v)*dx
+
+        # Add convection
+        if self.params.enable_convection:
+            # Note the convection linearization u1 . nabla u . v, which becomes u1 . nabla u1 . v in F below
+            a += kval*dot(grad(u)*u1, v)*dx
+
+        # BC terms
+        a += kval*abc
+        L += kval*Lbc
 
         # Build residual form from a, L
         F = action(a, up1) - L
@@ -164,7 +225,7 @@ class CoupledPicard(NSScheme):
             assign_time(t, timesteps[timestep])
 
             # Update various functions
-            problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
+            problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls, cost_functionals)
 
             # Solve for up1
             solver.solve()

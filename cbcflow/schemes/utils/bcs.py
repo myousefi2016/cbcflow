@@ -17,7 +17,7 @@
 
 from __future__ import division
 
-from cbcflow.dol import FacetNormal, DirichletBC, Constant, dot, Dn
+from cbcflow.dol import FacetNormal, DirichletBC, Constant, dot, Dn, MaxFacetEdgeLength, as_vector, inner
 
 def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
     "Check if boundary conditions are periodic."
@@ -36,13 +36,13 @@ def make_velocity_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
     bcu = [DirichletBC(spaces.Ubc[d], functions[d], *_domainargs(problem, region))
            for functions, region in bcu_raw
-           for d in spaces.dims]
+           for d in range(len(functions))]
     return bcu
 
 def make_segregated_velocity_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
     bcu = [[DirichletBC(spaces.Ubc[d], functions[d], *_domainargs(problem, region))
-            for d in spaces.dims]
+            for d in range(len(functions))]
            for functions, region in bcu_raw]
     return bcu
 
@@ -65,12 +65,12 @@ def make_penalty_pressure_bcs(problem, spaces, bcs, gamma, test, trial):
     # Define trial and test functions
     p = trial
     q = test
-    Q = spaces.Q
+    mesh = problem.mesh
     ds = problem.ds
 
     # Define Nitche discretization constants
     gamma = Constant(gamma, name="gamma")
-    hE = MaxFacetEdgeLength(Q.mesh())
+    hE = MaxFacetEdgeLength(mesh)
 
     # The Nietche terms to integrate
     a_dirichlet = (gamma/hE)*(p*q) - Dn(p)*q - p*Dn(q)

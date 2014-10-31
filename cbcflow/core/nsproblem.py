@@ -139,7 +139,7 @@ class NSProblem(Parameterized):
         """
         return []
 
-    def __cost_functionals(self, spaces, t): # TODO: Enable and use this
+    def cost_functionals(self, spaces, t, observations, controls):
         """Return cost functionals for optimization problem.
 
         Optimization problem support is currently experimental.
@@ -221,12 +221,11 @@ class NSProblem(Parameterized):
         Returns: list of scalars.
         """
         d = self.mesh.geometry().dim()
-        c0 = Constant(0.0)
-        return [c0]*d
+        return [0.0]*d
 
-    # TODO: Add body_force and cost_functionals here
+    # TODO: Add body_force here, maybe also viscosity? Maybe time to generalize?
     def update(self, spaces, u, p, t, timestep, boundary_conditions,
-               observations=None, controls=None):
+               observations=None, controls=None, cost_functionals=None):
         """Update functions previously returned to new timestep.
 
         This function is called before computing the solution at a new timestep.
