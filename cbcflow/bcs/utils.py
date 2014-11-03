@@ -20,12 +20,24 @@ from cbcflow.dol import (SubsetIterator, MPI, ds, assemble, Constant, sqrt,
 import numpy as np
 
 def x_to_r2(x, c, n):
-    # TODO: Simplify this after testing
+    """Compute r**2 from a coordinate x, center point c, and normal vector n.
+
+    r is defined as the distance from c to x', where x' is
+    the projection of x onto the plane defined by c and n.
+    """
+    # Steps:
+    # rv = x - c
+    # rvn = rv . n
+    # rp = rv - (rv . n) n
+    # r2 = ||rp||**2
+
+    # TODO: Simplify this with numpy syntax?
     d = len(c)
     rv = [x[i]-c[i] for i in xrange(d)]
-    rvn = sum([rv[i]*n[i] for i in xrange(d)])
-    rv = [rv[i] - rvn*n[i] for i in xrange(d)]
-    r2 = sum(rv[i]**2 for i in xrange(d))
+    rvn = sum(rv[i]*n[i] for i in xrange(d))
+    #rp = [rv[i] - rvn*n[i] for i in xrange(d)]
+    #r2 = sum(rp[i]**2 for i in xrange(d))
+    r2 = sum((rv[i] - rvn*n[i])**2 for i in xrange(d))
     return r2
 
 def compute_radius(mesh, facet_domains, ind, center):

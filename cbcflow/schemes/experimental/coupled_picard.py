@@ -46,11 +46,10 @@ class CoupledPicard(NSScheme):
             quadrature_degree="auto",
             )
         nietche = ParamDict(
-            enable=False,
-            #symmetric=True,
+            enable=True,
             formulation=1,
             stabilize=True,
-            gamma=1000.0,
+            gamma=100.0,
             )
         params.update(
             # Default to P2-P1 (Taylor-Hood)
@@ -65,7 +64,8 @@ class CoupledPicard(NSScheme):
             nietche=nietche,
 
             # Nonlinear solver parameters
-            picard_tolerance=1e-13,
+            newton_picard_alpha=1.0, # 0 = Picard, 1 = Newton, (0,1) = mix
+            picard_tolerance=1e-13, # TODO: Rename, not picard only anymore
             picard_max_iterations=20,
             picard_error_on_nonconvergence=False,
 
@@ -92,8 +92,10 @@ class CoupledPicard(NSScheme):
         W = spaces.W
 
         # Test and trial functions
-        u, p = TrialFunctions(W)
-        v, q = TestFunctions(W)
+        up = TrialFunction(W)
+        vq = TestFunction(W)
+        u, p = split(up)
+        v, q = split(vq)
 
         # Solution functions
         up0 = Function(W, name="up0") # Previous timestep
@@ -128,6 +130,7 @@ class CoupledPicard(NSScheme):
 
         # Make scheme-specific representation of bcs
         abc, Lbc = 0, 0
+        abc2, Lbc2 = 0, 0
         if self.params.nietche.enable:
             # Extract boundary conditions from bcs list (somewhat cumbersome now)
             bcu, bcp = bcs
@@ -152,21 +155,30 @@ class CoupledPicard(NSScheme):
                 # (all these formulations seem to work well _with_ stabilization but fail miserably without)
                 s = self.params.nietche.formulation
                 if s == 0:
+                    # Don't touch B/B.T or A at all, stabilization terms only
                     pass
                 elif s == 1:
+                    # Symmetrize natural boundary term in B/B.T
                     abc += dot(u, q*n - nu*Dn(v))*dsr
                     Lbc += dot(g, q*n - nu*Dn(v))*dsr
                 elif s == 2:
+                    # Anti-symmetrize natural boundary term in B/B.T
                     abc += -dot(u, q*n - nu*Dn(v))*dsr
                     Lbc += -dot(g, q*n - nu*Dn(v))*dsr
                 elif s == 3:
+                    # Don't touch B/B.T but modify A (from Magnes experimental test)
                     abc += -dot(u, -nu*Dn(v))*dsr
                     Lbc += -dot(g, -nu*Dn(v))*dsr
 
                 # Add Nietche stabilization terms
                 if self.params.nietche.stabilize:
-                    abc += (nu*gamma/hE)*dot(u, v)*dsr
-                    Lbc += (nu*gamma/hE)*dot(g, v)*dsr
+                    # Adding to separate abc2/Lbc2 to scale these terms by dt the same way as u_t,
+                    # as doing so would weaken the terms vs the u_t terms for dt -> 0.
+                    # We need to split abc/abc2 because the natural boundary terms above
+                    # should be scaled as a natural part of the Navier-Stokes equation,
+                    # and the symmetrization terms should be treated the same way.
+                    abc2 += (gamma/hE)*dot(u, v)*dsr
+                    Lbc2 += (gamma/hE)*dot(g, v)*dsr
 
         else:
             # Extract boundary conditions from bcs list (somewhat cumbersome now)
@@ -194,15 +206,31 @@ class CoupledPicard(NSScheme):
             # Note the convection linearization u1 . nabla u . v, which becomes u1 . nabla u1 . v in F below
             a += kval*dot(grad(u)*u1, v)*dx
 
-        # BC terms
-        a += kval*abc
-        L += kval*Lbc
+        # BC terms scaled by dt or 1/dt
+        a += kval*abc + kinv*abc2
+        L += kval*Lbc + kinv*Lbc2
 
         # Build residual form from a, L
         F = action(a, up1) - L
 
+        # Jacobian for Newton method
+        J = derivative(F, up1, up)
+
+        # Select between Picard, Newton or a mix with alpha in [0,1]
+        alpha = float(self.params.newton_picard_alpha)
+        if alpha == 0.0:
+            # Use Picard linearization only
+            J_approx = a
+        elif alpha == 1.0:
+            # Use full Newton linearization
+            J_approx = J
+        else:
+            # Use a mix (avoid recompilation with Constant)
+            alpha = Constant(alpha)
+            J_approx = alpha*J + (1.0-alpha)*a
+
         # Create solver
-        picard_problem = NonlinearVariationalProblem(F, up1, bc_strong, J=a,
+        picard_problem = NonlinearVariationalProblem(F, up1, bc_strong, J=J_approx,
                                                      form_compiler_parameters=self.params.form_compiler_parameters)
         solver = NonlinearVariationalSolver(picard_problem)
 

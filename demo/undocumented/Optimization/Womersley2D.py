@@ -113,7 +113,6 @@ class Womersley2D(NSProblem):
         # Create womersley objects
         ua = make_womersley_bcs(self.Q_coeffs, self.mesh, self.left_boundary_id, self.nu, None, self.facet_domains,
                                 self.params.coeffstype, num_fourier_coefficients=self.params.num_womersley_coefficients)
-        #ua = womersley(self.Q_coeffs, self.mesh, self.facet_domains, self.left_boundary_id, self.nu) # TODO
         for uc in ua:
             uc.set_t(t)
 
@@ -147,7 +146,18 @@ class Womersley2D(NSProblem):
         return []
 
     def initial_conditions(self, spaces, controls):
-        return self.womersley_solution(spaces, 0.0)
+        d = spaces.d
+
+        # TODO: Get icu, icp from controls
+        icu = [Function(spaces.U) for i in range(d)]
+        icp = Function(spaces.Q)
+
+        # Interpolate womersley solution into entire initial condition (only possible for this simple pipe case!)
+        ua, pa = self.womersley_solution(spaces, 0.0)
+        for i in range(d):
+            icu[i].interpolate(ua[i])
+
+        return icu, icp
 
     def boundary_conditions(self, spaces, u, p, t, controls):
         # Create no-slip bcs
@@ -210,7 +220,7 @@ def main():
                 enable=True,
                 formulation=1,
                 stabilize=True,
-                gamma=1000.0,
+                gamma=100.0,
                 ),
             scale_by_dt=True,
             enable_convection=True, # False = Stokes
