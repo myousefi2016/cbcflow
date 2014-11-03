@@ -252,8 +252,11 @@ class CoupledPicard(NSScheme):
         solver.parameters["newton_solver"]["maximum_iterations"] = self.params.picard_max_iterations
         solver.parameters["newton_solver"]["error_on_nonconvergence"] = self.params.picard_error_on_nonconvergence
 
+        timer.completed("initialization stages")
+
         # Call update() with initial conditions
         update(u0, p0, float(t), start_timestep, spaces)
+        timer.completed("postprocessing update")
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1, len(timesteps)):
@@ -261,16 +264,20 @@ class CoupledPicard(NSScheme):
 
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls, cost_functionals)
+            timer.completed("problem update")
 
             # Solve for up1
             solver.solve()
+            timer.completed("solve")
 
             # Rotate functions for next timestep
             up0.assign(up1)
+            timer.completed("rotate")
 
             # Update postprocessing
             # TODO: Pass controls and observations here?
             update(u0, p0, float(t), timestep, spaces)
+            timer.completed("postprocessing update")
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

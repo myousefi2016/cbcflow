@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from collections import namedtuple
 from cbcflow import *
 from cbcflow.dol import *
 from cbcpost import ParamDict, PostProcessor
@@ -8,6 +9,20 @@ import numpy as np
 
 LENGTH = 10.0
 RADIUS = 0.5
+
+
+# TODO: Add types like these to cbcflow to document BC interface?
+InitialConditions = namedtuple("InitialConditions", ["icu", "icp"])
+VelocityBC = namedtuple("VelocityBC", ["functions", "region", "method"])
+PressureBC = namedtuple("PressureBC", ["function", "region"])
+BoundaryConditions = namedtuple("BoundaryConditions", ["bcu", "bcp"])
+
+# Create some types to make tuple usage safer and more readable
+Observations = namedtuple("Observations", [])
+Controls = namedtuple("Controls", ["icu", "uin"])
+CostFunctionals = namedtuple("CostFunctionals", [])
+VelocityBoundaryConditions = namedtuple("VelocityBoundaryConditions", ["inflow", "noslip"])
+PressureBoundaryConditions = namedtuple("PressureBoundaryConditions", ["outflow"])
 
 class Left(SubDomain):
     def inside(self, x, on_boundary):
@@ -140,16 +155,19 @@ class Womersley2D(NSProblem):
         return []
 
     def controls(self, spaces):
-        return []
+        d = spaces.d
+        icu = [Function(spaces.U) for i in range(d)]
+        uin = [] #[[Function(spaces.U) for i in range(d)] for timestep in [0]]
+        return Controls(icu, uin)
 
     def cost_functionals(self, spaces, t, observations, controls):
-        return []
+        return CostFunctionals()
 
     def initial_conditions(self, spaces, controls):
         d = spaces.d
 
-        # TODO: Get icu, icp from controls
-        icu = [Function(spaces.U) for i in range(d)]
+        # Get/create IC functions
+        icu = controls.icu
         icp = Function(spaces.Q)
 
         # Interpolate womersley solution into entire initial condition (only possible for this simple pipe case!)
@@ -157,54 +175,61 @@ class Womersley2D(NSProblem):
         for i in range(d):
             icu[i].interpolate(ua[i])
 
-        return icu, icp
+        return InitialConditions(icu, icp)
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        # Create no-slip bcs
         d = len(u)
-        u0 = [Constant(0.0) for i in range(d)]
-        noslip = (u0, self.wall_boundary_id, "strong")
 
-        # Create inflow bcs
-        uin = [Function(spaces.U) for i in range(d)] # TODO: Get uin from controls
-        inflow = (uin, self.left_boundary_id, "nietche")
 
-        # Interpolate Womersley profile into inflow bc functions
+        # === Initialization
+        # Note: Assigning to self.foo here gives this problem class changed state as a result of running a scheme.
+        # Create Womersley profile functions
         self.ua, self.pa = self.womersley_solution(spaces, t)
-        for iucomp, ucomp in zip(uin, self.ua):
-            iucomp.interpolate(ucomp)
+        # === Initialization
+
+
+        # Create inflow BC control functions to be returned and used in scheme forms
+        uin = [Function(spaces.U) for i in range(d)]
+        inflow = VelocityBC(uin, self.left_boundary_id, "nietche")
+
+        # Create no-slip bcs
+        u0 = [Constant(0.0) for i in range(d)]
+        noslip = VelocityBC(u0, self.wall_boundary_id, "strong")
 
         # Create outflow bcs for pressure
-        outflow = (Constant(0.0), self.right_boundary_id, "natural")
+        outflow = PressureBC(Constant(0.0), self.right_boundary_id)
 
         # Return bcs in two lists
-        bcu = [inflow, noslip]
-        bcp = [outflow]
-        return (bcu, bcp)
+        bcu = VelocityBoundaryConditions(inflow, noslip)
+        bcp = PressureBoundaryConditions(outflow)
+        return BoundaryConditions(bcu, bcp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
-        # TODO: Drop this for optimization run
+        d = len(u)
+
         # Update time in boundary condition expressions
-        bcu, bcp = bcs
-        inflow, noslip = bcu
-        uin = inflow[0]
-        for ucomp in self.ua:
-            ucomp.set_t(t)
-        for iucomp, ucomp in zip(uin, self.ua):
-            iucomp.interpolate(ucomp)
+        for uacomp in self.ua:
+            uacomp.set_t(t)
+
+        # Create new BC control functions at time t
+        uin = [Function(spaces.U) for i in range(d)]
+        controls.uin.append(uin)
+
+        # Update (initial guess for) controls at time t
+        for uincomp, uacomp in zip(uin, self.ua):
+            for region in [bcs.bcu.inflow.region]:
+                dbc = DirichletBC(spaces.U, uacomp, self.facet_domains, region)
+                dbc.apply(uincomp.vector())
+
+        # Assign current control function values to the BC functions
+        for i in range(d):
+            bcs.bcu.inflow.functions[i].assign(uin[i])
 
         # TODO: Update observations
-
-        # TODO: Update initial guess for controls at time t
-        if controls:
-            m0 = controls[0]
-            V = m0.function_space()
-            m = Function(V)
-            #m.interpolate(initial_control_guess)
-            controls.append(m)
-            m0.assign(m)
-
+        #observations.z ...
         # TODO: Add contribution to cost functionals at time t
+        #cost_functionals.J += (u-z**2)*dx
+        #... + regularization alpha*g**2*dsr + alpha*grad(g)**2*dsr
 
 def main():
     set_log_level(100)
@@ -212,9 +237,9 @@ def main():
     problem = Womersley2D(
         ParamDict(
             dt=1e-3,
-            T=0.2,#8,
+            T=0.1,#8,
             num_periods=None,
-            refinement_level=2,
+            refinement_level=1,
             )
         )
 
@@ -242,7 +267,8 @@ def main():
     postproc = PostProcessor({"casedir": casedir})
     postproc.add_fields(fields)
 
-    solver = NSSolver(problem, scheme, postproc)
+    nsparams = ParamDict(timer_frequency=1, check_memory_frequency=1)
+    solver = NSSolver(problem, scheme, postproc, nsparams)
     solver.solve()
 
 
