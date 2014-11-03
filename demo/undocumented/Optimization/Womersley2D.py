@@ -165,12 +165,14 @@ class Womersley2D(NSProblem):
         u0 = [Constant(0.0) for i in range(d)]
         noslip = (u0, self.wall_boundary_id, "strong")
 
-        # Create Womersley inflow bcs
-        ua, pa = self.womersley_solution(spaces, t)
-        uin = ua
-        for ucomp in uin:
-            ucomp.set_t(t)
+        # Create inflow bcs
+        uin = [Function(spaces.U) for i in range(d)] # TODO: Get uin from controls
         inflow = (uin, self.left_boundary_id, "nietche")
+
+        # Interpolate Womersley profile into inflow bc functions
+        self.ua, self.pa = self.womersley_solution(spaces, t)
+        for iucomp, ucomp in zip(uin, self.ua):
+            iucomp.interpolate(ucomp)
 
         # Create outflow bcs for pressure
         outflow = (Constant(0.0), self.right_boundary_id, "natural")
@@ -186,8 +188,10 @@ class Womersley2D(NSProblem):
         bcu, bcp = bcs
         inflow, noslip = bcu
         uin = inflow[0]
-        for ucomp in uin:
+        for ucomp in self.ua:
             ucomp.set_t(t)
+        for iucomp, ucomp in zip(uin, self.ua):
+            iucomp.interpolate(ucomp)
 
         # TODO: Update observations
 
