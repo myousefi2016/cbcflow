@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import dolfin_adjoint as da
+
 from collections import namedtuple
 from cbcflow import *
 from cbcflow.dol import *
@@ -237,7 +239,7 @@ def main():
     problem = Womersley2D(
         ParamDict(
             dt=1e-3,
-            T=0.1,#8,
+            T=0.0001,#8,
             num_periods=None,
             refinement_level=1,
             )
@@ -270,6 +272,9 @@ def main():
     nsparams = ParamDict(timer_frequency=1, check_memory_frequency=1)
     solver = NSSolver(problem, scheme, postproc, nsparams)
     solver.solve()
+
+    success = da.replay_dolfin()
+    print success
 
 
 if __name__ == "__main__":
