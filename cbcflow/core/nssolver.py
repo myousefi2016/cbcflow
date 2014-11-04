@@ -32,10 +32,9 @@ class NSSolver(Parameterized):
     components.
 
     For full functionality, the user should instantiate this class with a NSProblem
-    instance, NSScheme instance and NSPostProcessor instance.
-
+    instance, NSScheme instance and cbcpost.PostProcessor instance.
     """
-    def __init__(self, problem, scheme=None, postprocessor=None, params=None):
+    def __init__(self, problem, scheme, postprocessor=None, params=None):
         Parameterized.__init__(self, params)
 
         self.problem = problem
@@ -50,24 +49,22 @@ class NSSolver(Parameterized):
         """Returns the default parameters for a problem.
 
         Explanation of parameters:
-          - debug: bool, debug mode
-          - check_memory_frequency: int, timestep frequency to check memory consumption
           - restart: bool, turn restart mode on or off
           - restart_time: float, time to search for restart data
           - restart_timestep: int, timestep to search for restart data
+          - check_memory_frequency: int, timestep frequency to check memory consumption
+          - timer_frequency: int, timestep frequency to print more detailed timing
+          - enable_annotation: bool, enable annotation of solve with dolfin-adjoint
 
-          If restart=True, maximum one of restart_time and restart_timestep can be set.
-
+        If restart=True, maximum one of restart_time and restart_timestep can be set.
         """
-        # TODO: Insert generic nssolver params here
         params = ParamDict(
-            debug=False,
-            check_memory_frequency=0,
             restart = False,
             restart_time = -1.0,
             restart_timestep = -1,
-            enable_annotation=False,
             timer_frequency=0,
+            check_memory_frequency=0,
+            enable_annotation=False,
             )
         return params
 
@@ -90,7 +87,8 @@ class NSSolver(Parameterized):
         self._reset()
 
         # Initialize postprocessor
-        self._init_postprocessor()
+        if self.postprocessor is not None:
+            self._init_postprocessor()
 
         # Loop over scheme steps
         for data in self.scheme.solve(self.problem, self.timer):
@@ -108,6 +106,7 @@ class NSSolver(Parameterized):
         "Reset timers and memory usage"
         self.timer = Timer(self.params.timer_frequency)
         self.timer._N = -1
+
         self._initial_time = time()
         self._time = time()
         self._accumulated_time = 0
@@ -116,25 +115,29 @@ class NSSolver(Parameterized):
             self._initial_memory = get_memory_usage()
 
     def _init_postprocessor(self):
-        if self.postprocessor is not None:
-            self.postprocessor._timer = self.timer
+        self.postprocessor._timer = self.timer
 
-            if self.params.restart:
-                Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
-                self.timer.completed("set up restart")
-            else:
-                # If no restart, remove any existing data coming from cbcflow
-                self.postprocessor.clean_casedir()
-                self.timer.completed("cleaned casedir")
+        # Handle restarting or cleaning of fresh casedir
+        if self.params.restart:
+            Restart(self.problem, self.postprocessor, self.params.restart_time, self.params.restart_timestep)
+            self.timer.completed("set up restart")
+        else:
+            # If no restart, remove any existing data coming from cbcflow
+            self.postprocessor.clean_casedir()
+            self.timer.completed("cleaned casedir")
 
-            params = ParamDict(solver=self.params,
-                               problem=self.problem.params,
-                               scheme=self.scheme.params,
-                               postprocessor=self.postprocessor.params)
-            self.postprocessor.store_params(params)
-            assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
-            self.postprocessor.store_mesh(self.problem.mesh)
-            self.timer.completed("stored mesh")
+        # Store parameters
+        params = ParamDict(solver=self.params,
+                           problem=self.problem.params,
+                           scheme=self.scheme.params,
+                           postprocessor=self.postprocessor.params)
+        self.postprocessor.store_params(params)
+
+        # Store mesh
+        assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
+        self.postprocessor.store_mesh(self.problem.mesh)
+
+        self.timer.completed("stored mesh")
 
     def _summarize(self):
         "Summarize time spent and memory (if requested)"
@@ -199,7 +202,7 @@ class NSSolver(Parameterized):
         self.timer.completed("completed solve")
 
         # Do not run this if restarted from this timestep
-        if self.params.restart and timestep==self.problem.params.start_timestep:
+        if self.params.restart and timestep == self.problem.params.start_timestep:
             return
 
         # Make a record of when update was called
@@ -207,18 +210,22 @@ class NSSolver(Parameterized):
 
         # Disable dolfin-adjoint annotation during the postprocessing
         if self.params.enable_annotation:
+            stop_annotating = parameters["adjoint"]["stop_annotating"]
             parameters["adjoint"]["stop_annotating"] = True
 
         # Run postprocessor
         if self.postprocessor is not None:
             fields = {}
+
             # Add solution fields
             fields["Velocity"] = lambda: self.velocity_converter(u, spaces)
             fields["Pressure"] = lambda: self.pressure_converter(p, spaces)
+
             # Add physical problem parameters
             fields["Density"] = lambda: self.problem.params.rho # .density()
             fields["KinematicViscosity"] = lambda: self.problem.params.mu / self.problem.params.rho # .kinematic_viscosity()
             fields["DynamicViscosity"] = lambda: self.problem.params.mu # .dynamic_viscosity()
+
             # Trigger postprocessor update
             self.postprocessor.update_all(fields, t, timestep)
         self.timer.completed("postprocessor update")
@@ -232,8 +239,4 @@ class NSSolver(Parameterized):
 
         # Enable dolfin-adjoint annotation before getting back to solve
         if self.params.enable_annotation:
-            parameters["adjoint"]["stop_annotating"] = False
-
-    def minimize(self):
-        """Solve control problem minimizing the problem cost functional."""
-        pass # FIXME!
+            parameters["adjoint"]["stop_annotating"] = stop_annotating
