@@ -52,6 +52,6 @@ class NSScheme(Parameterized):
             )
         return params
 
-    def solve(self, problem, update):
+    def solve(self, problem, timer):
         """Solve Navier-Stokes problem by executing scheme."""
         raise NotImplementedError("Scheme must implement solve method!")

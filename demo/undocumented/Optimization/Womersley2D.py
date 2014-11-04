@@ -239,24 +239,41 @@ def main():
     problem = Womersley2D(
         ParamDict(
             dt=1e-3,
-            T=0.0001,#8,
+            T=0.01,#8,
             num_periods=None,
-            refinement_level=1,
+            refinement_level=2,
             )
         )
 
     scheme = CoupledPicard(
         ParamDict(
+            # BC params
             nietche=ParamDict(
                 enable=True,
                 formulation=1,
                 stabilize=True,
                 gamma=100.0,
                 ),
+
+            # Variational formulation params
             scale_by_dt=True,
             enable_convection=True, # False = Stokes
+
+            # Nonlinear solver params
+            picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, (0.0,1.0) = mix
+            nonlinear_solver=ParamDict(
+                newton_solver=ParamDict(
+                    report=True,
+                    ),
+                ),
+
+            # Form compiler params
+            form_compiler_parameters=ParamDict(
+                quadrature_degree="auto",
+                ),
             )
         )
+
     params_string = "__".join("{}_{}".format(k, scheme.params.nietche[k]) for k in scheme.params.nietche)
     equation = "NavierStokes" if scheme.params.enable_convection else "Stokes"
     casedir = "results_demo_%s_%s_%s_%s" % (problem.shortname(), scheme.shortname(), equation, params_string)
@@ -271,7 +288,8 @@ def main():
 
     nsparams = ParamDict(timer_frequency=1, check_memory_frequency=1)
     solver = NSSolver(problem, scheme, postproc, nsparams)
-    solver.solve()
+    for data in solver.isolve():
+        print "TIMESTEP:", data.timestep
 
     success = da.replay_dolfin()
     print success

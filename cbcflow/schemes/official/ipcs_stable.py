@@ -84,7 +84,7 @@ class IPCS_Stable(NSScheme):
             )
         return params
 
-    def solve(self, problem, update, timer):
+    def solve(self, problem, timer):
 
         # Get problem parameters
         mesh = problem.mesh
@@ -274,8 +274,9 @@ class IPCS_Stable(NSScheme):
 
         timer.completed("create velocity correction solver")
 
-        # Call update() with initial conditions
-        update(u1, p1, float(t), start_timestep, spaces)
+        # Yield initial conditions
+        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                        t=float(t), timestep=start_timestep, u=u1, p=p1)
         timer.completed("initial postprocessor update")
 
         # Time loop
@@ -368,18 +369,10 @@ class IPCS_Stable(NSScheme):
 
             p0.vector()[:] *= rho
 
-            # Update postprocessing
-            update(u0, p0, float(t), timestep, spaces)
+            # Yield data for postprocessing
+            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                            t=float(t), timestep=timestep, u=u0, p=p0)
             timer.completed("updated postprocessing (completed timestep)")
 
-        # Return some quantities from the local namespace
-        states = (u0, p0)
-        namespace = {
-            "spaces": spaces,
-            "observations": observations,
-            "controls": controls,
-            "states": states,
-            "t": t,
-            "timesteps": timesteps,
-            }
-        return namespace
+        # Make sure annotation gets that the timeloop is over
+        finalize_time(t)

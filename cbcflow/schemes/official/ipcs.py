@@ -101,7 +101,7 @@ class IPCS(NSScheme):
             )
         return params
 
-    def solve(self, problem, update, timer):
+    def solve(self, problem, timer):
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -186,9 +186,9 @@ class IPCS(NSScheme):
         else:
             solver_p_params = self.params.solver_p_dirichlet
 
-        # Call update() with initial conditions
-        update(u0, p0, float(t), start_timestep, spaces)
-
+        # Yield initial data for postprocessing
+        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                        t=float(t), timestep=start_timestep, u=u0, p=p0)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -241,20 +241,9 @@ class IPCS(NSScheme):
             # Scale to physical pressure
             p0.vector()[:] *= rho
 
-            # Update postprocessing
-            update(u0, p0, float(t), timestep, spaces)
+            # Yield data for postprocessing
+            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                            t=float(t), timestep=timestep, u=u0, p=p0)
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)
-
-        # Return some quantities from the local namespace
-        states = (u0, p0)
-        namespace = {
-            "spaces": spaces,
-            "observations": observations,
-            "controls": controls,
-            "states": states,
-            "t": t,
-            "timesteps": timesteps,
-            }
-        return namespace

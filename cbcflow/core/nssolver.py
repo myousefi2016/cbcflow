@@ -72,7 +72,7 @@ class NSSolver(Parameterized):
         return params
 
     def solve(self):
-        """ Handles top level logic related to solve.
+        """Handles top level logic related to solve.
 
         Cleans casedir or loads restart data, stores parameters and mesh in
         casedir, calls scheme.solve, and lets postprocessor finalize all
@@ -80,17 +80,43 @@ class NSSolver(Parameterized):
 
         Returns: namespace dict returned from scheme.solve
         """
-        params = ParamDict(solver=self.params,
-                           problem=self.problem.params,
-                           scheme=self.scheme.params)
+        # Preserve 'solver.solve()' interface
+        for data in self.isolve():
+            pass
 
-
-        self.timer = Timer(self.params.timer_frequency)
-        self.timer._N = -1
-
+    def isolve(self):
+        "Experimental iterative version of solve()."
+        # Initialize solver
         self._reset()
 
-        if self.postprocessor != None:
+        # Initialize postprocessor
+        self._init_postprocessor()
+
+        # Loop over scheme steps
+        for data in self.scheme.solve(self.problem, self.timer):
+            self.update(data.u, data.p, data.t, data.timestep, data.spaces)
+            yield data
+
+        # Finalize postprocessor
+        if self.postprocessor is not None:
+            self.postprocessor.finalize_all()
+
+        # Finalize solver
+        self._summarize()
+
+    def _reset(self):
+        "Reset timers and memory usage"
+        self.timer = Timer(self.params.timer_frequency)
+        self.timer._N = -1
+        self._initial_time = time()
+        self._time = time()
+        self._accumulated_time = 0
+
+        if self.params.check_memory_frequency > 0:
+            self._initial_memory = get_memory_usage()
+
+    def _init_postprocessor(self):
+        if self.postprocessor is not None:
             self.postprocessor._timer = self.timer
 
             if self.params.restart:
@@ -109,28 +135,6 @@ class NSSolver(Parameterized):
             assert hasattr(self.problem, "mesh") and isinstance(self.problem.mesh, Mesh), "Unable to find problem.mesh!"
             self.postprocessor.store_mesh(self.problem.mesh)
             self.timer.completed("stored mesh")
-
-        # FIXME: Pick other details to reuse from old ns script, here or other places
-
-        scheme_namespace = self.scheme.solve(self.problem, self.update, self.timer)
-
-        spaces = scheme_namespace["spaces"]
-
-        if self.postprocessor != None:
-            self.postprocessor.finalize_all()
-
-        self._summarize()
-
-        return scheme_namespace
-
-    def _reset(self):
-        "Reset timers and memory usage"
-        self._initial_time = time()
-        self._time = time()
-        self._accumulated_time = 0
-
-        if self.params.check_memory_frequency > 0:
-            self._initial_memory = get_memory_usage()
 
     def _summarize(self):
         "Summarize time spent and memory (if requested)"
@@ -206,7 +210,7 @@ class NSSolver(Parameterized):
             parameters["adjoint"]["stop_annotating"] = True
 
         # Run postprocessor
-        if self.postprocessor:
+        if self.postprocessor is not None:
             fields = {}
             # Add solution fields
             fields["Velocity"] = lambda: self.velocity_converter(u, spaces)

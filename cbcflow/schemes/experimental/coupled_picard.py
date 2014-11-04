@@ -39,22 +39,38 @@ class CoupledPicard(NSScheme):
     @classmethod
     def default_params(cls):
         params = NSScheme.default_params()
-        fc = ParamDict(
-            optimize=True,
-            cpp_optimize=True,
-            cpp_optimize_flags="-O2", #"-O3 -march=native -fno-math-errno",
-            quadrature_degree="auto",
-            )
+
+        # Set defalt Nietche parameters
         nietche = ParamDict(
             enable=True,
             formulation=1,
             stabilize=True,
             gamma=100.0,
             )
+
+        # Set default nonlinear solver params, making all dolfin solver params available
+        nonlinear_solver = ParamDict(NonlinearVariationalSolver.default_parameters().to_dict())
+        nonlinear_solver.newton_solver.absolute_tolerance = 1e-13
+        nonlinear_solver.newton_solver.relative_tolerance = 1e-13
+        nonlinear_solver.newton_solver.maximum_iterations = 20
+        nonlinear_solver.newton_solver.error_on_nonconvergence = False
+        nonlinear_solver.newton_solver.report = True
+        nonlinear_solver.reset_jacobian = False
+
+        # Set default form compiler parameters
+        fc = ParamDict(
+            optimize=True,
+            cpp_optimize=True,
+            cpp_optimize_flags="-O2",
+            #cpp_optimize_flags="-O3 -march=native -fno-math-errno",
+            quadrature_degree="auto",
+            )
+
         params.update(
             # Default to P2-P1 (Taylor-Hood)
             u_degree=2,
             p_degree=1,
+            theta=1.0,
 
             # Choice of equation formulation
             scale_by_dt=True,
@@ -64,19 +80,15 @@ class CoupledPicard(NSScheme):
             nietche=nietche,
 
             # Nonlinear solver parameters
-            newton_picard_alpha=1.0, # 0 = Picard, 1 = Newton, (0,1) = mix
-            picard_tolerance=1e-13, # TODO: Rename, not picard only anymore
-            picard_max_iterations=20,
-            picard_error_on_nonconvergence=False,
+            picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, (0.0,1.0) = mix
+            nonlinear_solver=nonlinear_solver,
 
-            # Various parameters for optimizing run time
-            reuse_lu_data=True,
-            verbose=False,
+            # Form compiler parameters for optimizing run time
             form_compiler_parameters=fc,
             )
         return params
 
-    def solve(self, problem, update, timer):
+    def solve(self, problem, timer):
         # Spatial parameters
         mesh = problem.mesh
         n  = FacetNormal(mesh)
@@ -217,7 +229,7 @@ class CoupledPicard(NSScheme):
         J = derivative(F, up1, up)
 
         # Select between Picard, Newton or a mix with alpha in [0,1]
-        alpha = float(self.params.newton_picard_alpha)
+        alpha = float(self.params.picard_newton_fraction)
         if alpha == 0.0:
             # Use Picard linearization only
             J_approx = a
@@ -230,33 +242,14 @@ class CoupledPicard(NSScheme):
             J_approx = alpha*J + (1.0-alpha)*a
 
         # Create solver
-        picard_problem = NonlinearVariationalProblem(F, up1, bc_strong, J=J_approx,
-                                                     form_compiler_parameters=self.params.form_compiler_parameters)
-        solver = NonlinearVariationalSolver(picard_problem)
+        nonlinear_problem = NonlinearVariationalProblem(F, up1, bc_strong, J=J_approx,
+                                                        form_compiler_parameters=self.params.form_compiler_parameters)
+        solver = NonlinearVariationalSolver(nonlinear_problem)
+        solver.parameters.update(self.params.nonlinear_solver)
 
-        # Turn on the noise
-        if self.params.verbose:
-            #solver.parameters["lu_solver"]["report"] = True
-            #solver.parameters["lu_solver"]["verbose"] = True
-            solver.parameters["newton_solver"]["report"] = True
-
-        # Speed up solvers with reuse
-        if self.params.reuse_lu_data:
-            #solver.parameters["lu_solver"]["reuse_factorization"] = True
-            #solver.parameters["lu_solver"]["same_nonzero_pattern"] = True
-            solver.parameters["reset_jacobian"] = False
-
-        # Define stricter stopping criteria for "newton" (actually fixed point) solver
-        solver.parameters["newton_solver"]["absolute_tolerance"] = self.params.picard_tolerance
-        solver.parameters["newton_solver"]["relative_tolerance"] = self.params.picard_tolerance
-        solver.parameters["newton_solver"]["maximum_iterations"] = self.params.picard_max_iterations
-        solver.parameters["newton_solver"]["error_on_nonconvergence"] = self.params.picard_error_on_nonconvergence
-
-        timer.completed("initialization stages")
-
-        # Call update() with initial conditions
-        update(u0, p0, float(t), start_timestep, spaces)
-        timer.completed("postprocessing update")
+        # Yield initial data for postprocessing
+        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                        t=float(t), timestep=start_timestep, u=u0, p=p0)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1, len(timesteps)):
@@ -264,32 +257,16 @@ class CoupledPicard(NSScheme):
 
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls, cost_functionals)
-            timer.completed("problem update")
 
             # Solve for up1
             solver.solve()
-            timer.completed("solve")
 
             # Rotate functions for next timestep
             up0.assign(up1)
-            timer.completed("rotate")
 
-            # Update postprocessing
-            # TODO: Pass controls and observations here?
-            update(u0, p0, float(t), timestep, spaces)
-            timer.completed("postprocessing update")
+            # Yield data for postprocessing
+            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
+                            t=float(t), timestep=timestep, u=u0, p=p0)
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)
-
-        # Return some quantities from the local namespace
-        states = (u0, p0)
-        namespace = {
-            "spaces": spaces,
-            "observations": observations,
-            "controls": controls,
-            "states": states,
-            "t": t,
-            "timesteps": timesteps,
-            }
-        return namespace
