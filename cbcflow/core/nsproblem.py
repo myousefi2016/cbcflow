@@ -221,7 +221,7 @@ class NSProblem(Parameterized):
         Returns: list of scalars.
         """
         d = self.mesh.geometry().dim()
-        return [0.0]*d
+        return [Constant(0.0)]*d
 
     # TODO: Add body_force here, maybe also viscosity? Maybe time to generalize?
     def update(self, spaces, u, p, t, timestep, boundary_conditions,
