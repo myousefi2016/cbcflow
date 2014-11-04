@@ -65,14 +65,14 @@ class RhsGenerator(object):
     def _as_vector_or_timedep(self, x):
         if isinstance(x, (GenericVector, Expression, Function)):
             return x
-        return assemble(inner(x, TestFunction(self.space)) * dx())
+        return assemble(inner(x, TestFunction(self.space)) * dx)
 
     def _as_vector(self, x):
         if isinstance(x, GenericVector):
             return x
         if isinstance(x, Function):
             return x.vector()
-        return assemble(inner(x, TestFunction(self.space)) * dx())
+        return assemble(inner(x, TestFunction(self.space)) * dx)
 
     def __call__(self, bcs=None, symmetric_mod=None):
         f = Function(self.space)
@@ -84,7 +84,7 @@ class RhsGenerator(object):
             b += b_
         for vec in self.vecs:
             b += vec
-        if self.form:
+        if self.form is not None:
             assemble(self.form, tensor=b, add_values=True)
         for bc in self._wrap_in_list(bcs, "bcs", DirichletBC):
             bc.apply(b)
