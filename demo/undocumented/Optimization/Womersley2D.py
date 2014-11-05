@@ -432,9 +432,9 @@ def main():
 
     # Setup and run solver
     solver_params = ParamDict(
-        timer_frequency=1,
-        check_memory_frequency=1,
         enable_annotation=False,
+        #timer_frequency=1,
+        #check_memory_frequency=1,
         )
     solver = NSSolver(problem, scheme, postprocessor, solver_params)
 
@@ -453,7 +453,7 @@ def main():
 
 
     # DO annotate the forward model
-    parameters["adjoint"]["stop_annotating"] = True
+    parameters["adjoint"]["stop_annotating"] = False
 
     # Setup assimilation problem to reproduce observations
     daproblem = AssimilationProblem(shared_problem_params, problem.geometry, observations)
@@ -474,9 +474,9 @@ def main():
 
     # Setup and run solver
     dasolver_params = ParamDict(
-        timer_frequency=1,
-        check_memory_frequency=1,
         enable_annotation=True,
+        #timer_frequency=1,
+        #check_memory_frequency=1,
         )
     dasolver = NSSolver(daproblem, dascheme, dapostprocessor, dasolver_params)
 
