@@ -240,6 +240,16 @@ class AssimilationProblem(ProblemBase):
         # Store observations for later
         self._observations = observations
 
+        # Extract initial velocity from observations,
+        # for another problem this may be given separately,
+        # e.g. if the observations are not everywhere, noisy,
+        # or in a different space, then the initial velocity
+        # could be e.g. the solution to an artificially constructed
+        # forward problem with a reasonable flow rate
+        t0, z0 = observations[0]
+        assert abs(t0) < self.params.dt * 0.01, "Expecting t = 0!"
+        self.initial_velocity = z0
+
         # Control id tuples to make the below code more generic (deliberately not including wall here)
         self.controlled_boundary_ids = (self.geometry.boundary_ids.left,)
         self.uncontrolled_boundary_ids = (self.geometry.boundary_ids.right,)
@@ -307,15 +317,14 @@ class AssimilationProblem(ProblemBase):
         icp = Function(spaces.Q) # Is this actually used?
 
         # Copy initial condition from observations
-        t0, z0 = self._observations[0]
-        assert abs(t0) < self.params.dt * 0.01, "Expecting t = 0!"
         for i in range(d):
-            icu[i].assign(z0[i])
+            icu[i].assign(self.initial_velocity[i])
 
         return InitialConditions(icu, icp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
         d = len(u)
+        facet_domains = self.geometry.facet_domains
 
         # Get observations from this timestep
         tz, z = observations[timestep]
@@ -331,8 +340,13 @@ class AssimilationProblem(ProblemBase):
         # Make a record of BC controls in list
         controls.uin.append(uin)
 
-        # Assign current control function values to the BC functions used in scheme forms
+        # Update 'initial guess' of the boundary control functions at time t by copying from initial condition
         bc = bcs.bcu.inflow
+        for i in range(d):
+            dbc = DirichletBC(spaces.U, self.initial_velocity[i], facet_domains, bc.region)
+            dbc.apply(uin[i].vector())
+
+        # Assign 'initial guess' control function values to the BC functions used in scheme forms
         for i in range(d):
             bc.functions[i].assign(uin[i])
 
