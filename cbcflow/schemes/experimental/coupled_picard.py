@@ -248,8 +248,10 @@ class CoupledPicard(NSScheme):
         solver.parameters.update(self.params.nonlinear_solver)
 
         # Yield initial data for postprocessing
-        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                        t=float(t), timestep=start_timestep, u=u0, p=p0)
+        yield ParamDict(t=float(t), timestep=start_timestep,
+                        u=u0, p=p0,
+                        spaces=spaces,
+                        observations=observations, controls=controls, cost_functionals=cost_functionals)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1, len(timesteps)):
@@ -265,8 +267,10 @@ class CoupledPicard(NSScheme):
             up0.assign(up1)
 
             # Yield data for postprocessing
-            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                            t=float(t), timestep=timestep, u=u0, p=p0)
+            yield ParamDict(t=float(t), timestep=timestep,
+                            u=u0, p=p0,
+                            spaces=spaces,
+                            observations=observations, controls=controls, cost_functionals=cost_functionals)
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

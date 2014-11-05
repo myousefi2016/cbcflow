@@ -11,6 +11,10 @@ from collections import namedtuple
 import numpy as np
 import time
 
+# TODO: Move to cbcpost utils
+def timestamp():
+    return "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}".format(t=time.localtime())
+
 # TODO: Add types like these to cbcflow to document BC interface?
 InitialConditions = namedtuple("InitialConditions", ["icu", "icp"])
 VelocityBC = namedtuple("VelocityBC", ["functions", "region", "method"])
@@ -252,12 +256,10 @@ class AssimilationProblem(ProblemBase):
             alpha_u0_grad_uncontrolled=0.0,
             alpha_u0_wall=0.0,
             # Boundary control regularization
+            alpha_g=0.0,
+            alpha_g_grad=0.0,
             alpha_g_volume=0.0,
-            alpha_g_left=0.0,
-            alpha_g_right=0.0,
             alpha_g_grad_volume=0.0,
-            alpha_g_grad_left=0.0,
-            alpha_g_grad_right=0.0,
             )
         params.update(J=J)
         return params
@@ -306,7 +308,7 @@ class AssimilationProblem(ProblemBase):
 
         # Copy initial condition from observations
         t0, z0 = self._observations[0]
-        assert abs(t0) < self.params.dt*0.1, "Expecting t = 0!"
+        assert abs(t0) < self.params.dt * 0.01, "Expecting t = 0!"
         for i in range(d):
             icu[i].assign(z0[i])
 
@@ -318,12 +320,13 @@ class AssimilationProblem(ProblemBase):
         # Get observations from this timestep
         tz, z = observations[timestep]
         z = as_vector(z)
-        assert abs(t - tz) < self.problem.dt * 0.01, "Expecting matching time!"
+        assert abs(float(t) - tz) < self.params.dt * 0.01, "Expecting matching time!"
 
         # ... Handle transient boundary control functions
 
         # Create new BC control functions at time t
         uin = [Function(spaces.U) for i in range(d)]
+        g = as_vector(uin)
 
         # Make a record of BC controls in list
         controls.uin.append(uin)
@@ -350,7 +353,8 @@ class AssimilationProblem(ProblemBase):
 
 
 def main():
-    #parameters["adjoint"]["stop_annotating"] = True
+    # Don't annotate the initial observation production
+    parameters["adjoint"]["stop_annotating"] = True
 
     set_log_level(100)
 
@@ -358,7 +362,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-3,
-            T=0.01,#8,
+            T=0.003,#8,
             num_periods=None,
             )
 
@@ -398,7 +402,7 @@ def main():
 
     # Create unique casedir name
     params_string = str(hash(str(problem.params) + str(scheme.params)))[:8]
-    date = "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}".format(t=time.localtime())
+    date = timestamp()
     casedir = "results_demo_{}_{}_{}_{}".format(problem.shortname(), scheme.shortname(), date, params_string)
 
 
@@ -413,21 +417,29 @@ def main():
         ])
 
     # Setup and run solver
-    solver = NSSolver(problem, scheme, postprocessor,
-        ParamDict(
-            timer_frequency=1,
-            check_memory_frequency=1,
-            enable_annotation=False,
-            )
+    solver_params = ParamDict(
+        timer_frequency=1,
+        check_memory_frequency=1,
+        enable_annotation=False,
         )
+    solver = NSSolver(problem, scheme, postprocessor, solver_params)
 
     # Step through forward simulation
     observations = []
     for data in solver.isolve():
         z = [project(u, data.spaces.U) for u in data.u]
+
+        # Observations look good:
+        #plot(as_vector(z), title="z")
+        #plot(data.u, title="u")
+        #interactive()
+
         observations.append((data.t, z))
 
 
+
+    # DO annotate the forward model
+    parameters["adjoint"]["stop_annotating"] = True
 
     # Setup assimilation problem to reproduce observations
     daproblem = AssimilationProblem(shared_problem_params, problem.geometry, observations)
@@ -447,24 +459,32 @@ def main():
         ])
 
     # Setup and run solver
-    dasolver = NSSolver(daproblem, dascheme, dapostprocessor,
-        ParamDict(
-            timer_frequency=1,
-            check_memory_frequency=1,
-            enable_annotation=False,
-            )
+    dasolver_params = ParamDict(
+        timer_frequency=1,
+        check_memory_frequency=1,
+        enable_annotation=True,
         )
+    dasolver = NSSolver(daproblem, dascheme, dapostprocessor, dasolver_params)
 
     # Step through forward simulation
     diffs = []
     #daobservations = []
     for i, data in enumerate(dasolver.isolve()):
+
+        # Avoid annotating these steps
+        parameters["adjoint"]["stop_annotating"] = True
+
         # Compare observations with 'observations' from assimilation problem
         dz = [project(u, data.spaces.U) for u in data.u]
         t, z = observations[i]
-        diff = assemble((as_vector(dz)-as_vector(z))**2*dx)
+        diff = assemble((as_vector(dz)-as_vector(z))**2*dx) / assemble((as_vector(z))**2*dx)
         diffs.append(diff)
-    print "Diff in observations:", sqrt(sum(di for di in diffs))
+
+        parameters["adjoint"]["stop_annotating"] = False
+
+    J = data.cost_functionals.J
+    print "Cost functional:", assemble(J)
+    print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
 
 
     # TODO: Control annotation (off for problem, on for daproblem) and try replay
