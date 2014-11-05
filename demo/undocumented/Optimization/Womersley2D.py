@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from cbcpost import ParamDict, PostProcessor, Parameterized
-
+import dolfin
 import dolfin_adjoint as da
+
+from cbcpost import ParamDict, PostProcessor, Parameterized
 
 from cbcflow import *
 from cbcflow.dol import *
@@ -21,10 +22,9 @@ VelocityBC = namedtuple("VelocityBC", ["functions", "region", "method"])
 PressureBC = namedtuple("PressureBC", ["function", "region"])
 BoundaryConditions = namedtuple("BoundaryConditions", ["bcu", "bcp"])
 
-# Create some types to make tuple usage safer and more readable
-Observations = namedtuple("Observations", [])
-Controls = namedtuple("Controls", ["icu", "uin"])
-CostFunctionals = namedtuple("CostFunctionals", ["J"])
+
+# Create some problem specific types to make tuple usage safer and more readable
+Controls = namedtuple("Controls", ["u0", "glist"])
 VelocityBoundaryConditions = namedtuple("VelocityBoundaryConditions", ["inflow", "noslip"])
 PressureBoundaryConditions = namedtuple("PressureBoundaryConditions", ["outflow"])
 
@@ -117,15 +117,15 @@ class ProblemBase(NSProblem):
         bids = self.geometry.boundary_ids
 
         # Create inflow BC control functions to be returned and used in scheme forms
-        uin = [Function(spaces.U) for i in range(d)]
+        uin = [Function(spaces.U, name="g%d"%i) for i in range(d)]
         inflow = VelocityBC(uin, bids.left, "nietche")
 
         # Create no-slip bcs
-        u0 = [Constant(0.0) for i in range(d)]
+        u0 = [Constant(0.0, name="noslip%d"%i) for i in range(d)]
         noslip = VelocityBC(u0, bids.wall, "strong")
 
         # Create outflow bcs for pressure
-        outflow = PressureBC(Constant(0.0), bids.right)
+        outflow = PressureBC(Constant(0.0, name="p_out"), bids.right)
 
         # Return bcs in two lists
         bcu = VelocityBoundaryConditions(inflow, noslip)
@@ -206,8 +206,8 @@ class AnalyticProblem(ProblemBase):
         d = spaces.d
 
         # Create IC functions
-        icu = [Function(spaces.U) for i in range(d)]
-        icp = Function(spaces.Q) # Is this actually used?
+        icu = [Function(spaces.U, name="iu%d"%i) for i in range(d)]
+        icp = Function(spaces.Q, name="ip") # Is this actually used?
 
         # Interpolate womersley solution into entire initial condition (only possible for this simple pipe case!)
         for u, w in zip(icu, self.womersley):
@@ -232,27 +232,23 @@ class AnalyticProblem(ProblemBase):
 class AssimilationProblem(ProblemBase):
     "2D pipe test problem with known stationary analytical solution."
 
-    def __init__(self, params, geometry, observations):
+    def __init__(self, params, geometry, initial_velocity, observations):
         ProblemBase.__init__(self, params)
         self.geometry = geometry
         self.initialize_geometry(self.geometry.mesh, self.geometry.facet_domains)
 
         # Store observations for later
         self._observations = observations
-
-        # Extract initial velocity from observations,
-        # for another problem this may be given separately,
-        # e.g. if the observations are not everywhere, noisy,
-        # or in a different space, then the initial velocity
-        # could be e.g. the solution to an artificially constructed
-        # forward problem with a reasonable flow rate
-        t0, z0 = observations[0]
-        assert abs(t0) < self.params.dt * 0.01, "Expecting t = 0!"
-        self.initial_velocity = z0
+        self.initial_velocity = initial_velocity
 
         # Control id tuples to make the below code more generic (deliberately not including wall here)
         self.controlled_boundary_ids = (self.geometry.boundary_ids.left,)
         self.uncontrolled_boundary_ids = (self.geometry.boundary_ids.right,)
+
+        # Wrap regularization parameters in Constants
+        for k in self.params.J.keys():
+            alpha = self.params.J[k]
+            setattr(self, k, Constant(alpha, name=k))
 
     @classmethod
     def default_params(cls):
@@ -281,40 +277,41 @@ class AssimilationProblem(ProblemBase):
         d = spaces.d
 
         # Initial condition control (may choose to use this or not when computing gradient later)
-        icu = [Function(spaces.U) for i in range(d)]
+        icu = [Function(spaces.U, name="icu%d"%i) for i in range(d)]
 
-        # Boundary control uin is extended in update() for each timestep
-        uin = []
+        # Boundary control list is extended in update() for each timestep
+        glist = []
 
-        return Controls(icu, uin)
+        return Controls(icu, glist)
 
     def cost_functionals(self, spaces, t, observations, controls):
         ds = self.ds
         dx = self.dx
 
         # Define static terms in cost functional (transient terms are added in update())
-        J = 0
-
+        cost_functionals = []
         jp = self.params.J
 
         # Add initial condition control terms
-        if controls.icu:
-            u0 = as_vector(controls.icu)
-            J += Constant(jp.alpha_u0)              * u0**2       * dx
-            J += Constant(jp.alpha_u0_div)          * div(u0)**2  * dx
-            J += Constant(jp.alpha_u0_grad)         * grad(u0)**2 * dx
-            J += Constant(jp.alpha_u0_grad_controlled)   * grad(u0)**2 * ds(self.controlled_boundary_ids)
-            J += Constant(jp.alpha_u0_grad_uncontrolled) * grad(u0)**2 * ds(self.uncontrolled_boundary_ids)
-            J += Constant(jp.alpha_u0_wall)              * u0**2       * ds(self.geometry.boundary_ids.wall)
+        if controls.u0:
+            u0 = as_vector(controls.u0)
+            J = 0
+            J += self.alpha_u0              * u0**2       * dx
+            J += self.alpha_u0_div          * div(u0)**2  * dx
+            J += self.alpha_u0_grad         * grad(u0)**2 * dx
+            J += self.alpha_u0_grad_controlled   * grad(u0)**2 * ds(self.controlled_boundary_ids)
+            J += self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids)
+            J += self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall)
+            cost_functionals.append(J)
 
-        return CostFunctionals(J)
+        return cost_functionals
 
     def initial_conditions(self, spaces, controls):
         d = spaces.d
 
         # Get/create IC functions
-        icu = controls.icu
-        icp = Function(spaces.Q) # Is this actually used?
+        icu = controls.u0
+        icp = Function(spaces.Q, name="ip") # Is this actually used?
 
         # Copy initial condition from observations
         for i in range(d):
@@ -333,38 +330,41 @@ class AssimilationProblem(ProblemBase):
 
         # ... Handle transient boundary control functions
 
+        bc = bcs.bcu.inflow
+
         # Create new BC control functions at time t
-        uin = [Function(spaces.U) for i in range(d)]
-        g = as_vector(uin)
+        g = [Function(spaces.U, name="g%d_%d"%(i,timestep)) for i in range(d)]
 
         # Make a record of BC controls in list
-        controls.uin.append(uin)
+        controls.glist.append(g)
 
         # Update 'initial guess' of the boundary control functions at time t by copying from initial condition
-        bc = bcs.bcu.inflow
         for i in range(d):
-            dbc = DirichletBC(spaces.U, self.initial_velocity[i], facet_domains, bc.region)
-            dbc.apply(uin[i].vector())
+            #dbc = DirichletBC(spaces.U, self.initial_velocity[i], facet_domains, bc.region)
+            #dbc.apply(g[i].vector())
+            g[i].assign(self.initial_velocity[i])
 
         # Assign 'initial guess' control function values to the BC functions used in scheme forms
         for i in range(d):
-            bc.functions[i].assign(uin[i])
+            bc.functions[i].assign(g[i])
 
         # ... Update cost functional with transient contributions
         ds = self.ds
         dx = self.dx
-        jp = self.params.J
-        J = cost_functionals.J
+        g = as_vector(g)
+        J = 0
 
         # Add distance to observations at time t to cost functional
         J += (u-z)**2*dx
 
         # Add regularization of boundary control function to cost functional at time t
-        J += Constant(jp.alpha_g)        * g**2       * ds(self.controlled_boundary_ids)
-        J += Constant(jp.alpha_g_grad)   * grad(g)**2 * ds(self.controlled_boundary_ids)
-        J += Constant(jp.alpha_g_volume)      * g**2       * dx
-        J += Constant(jp.alpha_g_grad_volume) * grad(g)**2 * dx
+        J += self.alpha_g             * g**2       * ds(self.controlled_boundary_ids)
+        J += self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids)
+        J += self.alpha_g_volume      * g**2       * dx
+        J += self.alpha_g_grad_volume * grad(g)**2 * dx
 
+        # Append contribution to list
+        cost_functionals.append(J)
 
 def main():
     # Don't annotate the initial observation production
@@ -376,7 +376,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-3,
-            T=0.003,#8,
+            T=0.01,#8,
             num_periods=None,
             )
 
@@ -450,13 +450,23 @@ def main():
 
         observations.append((data.t, z))
 
+    # Extract initial velocity from observations,
+    # for another problem this may be given separately,
+    # e.g. if the observations are not everywhere, noisy,
+    # or in a different space, then the initial velocity
+    # could be e.g. the solution to an artificially constructed
+    # forward problem with a reasonable flow rate
+    assert abs(observations[0][0]) < problem.params.dt * 0.01, "Expecting t = 0!"
+    initial_velocity = observations[0][1]
 
 
     # DO annotate the forward model
     parameters["adjoint"]["stop_annotating"] = False
+    adj_reset()
+    parameters["adjoint"]["test_derivative"] = True
 
     # Setup assimilation problem to reproduce observations
-    daproblem = AssimilationProblem(shared_problem_params, problem.geometry, observations)
+    daproblem = AssimilationProblem(shared_problem_params, problem.geometry, initial_velocity, observations)
 
     # Setup scheme
     dascheme = CoupledPicard(shared_scheme_params)
@@ -496,17 +506,35 @@ def main():
 
         parameters["adjoint"]["stop_annotating"] = False
 
-    J = data.cost_functionals.J
+    # Stop annotating after forward simulation
+    parameters["adjoint"]["stop_annotating"] = True
+
+    # Accumulate terms from cost functional (gives us a ridiculously long form...)
+    J = sum(data.cost_functionals)
     print "Cost functional:", assemble(J)
     print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
+    print "Cost functionals at each timestep:"
+    for i, Jt in enumerate(data.cost_functionals):
+        print "Jt =", i, assemble(Jt)
+
+    adj_html("forward.html", "forward")
+    adj_html("adjoint.html", "adjoint")
 
 
-    # TODO: Control annotation (off for problem, on for daproblem) and try replay
-
-
+    # TODO: Make replay work
     # Try replaying with dolfin-adjoint
-    success = da.replay_dolfin()
-    print success
+    #success = da.replay_dolfin()
+    #print "replay success:", success
+
+
+    #J = Functional(J)
+    #dJdnu = compute_gradient(J, ScalarParameter(nu))
+    #Jnu = assemble(inner(u, u)*dx)
+    #def Jhat(nu):
+    #    u = main(nu)
+    #    return assemble(inner(u, u)*dx)
+    #conv_rate = taylor_test(Jhat, ScalarParameter(nu), Jnu, dJdnu)
+
 
 
 if __name__ == "__main__":

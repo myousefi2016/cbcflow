@@ -52,10 +52,11 @@ class CoupledPicard(NSScheme):
         nonlinear_solver = ParamDict(NonlinearVariationalSolver.default_parameters().to_dict())
         nonlinear_solver.newton_solver.absolute_tolerance = 1e-13
         nonlinear_solver.newton_solver.relative_tolerance = 1e-13
-        nonlinear_solver.newton_solver.maximum_iterations = 20
+        nonlinear_solver.newton_solver.maximum_iterations = 10
         nonlinear_solver.newton_solver.error_on_nonconvergence = False
         nonlinear_solver.newton_solver.report = True
-        nonlinear_solver.reset_jacobian = False
+        nonlinear_solver.newton_solver.linear_solver = "lu"
+        nonlinear_solver.reset_jacobian = True
 
         # Set default form compiler parameters
         fc = ParamDict(
@@ -238,7 +239,7 @@ class CoupledPicard(NSScheme):
             J_approx = J
         else:
             # Use a mix (avoid recompilation with Constant)
-            alpha = Constant(alpha)
+            alpha = Constant(alpha, name="picard_newton_fraction")
             J_approx = alpha*J + (1.0-alpha)*a
 
         # Create solver
@@ -246,6 +247,14 @@ class CoupledPicard(NSScheme):
                                                         form_compiler_parameters=self.params.form_compiler_parameters)
         solver = NonlinearVariationalSolver(nonlinear_problem)
         solver.parameters.update(self.params.nonlinear_solver)
+
+        # TODO: Could use this to yield u0,p0 in proper spaces below:
+        #u_assigner = FunctionAssigner(spaces.V, spaces.W.sub(0))
+        #p_assigner = FunctionAssigner(spaces.Q, spaces.W.sub(1))
+        #uv = Function(spaces.V)
+        #pv = Function(spaces.Q)
+        #u_assigner.assign(uv, up0.sub(0))
+        #p_assigner.assign(pv, up0.sub(1))
 
         # Yield initial data for postprocessing
         yield ParamDict(t=float(t), timestep=start_timestep,
@@ -262,6 +271,9 @@ class CoupledPicard(NSScheme):
 
             # Solve for up1
             solver.solve()
+            #solve(F == 0, up1, bc_strong, J=J_approx,
+            #      form_compiler_parameters=self.params.form_compiler_parameters,
+            #      solver_parameters=self.params.nonlinear_solver.to_dict())
 
             # Rotate functions for next timestep
             up0.assign(up1)
