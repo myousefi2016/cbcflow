@@ -16,6 +16,16 @@ import time
 def timestamp():
     return "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}".format(t=time.localtime())
 
+
+def binsum(seq):
+    "Add items in sequence in a binary tree structure."
+    n = len(seq)
+    if n <= 3:
+        return sum(seq)
+    m = n // 2
+    return binsum(seq[:m]) + binsum(seq[m:])
+
+
 # TODO: Add types like these to cbcflow to document BC interface?
 InitialConditions = namedtuple("InitialConditions", ["icu", "icp"])
 VelocityBC = namedtuple("VelocityBC", ["functions", "region", "method"])
@@ -354,8 +364,10 @@ class AssimilationProblem(ProblemBase):
         g = as_vector(g)
         J = 0
 
-        # Add distance to observations at time t to cost functional
-        J += (u-z)**2*dx
+        # Project the velocity state into the observation function space
+        u_t = project(u, spaces.V)
+        # Add distance to observations at time t to cost functional,
+        J += (u_t - z)**2*dx
 
         # Add regularization of boundary control function to cost functional at time t
         J += self.alpha_g             * g**2       * ds(self.controlled_boundary_ids)
@@ -376,7 +388,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-3,
-            T=0.01,#8,
+            T=0.8,#8,
             num_periods=None,
             )
 
@@ -509,11 +521,15 @@ def main():
     # Stop annotating after forward simulation
     parameters["adjoint"]["stop_annotating"] = True
 
-    # Accumulate terms from cost functional (gives us a ridiculously long form...)
-    J = sum(data.cost_functionals)
+    # Accumulate terms from cost functional
+    # (this gives us a ridiculously long form...
+    # using a hierarchic binary tree sum structure
+    # to avoid recursion limit problems in ufl)
+    J = binsum(data.cost_functionals)
+
     print "Cost functional:", assemble(J)
     print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
-    print "Cost functionals at each timestep:"
+    print "Cost functionals at each timestep (INCORRECT VALUES BECAUSE U IS UPDATED):"
     for i, Jt in enumerate(data.cost_functionals):
         print "Jt =", i, assemble(Jt)
 
@@ -523,8 +539,8 @@ def main():
 
     # TODO: Make replay work
     # Try replaying with dolfin-adjoint
-    #success = da.replay_dolfin()
-    #print "replay success:", success
+    success = da.replay_dolfin()
+    print "replay success:", success
 
 
     #J = Functional(J)
