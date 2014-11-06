@@ -39,9 +39,9 @@ def assign_ics_mixed(up0, spaces, ics):
     up = as_vector(list(ics[0]) + [ics[1]])
     #project(up, spaces.W, function=up0) # TODO: Can do this in fenics dev
 
-    #upp = project(up, spaces.W, name="icup0_projection")
-    upp = project(up, spaces.W)
-    upp.rename("icup0_projection", "icup0_projection")
+    upp = project(up, spaces.W, name="icup0_projection")
+    #upp = project(up, spaces.W)
+    #upp.rename("icup0_projection", "icup0_projection")
 
     up0.assign(upp)
 
