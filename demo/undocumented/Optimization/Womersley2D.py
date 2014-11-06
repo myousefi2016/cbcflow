@@ -403,7 +403,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-2,
-            T=0.3,#8,
+            T=0.1,#3,#8,
             num_periods=None,
             )
 
@@ -576,21 +576,38 @@ def main():
     adj_html("adjoint.html", "adjoint")
 
 
-    # TODO: Make replay work
-    # Try replaying with dolfin-adjoint
-    success = da.replay_dolfin()
-    print "replay success:", success
+    # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
+    #success = da.replay_dolfin()
+    #print "replay success:", success
 
+    # Setup controls and functional for dolfin-adjoint
+    m = [da.Control(g) for g in data.controls.glist]
+    J = Functional(J)
 
-    #J = Functional(J)
-    #dJdnu = compute_gradient(J, ScalarParameter(nu))
-    #Jnu = assemble(inner(u, u)*dx)
-    #def Jhat(nu):
-    #    u = main(nu)
-    #    return assemble(inner(u, u)*dx)
-    #conv_rate = taylor_test(Jhat, ScalarParameter(nu), Jnu, dJdnu)
+    # Try gradient computation:
+    #dJdm = da.compute_gradient(J, m)
+    # This gives:
+    # libadjoint.exceptions.LibadjointErrorInvalidInputs:
+    #     Error in adj_iteration_count:
+    #         No iteration found for supplied variable g0_5:8:0:Forward.
 
+    RJ = da.ReducedFunctional(J, m)
 
+    #Jm = RJ(m)
+    # This gives:
+    # libadjoint.exceptions.LibadjointErrorInvalidInputs:
+    #    Error in adj_iteration_count:
+    #        No iteration found for supplied variable icu1:8:0:Forward.
+
+    # TODO: Run taylor test!
+    #conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
+
+    # Try plotting gradients when we have them computed:
+    #print type(dJdm)
+    #print type(dJdm[0])
+    #for i, dj in enumerate(dJdm):
+    #    plot(dj, title="dj%d"%i)
+    #interactive()
 
 if __name__ == "__main__":
     main()
