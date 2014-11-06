@@ -281,7 +281,7 @@ class CoupledScheme(NSScheme):
                         observations=observations, controls=controls, cost_functionals=cost_functionals)
 
         # Loop over fixed timesteps
-        adj_start_timestep(float(t))
+        ##adj_start_timestep(float(t))
         for timestep in xrange(start_timestep+1, len(timesteps)):
             #assign_time(t, timesteps[timestep])
             t.assign(timesteps[timestep])
@@ -305,7 +305,7 @@ class CoupledScheme(NSScheme):
                             bcs=bcs,
                             observations=observations, controls=controls, cost_functionals=cost_functionals)
 
-            adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)
+            ##adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)
 
         # Make sure annotation gets that the timeloop is over
         #finalize_time(t)

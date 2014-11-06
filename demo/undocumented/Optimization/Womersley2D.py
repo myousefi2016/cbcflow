@@ -423,7 +423,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-2,
-            T=0.02,#3,#8,
+            T=0.1,#3,#8,
             num_periods=None,
             )
 
