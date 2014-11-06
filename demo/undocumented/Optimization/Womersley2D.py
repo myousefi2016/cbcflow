@@ -30,6 +30,12 @@ def binsum(seq):
     dummy = hash(result)
     return result
 
+class NoOp(object):
+    def __mul__(self, other):
+        return other
+    def __rmul__(self, other):
+        return other
+
 
 # TODO: Add types like these to cbcflow to document BC interface?
 InitialConditions = namedtuple("InitialConditions", ["icu", "icp"])
@@ -309,8 +315,10 @@ class AssimilationProblem(ProblemBase):
         # Add initial condition control terms
         if controls.u0:
             u0 = as_vector(controls.u0)
+            #dtt = NoOp()
             #dtt = dt[START_TIME]
-            dtt = dt[0]
+            #dtt = dt[0]
+            dtt = dt[FINISH_TIME]
             J_terms = [
                 self.alpha_u0              * u0**2       * dx * dtt,
                 self.alpha_u0_div          * div(u0)**2  * dx * dtt,
@@ -320,7 +328,7 @@ class AssimilationProblem(ProblemBase):
                 self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dtt,
                 ]
             J = binsum(J_terms)
-            cost_functionals.append(J)
+            #cost_functionals.append(J) # DEBUGGING
 
         return cost_functionals
 
@@ -364,7 +372,7 @@ class AssimilationProblem(ProblemBase):
 
         # Assign 'initial guess' control function values to the BC functions used in scheme forms
         for i in range(d):
-            bc.functions[i].assign(g[i])
+            bc.functions[i].assign(g[i], annotate=True)
 
         # ... Update cost functional with transient contributions
         ds = self.ds
@@ -373,11 +381,15 @@ class AssimilationProblem(ProblemBase):
 
         # Project the velocity state into the observation function space
         u_t = project(u, spaces.V, name="u_at_t%d"%timestep)
+        dtt = NoOp()
         #dtt = dt[timestep]
-        dtt = dt[float(t)]
+        #dtt = dt[float(t)]
+        dtt = dt[FINISH_TIME]
         J_terms = [
             # Add distance to observations at time t to cost functional,
-            (u_t - z)**2 * dx * dtt,
+            (u_t - z)**2 * dx * dtt
+            ]
+        J_terms_ignored = [
             # Add regularization of boundary control function to cost functional at time t
             self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dtt,
             self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids) * dtt,
@@ -411,7 +423,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-2,
-            T=0.1,#3,#8,
+            T=0.02,#3,#8,
             num_periods=None,
             )
 
@@ -592,26 +604,48 @@ def main():
     print "gcs =",
     print '\n'.join(map(str,gcs))
 
+    print
+    print str(J)
+    print
+
     # Compute J(m)
     J = da.Functional(J)
-    RJ = da.ReducedFunctional(J, gcs)
-    Jm = RJ(gcs)
-    print "J(m) =", Jm
+    RJ = da.ReducedFunctional(J, m)
 
-    # Compute dJ/dm at m
-    dJdm = da.compute_gradient(J, m, forget=False)
-    print "dJdm(m) =", dJdm
+    if 1:
+        # Try optimizing
+        for gc in gcs:
+            gc.vector().zero()
+        for fc in data.bcs.bcu.inflow.functions:
+            fc.vector().zero()
+        m_opt = minimize(RJ)
+        print m_opt
+        for i, mo in enumerate(m_opt):
+            if i % 2 == 0:
+                plot(mo, title="m%d"%(i//2))
+        interactive()
+        #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
 
-    # TODO: Run taylor test!
-    conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
-    print "conv_rate =", conv_rate
+    if 0:
+        Jm = RJ(gcs[0])
+        print "J(m) =", Jm
 
-    # Try plotting gradients when we have them computed:
-    #print type(dJdm)
-    #print type(dJdm[0])
-    #for i, dj in enumerate(dJdm):
-    #    plot(dj, title="dj%d"%i)
-    #interactive()
+        # Compute dJ/dm at m
+        dJdm = da.compute_gradient(J, m[0], forget=False)
+        #print "dJdm(m) =",
+        #print '\n'.join(map(str,dJdm))
+        #print
+
+        # TODO: Run taylor test!
+        conv_rate = da.taylor_test(RJ, m[0], Jm, dJdm)
+        print "conv_rate =", conv_rate
+
+        # Try plotting gradients when we have them computed:
+        #print type(dJdm)
+        #print type(dJdm[0])
+        #for i, dj in enumerate(dJdm):
+        #    plot(dj, title="dj%d"%i)
+        #interactive()
 
 if __name__ == "__main__":
     main()

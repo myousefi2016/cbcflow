@@ -30,6 +30,21 @@ from cbcflow.schemes.utils import (
     # ... implemented inline below for now
     )
 
+def assign_ics_mixed(up0, spaces, ics):
+    """Assign initial conditions from ics to up0.
+
+    up0 is a mixed function in spaces.W = spaces.V * spaces.Q,
+    while ics = (icu, icp); icu = (icu0, icu1, ...).
+    """
+    up = as_vector(list(ics[0]) + [ics[1]])
+    #project(up, spaces.W, function=up0) # TODO: Can do this in fenics dev
+
+    #upp = project(up, spaces.W, name="icup0_projection")
+    upp = project(up, spaces.W)
+    upp.rename("icup0_projection", "icup0_projection")
+
+    up0.assign(upp)
+
 class CoupledScheme(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
 
@@ -98,7 +113,9 @@ class CoupledScheme(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-        t = Time(t0=timesteps[start_timestep])
+
+        #t = Time(t0=timesteps[start_timestep])
+        t = Constant(timesteps[start_timestep], name="TIME")
 
         # Function spaces
         spaces = NSSpacePoolMixed(mesh, self.params.u_degree, self.params.p_degree)
@@ -260,11 +277,14 @@ class CoupledScheme(NSScheme):
         yield ParamDict(t=float(t), timestep=start_timestep,
                         u=u0, p=p0,
                         spaces=spaces,
+                        bcs=bcs,
                         observations=observations, controls=controls, cost_functionals=cost_functionals)
 
         # Loop over fixed timesteps
+        adj_start_timestep(float(t))
         for timestep in xrange(start_timestep+1, len(timesteps)):
-            assign_time(t, timesteps[timestep])
+            #assign_time(t, timesteps[timestep])
+            t.assign(timesteps[timestep])
 
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls, cost_functionals)
@@ -282,7 +302,41 @@ class CoupledScheme(NSScheme):
             yield ParamDict(t=float(t), timestep=timestep,
                             u=u0, p=p0,
                             spaces=spaces,
+                            bcs=bcs,
                             observations=observations, controls=controls, cost_functionals=cost_functionals)
 
+            adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)
+
         # Make sure annotation gets that the timeloop is over
-        finalize_time(t)
+        #finalize_time(t)
+
+        """
+# This is a trick to handle automatic timestep annotation
+def Time(t0=0.0):
+    t = Constant(t0, name="TIME")
+    t._prev_value = t0
+    t._assigned_to = False
+    return t
+
+def assign_time(t, tvalue):
+    if t._assigned_to:
+        # Annotate previous timestep is done
+        adj_inc_timestep(t._prev_value)
+    else:
+        # Annotate the beginning of time
+        t._assigned_to = True
+        adj_start_timestep(t._prev_value)
+    # Update time constant to reflect modern times
+    t.assign(tvalue)
+    t._prev_value = tvalue
+
+def finalize_time(t):
+    # Make sure we have annotated the beginning of time
+    if not t._assigned_to:
+        t._assigned_to = True
+        adj_start_timestep(t._prev_value)
+    # Annotate the end-time is here
+    adj_inc_timestep(t._prev_value, finished=True)
+    # Time constant needs no updating anymore
+    t._prev_value = None
+        """
