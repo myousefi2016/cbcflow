@@ -45,7 +45,7 @@ BoundaryConditions = namedtuple("BoundaryConditions", ["bcu", "bcp"])
 
 
 # Create some problem specific types to make tuple usage safer and more readable
-Controls = namedtuple("Controls", ["u0", "glist"])
+Controls = namedtuple("Controls", ["initial_velocity", "g_timesteps"])
 VelocityBoundaryConditions = namedtuple("VelocityBoundaryConditions", ["inflow", "noslip"])
 PressureBoundaryConditions = namedtuple("PressureBoundaryConditions", ["outflow"])
 
@@ -142,8 +142,8 @@ class ProblemBase(NSProblem):
         inflow = VelocityBC(uin, bids.left, "nietche")
 
         # Create no-slip bcs
-        u0 = [Constant(0.0, name="noslip%d"%i) for i in range(d)]
-        noslip = VelocityBC(u0, bids.wall, "strong")
+        u_noslip = [Constant(0.0, name="noslip%d"%i) for i in range(d)]
+        noslip = VelocityBC(u_noslip, bids.wall, "strong")
 
         # Create outflow bcs for pressure
         outflow = PressureBC(Constant(0.0, name="p_out"), bids.right)
@@ -199,8 +199,8 @@ class AnalyticProblem(ProblemBase):
 
         if wp.transient_Q:
             # Setup coefficients for a transient flow rate
-            time_values = np.linspace(0.0, P)
-            t = np.mod((P - time_values) / P, P)
+            time_values = np.linspace(0.0, P, 4*wp.num_womersley_coefficients)
+            t = np.mod((P - time_values) / P, 1.0)
             time_profile = wp.Qfloor + (wp.Qpeak - wp.Qfloor) * np.sin(pi*t**3)**2
             Q_coeffs = zip(time_values, wp.Q * time_profile)
         else:
@@ -211,18 +211,6 @@ class AnalyticProblem(ProblemBase):
         self.womersley = make_womersley_bcs(Q_coeffs, mesh, bids.left, nu, None, facet_domains,
                                             "Q", num_fourier_coefficients=wp.num_womersley_coefficients)
 
-    def observations(self, spaces, t):
-        # Can be omitted, keeping here for transparency
-        return ()
-
-    def controls(self, spaces):
-        # Can be omitted, keeping here for transparency
-        return ()
-
-    def cost_functionals(self, spaces, t, observations, controls):
-        # Can be omitted, keeping here for transparency
-        return ()
-
     def initial_conditions(self, spaces, controls):
         d = spaces.d
 
@@ -231,9 +219,9 @@ class AnalyticProblem(ProblemBase):
         icp = Function(spaces.Q, name="ip") # Is this actually used?
 
         # Interpolate womersley solution into entire initial condition (only possible for this simple pipe case!)
-        for u, w in zip(icu, self.womersley):
-            w.set_t(0.0)
-            u.interpolate(w)
+        for i in range(d):
+            self.womersley[i].set_t(0.0)
+            icu[i].interpolate(self.womersley[i])
 
         return InitialConditions(icu, icp)
 
@@ -251,7 +239,15 @@ class AnalyticProblem(ProblemBase):
 
 
 class AssimilationProblem(ProblemBase):
-    "2D pipe test problem with known stationary analytical solution."
+    """Problem setup for dolfin-adjoint annotation.
+
+    Observations and initial condition for velocity are given.
+
+    Controls are both boundary inflow and velocity initial condition.
+
+    The cost functional is parameterized with a bunch of
+    regularization parameters, by default most of these are zero.
+    """
 
     def __init__(self, params, geometry, initial_velocity, observations):
         ProblemBase.__init__(self, params)
@@ -269,7 +265,14 @@ class AssimilationProblem(ProblemBase):
         # Wrap regularization parameters in Constants
         for k in self.params.J.keys():
             alpha = self.params.J[k]
-            setattr(self, k, Constant(alpha, name=k))
+            if abs(alpha) < 1e-13:
+                # This is to make the cost functional terms disappear
+                # (unfortunately increasing recompilation)
+                alpha = 0
+            else:
+                # This is to avoid recompiling the cost functional for variations in alpha values
+                alpha = Constant(alpha, name=k)
+            setattr(self, k, alpha)
 
     @classmethod
     def default_params(cls):
@@ -298,12 +301,12 @@ class AssimilationProblem(ProblemBase):
         d = spaces.d
 
         # Initial condition control (may choose to use this or not when computing gradient later)
-        icu = [Function(spaces.U, name="icu%d"%i) for i in range(d)]
+        initial_velocity = [Function(spaces.U, name="icu%d"%i) for i in range(d)]
 
         # Boundary control list is extended in update() for each timestep
-        glist = []
+        g_timesteps = []
 
-        return Controls(icu, glist)
+        return Controls(initial_velocity, g_timesteps)
 
     def cost_functionals(self, spaces, t, observations, controls):
         ds = self.ds
@@ -313,12 +316,12 @@ class AssimilationProblem(ProblemBase):
         cost_functionals = []
 
         # Add initial condition control terms
-        if controls.u0:
-            u0 = as_vector(controls.u0)
-            #dtt = NoOp()
+        if controls.initial_velocity:
+            u0 = as_vector(controls.initial_velocity)
+            dtt = NoOp()
             #dtt = dt[START_TIME]
             #dtt = dt[0]
-            dtt = dt[FINISH_TIME]
+            #dtt = dt[FINISH_TIME]
             J_terms = [
                 self.alpha_u0              * u0**2       * dx * dtt,
                 self.alpha_u0_div          * div(u0)**2  * dx * dtt,
@@ -328,7 +331,7 @@ class AssimilationProblem(ProblemBase):
                 self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dtt,
                 ]
             J = binsum(J_terms)
-            #cost_functionals.append(J) # DEBUGGING
+            cost_functionals.append(J)
 
         return cost_functionals
 
@@ -336,7 +339,7 @@ class AssimilationProblem(ProblemBase):
         d = spaces.d
 
         # Get/create IC functions
-        icu = controls.u0
+        icu = controls.initial_velocity
         icp = Function(spaces.Q, name="ip") # Is this actually used?
 
         # Copy initial condition from observations
@@ -362,7 +365,7 @@ class AssimilationProblem(ProblemBase):
         g = [Function(spaces.U, name="g%d_%d"%(i,timestep)) for i in range(d)]
 
         # Make a record of BC controls in list
-        controls.glist.append(g)
+        controls.g_timesteps.append(g)
 
         # Update 'initial guess' of the boundary control functions at time t by copying from initial condition
         for i in range(d):
@@ -384,12 +387,10 @@ class AssimilationProblem(ProblemBase):
         dtt = NoOp()
         #dtt = dt[timestep]
         #dtt = dt[float(t)]
-        dtt = dt[FINISH_TIME]
+        #dtt = dt[FINISH_TIME]
         J_terms = [
             # Add distance to observations at time t to cost functional,
-            (u_t - z)**2 * dx * dtt
-            ]
-        J_terms_ignored = [
+            (u_t - z)**2 * dx * dtt,
             # Add regularization of boundary control function to cost functional at time t
             self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dtt,
             self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids) * dtt,
@@ -398,13 +399,35 @@ class AssimilationProblem(ProblemBase):
             ]
         J = binsum(J_terms)
 
-        print "DEBUG", str(g[0]), str(g[1]), str(timestep), str(float(t))
+        #print "DEBUG", str(g[0]), str(g[1]), str(timestep), str(float(t))
 
         # Hack to trigger hash computation to work around ufl recursion limit when computing hash of functional later
         dummy = hash(J)
 
         # Append contribution to list
         cost_functionals.append(J)
+
+
+class FinalReplayProblem(ProblemBase):
+    "Problem setup to run with the final control functions."
+
+    def __init__(self, params, geometry, controls):
+        ProblemBase.__init__(self, params)
+        self.geometry = geometry
+        self.initialize_geometry(self.geometry.mesh, self.geometry.facet_domains)
+        self._controls = controls
+
+    def initial_conditions(self, spaces, controls):
+        icu = self._controls.initial_velocity
+        icp = Function(spaces.Q, name="ip") # Is this actually used?
+        return InitialConditions(icu, icp)
+
+    def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
+        us = bcs.bcu.inflow.functions
+        gs = self._controls.g_timesteps[timestep]
+        for u, g in zip(us, gs):
+            u.assign(g)
+
 
 def main():
     # Don't annotate the initial observation production
@@ -415,15 +438,15 @@ def main():
     # Configure geometry
     geometry_params = ParamDict(
             refinement_level=1,
-            length=4.0,
+            length=3.0,
             radius=0.5,
             )
 
     # Setup parameters shared between analytic and assimilation problem
     shared_problem_params = ParamDict(
             # Time
-            dt=1e-2,
-            T=0.1,#3,#8,
+            dt=1e-1,
+            T=0.4,#8,
             num_periods=None,
             )
 
@@ -580,64 +603,45 @@ def main():
     # Stop annotating after forward simulation
     parameters["adjoint"]["stop_annotating"] = True
 
-    # Compute norms of boundary control functions
-    dsi = problem.ds(problem.geometry.boundary_ids.left)
-    print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.glist]
-    print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
-
-    # Accumulate terms from cost functional
-    # (this gives us a ridiculously long form...
-    # using a hierarchic binary tree sum structure
-    # to avoid recursion limit problems in ufl)
-    J = binsum(data.cost_functionals)
-
+    # Always write tape to files for eventual debugging
     adj_html("forward.html", "forward")
     adj_html("adjoint.html", "adjoint")
 
+    # Compute norms of boundary control functions
+    #dsi = problem.ds(problem.geometry.boundary_ids.left)
+    #print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.g_timesteps]
+    #print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
+
+    # Accumulate terms from cost functional.
+    # This gives us a ridiculously long form...
+    # Trying to use a hierarchic binary tree sum structure to avoid
+    # recursion limit problems in ufl, but this doesn't really work...
+    J = binsum(data.cost_functionals)
+
     # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
-    #success = da.replay_dolfin()
-    #print "replay success:", success
+    try_replay = False
+    if try_replay:
+        success = da.replay_dolfin()
+        print "replay success:", success
 
-    # Setup controls and functional for dolfin-adjoint
-    gcs = [gc for g in data.controls.glist for gc in g]
+    # Setup controls and functionals for dolfin-adjoint
+    gcs = [gc for g in data.controls.g_timesteps for gc in g]
     m = [da.Control(gc) for gc in gcs]
-    print "gcs =",
-    print '\n'.join(map(str,gcs))
-
-    print
-    print str(J)
-    print
-
-    # Compute J(m)
     J = da.Functional(J)
     RJ = da.ReducedFunctional(J, m)
 
-    if 1:
-        # Try optimizing
-        for gc in gcs:
-            gc.vector().zero()
-        for fc in data.bcs.bcu.inflow.functions:
-            fc.vector().zero()
-        m_opt = minimize(RJ)
-        print m_opt
-        for i, mo in enumerate(m_opt):
-            if i % 2 == 0:
-                plot(mo, title="m%d"%(i//2))
-        interactive()
-        #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
-
-    if 0:
-        Jm = RJ(gcs[0])
+    # Not capable of running taylor test...
+    try_taylor_test = False
+    if try_taylor_test:
+        # Compute J(m)
+        Jm = RJ(gcs)
         print "J(m) =", Jm
 
         # Compute dJ/dm at m
-        dJdm = da.compute_gradient(J, m[0], forget=False)
-        #print "dJdm(m) =",
-        #print '\n'.join(map(str,dJdm))
-        #print
+        dJdm = da.compute_gradient(J, m, forget=False)
 
         # TODO: Run taylor test!
-        conv_rate = da.taylor_test(RJ, m[0], Jm, dJdm)
+        conv_rate = da.taylor_test(RJ, m, Jm, dJdm) # This fails, bug reported in dolfin-adjoint
         print "conv_rate =", conv_rate
 
         # Try plotting gradients when we have them computed:
@@ -646,6 +650,26 @@ def main():
         #for i, dj in enumerate(dJdm):
         #    plot(dj, title="dj%d"%i)
         #interactive()
+        return
+
+    # Try optimizing
+    for gc in gcs:
+        gc.vector().zero()
+    for fc in data.bcs.bcu.inflow.functions:
+        fc.vector().zero()
+    m_opt = minimize(RJ)
+
+    #print m_opt
+    #for i, mo in enumerate(m_opt):
+    #    if i % 2 == 0:
+    #        plot(mo, title="m%d"%(i//2))
+    #interactive()
+    #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
+
+    # Run final problem
+    controls = Controls(data.controls.initial_velocity, m_opt)
+    finproblem = FinalReplayProblem(shared_problem_params, problem.geometry, controls)
+    # TODO: Setup scheme and solver and run finproblem with postprocessing
 
 if __name__ == "__main__":
     main()

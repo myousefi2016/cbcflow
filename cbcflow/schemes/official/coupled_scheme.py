@@ -309,34 +309,3 @@ class CoupledScheme(NSScheme):
 
         # Make sure annotation gets that the timeloop is over
         #finalize_time(t)
-
-        """
-# This is a trick to handle automatic timestep annotation
-def Time(t0=0.0):
-    t = Constant(t0, name="TIME")
-    t._prev_value = t0
-    t._assigned_to = False
-    return t
-
-def assign_time(t, tvalue):
-    if t._assigned_to:
-        # Annotate previous timestep is done
-        adj_inc_timestep(t._prev_value)
-    else:
-        # Annotate the beginning of time
-        t._assigned_to = True
-        adj_start_timestep(t._prev_value)
-    # Update time constant to reflect modern times
-    t.assign(tvalue)
-    t._prev_value = tvalue
-
-def finalize_time(t):
-    # Make sure we have annotated the beginning of time
-    if not t._assigned_to:
-        t._assigned_to = True
-        adj_start_timestep(t._prev_value)
-    # Annotate the end-time is here
-    adj_inc_timestep(t._prev_value, finished=True)
-    # Time constant needs no updating anymore
-    t._prev_value = None
-        """
