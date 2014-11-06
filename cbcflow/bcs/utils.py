@@ -64,7 +64,7 @@ def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
     x = SpatialCoordinate(mesh)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
-    A = assemble(Constant(1.0)*dsi)
+    A = assemble(Constant(1.0, name="one")*dsi)
     assert A > 0.0, "Expecting positive area, probably mismatch between mesh and markers!"
 
     # Compute barycenter by integrating x components over all facets
@@ -89,7 +89,7 @@ def compute_area(mesh, ind, facet_domains):
     dsi = ds(ind, domain=mesh, subdomain_data=facet_domains)
 
     # Compute area of boundary tesselation by integrating 1.0 over all facets
-    A = assemble(Constant(1.0)*dsi)
+    A = assemble(Constant(1.0, name="one")*dsi)
     assert A > 0.0, "Expecting positive area, probably mismatch between mesh and markers!"
     return A
 

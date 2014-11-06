@@ -12,6 +12,7 @@ from collections import namedtuple
 import numpy as np
 import time
 
+
 # TODO: Move to cbcpost utils
 def timestamp():
     return "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}".format(t=time.localtime())
@@ -308,13 +309,15 @@ class AssimilationProblem(ProblemBase):
         # Add initial condition control terms
         if controls.u0:
             u0 = as_vector(controls.u0)
+            #dtt = dt[START_TIME]
+            dtt = dt[0]
             J_terms = [
-                self.alpha_u0              * u0**2       * dx * dt[START_TIME],
-                self.alpha_u0_div          * div(u0)**2  * dx * dt[START_TIME],
-                self.alpha_u0_grad         * grad(u0)**2 * dx * dt[START_TIME],
-                self.alpha_u0_grad_controlled   * grad(u0)**2 * ds(self.controlled_boundary_ids) * dt[START_TIME],
-                self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids) * dt[START_TIME],
-                self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dt[START_TIME],
+                self.alpha_u0              * u0**2       * dx * dtt,
+                self.alpha_u0_div          * div(u0)**2  * dx * dtt,
+                self.alpha_u0_grad         * grad(u0)**2 * dx * dtt,
+                self.alpha_u0_grad_controlled   * grad(u0)**2 * ds(self.controlled_boundary_ids) * dtt,
+                self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids) * dtt,
+                self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dtt,
                 ]
             J = binsum(J_terms)
             cost_functionals.append(J)
@@ -369,17 +372,21 @@ class AssimilationProblem(ProblemBase):
         g = as_vector(g)
 
         # Project the velocity state into the observation function space
-        u_t = project(u, spaces.V)
+        u_t = project(u, spaces.V, name="u_at_t%d"%timestep)
+        #dtt = dt[timestep]
+        dtt = dt[float(t)]
         J_terms = [
             # Add distance to observations at time t to cost functional,
-            (u_t - z)**2 * dx * dt[timestep],
+            (u_t - z)**2 * dx * dtt,
             # Add regularization of boundary control function to cost functional at time t
-            self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dt[timestep],
-            self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids) * dt[timestep],
-            self.alpha_g_volume      * g**2       * dx * dt[timestep],
-            self.alpha_g_grad_volume * grad(g)**2 * dx * dt[timestep],
+            self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dtt,
+            self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids) * dtt,
+            self.alpha_g_volume      * g**2       * dx * dtt,
+            self.alpha_g_grad_volume * grad(g)**2 * dx * dtt,
             ]
         J = binsum(J_terms)
+
+        print "DEBUG", str(g[0]), str(g[1]), str(timestep), str(float(t))
 
         # Hack to trigger hash computation to work around ufl recursion limit when computing hash of functional later
         dummy = hash(J)
@@ -464,7 +471,7 @@ def main():
     problem = AnalyticProblem(problem_params)
 
     # Setup scheme
-    scheme = CoupledPicard(shared_scheme_params)
+    scheme = CoupledScheme(shared_scheme_params)
 
     # Create unique casedir name
     params_string = str(hash(str(problem.params) + str(scheme.params)))[:8]
@@ -521,7 +528,7 @@ def main():
     daproblem = AssimilationProblem(daproblem_params, problem.geometry, initial_velocity, observations)
 
     # Setup scheme
-    dascheme = CoupledPicard(shared_scheme_params)
+    dascheme = CoupledScheme(shared_scheme_params)
 
     # Setup postprocessor
     dacasedir = casedir + "_da"

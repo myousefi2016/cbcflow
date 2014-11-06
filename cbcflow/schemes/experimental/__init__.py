@@ -40,7 +40,6 @@ from cbcflow.schemes.experimental.karper import Karper
 
 # Coupled schemes
 from cbcflow.schemes.experimental.couplednonlinear import CoupledNonLinear
-from cbcflow.schemes.experimental.coupled_picard import CoupledPicard
 from cbcflow.schemes.experimental.stokes import Stokes
 from cbcflow.schemes.experimental.coupledpreconditioned import CoupledPreconditioned
 from cbcflow.schemes.experimental.coupledpreconditioned_kam import CoupledPreconditionedKAM

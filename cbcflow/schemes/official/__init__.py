@@ -25,6 +25,9 @@ from cbcflow.schemes.official.ipcs import IPCS
 # Schemes with stabilization
 from cbcflow.schemes.official.ipcs_stable import IPCS_Stable
 
+# Fully coupled scheme
+from cbcflow.schemes.official.coupled_scheme import CoupledScheme
+
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme
 import types

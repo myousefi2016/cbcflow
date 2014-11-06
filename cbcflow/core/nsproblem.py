@@ -151,15 +151,15 @@ class NSProblem(Parameterized):
 
     def __kinematic_viscosity(self, controls): # TODO: Enable and use this
         """Return the kinematic viscosity nu=mu/rho."""
-        return Constant(self.params.mu / self.params.rho)
+        return Constant(self.params.mu / self.params.rho, name="kinematic_viscosity")
 
     def __dynamic_viscosity(self, controls): # TODO: Enable and use this
         """Return the dynamic viscosity mu."""
-        return Constant(self.params.mu)
+        return Constant(self.params.mu, name="dynamic_viscosity")
 
     def __density(self, controls): # TODO: Enable and use this
         """Return the density rho."""
-        return Constant(self.params.rho)
+        return Constant(self.params.rho, name="density")
 
     def initial_conditions(self, spaces, controls):
         """Return initial conditions.
@@ -221,7 +221,7 @@ class NSProblem(Parameterized):
         Returns: list of scalars.
         """
         d = self.mesh.geometry().dim()
-        return [Constant(0.0)]*d
+        return [Constant(0.0, name="body_force%d"%i) for i in range(d)]
 
     # TODO: Add body_force here, maybe also viscosity? Maybe time to generalize?
     def update(self, spaces, u, p, t, timestep, boundary_conditions,
