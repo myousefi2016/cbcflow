@@ -304,18 +304,19 @@ class AssimilationProblem(ProblemBase):
 
         # Define static terms in cost functional (transient terms are added in update())
         cost_functionals = []
-        jp = self.params.J
 
         # Add initial condition control terms
         if controls.u0:
             u0 = as_vector(controls.u0)
-            J = 0
-            J += self.alpha_u0              * u0**2       * dx
-            J += self.alpha_u0_div          * div(u0)**2  * dx
-            J += self.alpha_u0_grad         * grad(u0)**2 * dx
-            J += self.alpha_u0_grad_controlled   * grad(u0)**2 * ds(self.controlled_boundary_ids)
-            J += self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids)
-            J += self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall)
+            J_terms = [
+                self.alpha_u0              * u0**2       * dx * dt[START_TIME],
+                self.alpha_u0_div          * div(u0)**2  * dx * dt[START_TIME],
+                self.alpha_u0_grad         * grad(u0)**2 * dx * dt[START_TIME],
+                self.alpha_u0_grad_controlled   * grad(u0)**2 * ds(self.controlled_boundary_ids) * dt[START_TIME],
+                self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids) * dt[START_TIME],
+                self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dt[START_TIME],
+                ]
+            J = binsum(J_terms)
             cost_functionals.append(J)
 
         return cost_functionals
@@ -371,12 +372,12 @@ class AssimilationProblem(ProblemBase):
         u_t = project(u, spaces.V)
         J_terms = [
             # Add distance to observations at time t to cost functional,
-            (u_t - z)**2*dx,
+            (u_t - z)**2 * dx * dt[timestep],
             # Add regularization of boundary control function to cost functional at time t
-            self.alpha_g             * g**2       * ds(self.controlled_boundary_ids),
-            self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids),
-            self.alpha_g_volume      * g**2       * dx,
-            self.alpha_g_grad_volume * grad(g)**2 * dx,
+            self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dt[timestep],
+            self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids) * dt[timestep],
+            self.alpha_g_volume      * g**2       * dx * dt[timestep],
+            self.alpha_g_grad_volume * grad(g)**2 * dx * dt[timestep],
             ]
         J = binsum(J_terms)
 
@@ -560,47 +561,43 @@ def main():
     # Stop annotating after forward simulation
     parameters["adjoint"]["stop_annotating"] = True
 
+    # Compute norms of boundary control functions
+    dsi = problem.ds(problem.geometry.boundary_ids.left)
+    print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.glist]
+    print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
+
     # Accumulate terms from cost functional
     # (this gives us a ridiculously long form...
     # using a hierarchic binary tree sum structure
     # to avoid recursion limit problems in ufl)
     J = binsum(data.cost_functionals)
 
-    print "Cost functional:", assemble(J)
-    print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
-    print "Cost functionals at each timestep (INCORRECT VALUES BECAUSE U IS UPDATED):"
-    for i, Jt in enumerate(data.cost_functionals):
-        print "Jt =", i, assemble(Jt)
-
     adj_html("forward.html", "forward")
     adj_html("adjoint.html", "adjoint")
-
 
     # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
     #success = da.replay_dolfin()
     #print "replay success:", success
 
     # Setup controls and functional for dolfin-adjoint
-    m = [da.Control(g) for g in data.controls.glist]
-    J = Functional(J)
+    gcs = [gc for g in data.controls.glist for gc in g]
+    m = [da.Control(gc) for gc in gcs]
+    print "gcs =",
+    print '\n'.join(map(str,gcs))
 
-    # Try gradient computation:
-    #dJdm = da.compute_gradient(J, m)
-    # This gives:
-    # libadjoint.exceptions.LibadjointErrorInvalidInputs:
-    #     Error in adj_iteration_count:
-    #         No iteration found for supplied variable g0_5:8:0:Forward.
+    # Compute J(m)
+    J = da.Functional(J)
+    RJ = da.ReducedFunctional(J, gcs)
+    Jm = RJ(gcs)
+    print "J(m) =", Jm
 
-    RJ = da.ReducedFunctional(J, m)
-
-    #Jm = RJ(m)
-    # This gives:
-    # libadjoint.exceptions.LibadjointErrorInvalidInputs:
-    #    Error in adj_iteration_count:
-    #        No iteration found for supplied variable icu1:8:0:Forward.
+    # Compute dJ/dm at m
+    dJdm = da.compute_gradient(J, m, forget=False)
+    print "dJdm(m) =", dJdm
 
     # TODO: Run taylor test!
-    #conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
+    conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
+    print "conv_rate =", conv_rate
 
     # Try plotting gradients when we have them computed:
     #print type(dJdm)
