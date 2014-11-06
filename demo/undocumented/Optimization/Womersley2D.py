@@ -21,9 +21,13 @@ def binsum(seq):
     "Add items in sequence in a binary tree structure."
     n = len(seq)
     if n <= 3:
-        return sum(seq)
-    m = n // 2
-    return binsum(seq[:m]) + binsum(seq[m:])
+        result = sum(seq)
+    else:
+        m = n // 2
+        result = binsum(seq[:m]) + binsum(seq[m:])
+    # Trigger hash computation for this result, workaround for hitting UFL recursion limit
+    dummy = hash(result)
+    return result
 
 
 # TODO: Add types like these to cbcflow to document BC interface?
@@ -362,18 +366,22 @@ class AssimilationProblem(ProblemBase):
         ds = self.ds
         dx = self.dx
         g = as_vector(g)
-        J = 0
 
         # Project the velocity state into the observation function space
         u_t = project(u, spaces.V)
-        # Add distance to observations at time t to cost functional,
-        J += (u_t - z)**2*dx
+        J_terms = [
+            # Add distance to observations at time t to cost functional,
+            (u_t - z)**2*dx,
+            # Add regularization of boundary control function to cost functional at time t
+            self.alpha_g             * g**2       * ds(self.controlled_boundary_ids),
+            self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids),
+            self.alpha_g_volume      * g**2       * dx,
+            self.alpha_g_grad_volume * grad(g)**2 * dx,
+            ]
+        J = binsum(J_terms)
 
-        # Add regularization of boundary control function to cost functional at time t
-        J += self.alpha_g             * g**2       * ds(self.controlled_boundary_ids)
-        J += self.alpha_g_grad        * grad(g)**2 * ds(self.controlled_boundary_ids)
-        J += self.alpha_g_volume      * g**2       * dx
-        J += self.alpha_g_grad_volume * grad(g)**2 * dx
+        # Hack to trigger hash computation to work around ufl recursion limit when computing hash of functional later
+        dummy = hash(J)
 
         # Append contribution to list
         cost_functionals.append(J)
@@ -384,13 +392,44 @@ def main():
 
     set_log_level(100)
 
+    # Configure geometry
+    geometry_params = ParamDict(
+            refinement_level=1,
+            length=4.0,
+            radius=0.5,
+            )
+
     # Setup parameters shared between analytic and assimilation problem
     shared_problem_params = ParamDict(
             # Time
-            dt=1e-3,
-            T=0.8,#8,
+            dt=1e-2,
+            T=0.3,#8,
             num_periods=None,
             )
+
+    # Setup parameters for cost functional
+    J_params = ParamDict(
+        # Initial control regularization
+        alpha_u0=0.0,
+        alpha_u0_div=0.0,
+        alpha_u0_grad=0.0,
+        alpha_u0_grad_controlled=0.0,
+        alpha_u0_grad_uncontrolled=0.0,
+        alpha_u0_wall=0.0,
+        # Boundary control regularization
+        alpha_g=0.0,
+        alpha_g_grad=0.0,
+        alpha_g_volume=0.0,
+        alpha_g_grad_volume=0.0,
+        )
+
+    # Setup problem params
+    problem_params = ParamDict(shared_problem_params,
+                               geometry=geometry_params)
+
+    # Setup daproblem params
+    daproblem_params = ParamDict(shared_problem_params,
+                                 J=J_params)
 
     # Setup parameters shared between analytic and assimilation scheme
     shared_scheme_params = ParamDict(
@@ -421,7 +460,7 @@ def main():
             )
 
     # Setup analytic problem to produce observations
-    problem = AnalyticProblem(shared_problem_params)
+    problem = AnalyticProblem(problem_params)
 
     # Setup scheme
     scheme = CoupledPicard(shared_scheme_params)
@@ -478,7 +517,7 @@ def main():
     parameters["adjoint"]["test_derivative"] = True
 
     # Setup assimilation problem to reproduce observations
-    daproblem = AssimilationProblem(shared_problem_params, problem.geometry, initial_velocity, observations)
+    daproblem = AssimilationProblem(daproblem_params, problem.geometry, initial_velocity, observations)
 
     # Setup scheme
     dascheme = CoupledPicard(shared_scheme_params)
