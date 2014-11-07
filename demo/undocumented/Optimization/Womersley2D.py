@@ -13,6 +13,13 @@ import numpy as np
 import time
 
 
+# TODO:
+# - BDF-2 time scheme
+# - Setting u0 initial control values to (beta*z(0) + eta(0,x))
+# - Setting g initial control values to (beta*z(t) + eta(t,x))
+# - Coarser time discretization of g(t) control with
+
+
 # TODO: Move to cbcpost utils
 def timestamp():
     return "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}".format(t=time.localtime())
@@ -423,8 +430,9 @@ class FinalReplayProblem(ProblemBase):
         return InitialConditions(icu, icp)
 
     def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
-        us = bcs.bcu.inflow.functions
-        gs = self._controls.g_timesteps[timestep]
+        bc = bcs.bcu.inflow
+        us = bc.functions
+        gs = self._controls.g_timesteps[timestep-1]
         for u, g in zip(us, gs):
             u.assign(g)
 
@@ -586,7 +594,6 @@ def main():
 
     # Step through forward simulation
     diffs = []
-    #daobservations = []
     for i, data in enumerate(dasolver.isolve()):
 
         # Avoid annotating these steps
@@ -607,10 +614,12 @@ def main():
     adj_html("forward.html", "forward")
     adj_html("adjoint.html", "adjoint")
 
-    # Compute norms of boundary control functions
-    #dsi = problem.ds(problem.geometry.boundary_ids.left)
-    #print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.g_timesteps]
-    #print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
+    # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
+    try_replay = False
+    if try_replay:
+        success = da.replay_dolfin()
+        print "replay success:", success
+
 
     # Accumulate terms from cost functional.
     # This gives us a ridiculously long form...
@@ -618,17 +627,36 @@ def main():
     # recursion limit problems in ufl, but this doesn't really work...
     J = binsum(data.cost_functionals)
 
-    # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
-    try_replay = False
-    if try_replay:
-        success = da.replay_dolfin()
-        print "replay success:", success
+    # Compute norms of boundary control functions
+    #dsi = problem.ds(problem.geometry.boundary_ids.left)
+    #print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.g_timesteps]
+    #print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
 
     # Setup controls and functionals for dolfin-adjoint
     gcs = [gc for g in data.controls.g_timesteps for gc in g]
     m = [da.Control(gc) for gc in gcs]
     J = da.Functional(J)
     RJ = da.ReducedFunctional(J, m)
+
+
+    # Plot gradients
+    try_plotting_gradients = False
+    if try_plotting_gradients:
+
+        # Compute dJ/dm at m
+        dJdm = da.compute_gradient(J, m, forget=False)
+
+        # Try plotting gradients when we have them computed:
+        #print type(dJdm)
+        #print type(dJdm[0])
+        djp = Function(dJdm[0].function_space())
+        for i, dj in enumerate(dJdm):
+            # TODO: Use dbc trick to set only boundary values
+            djp.assign(dj)
+            plot(dj, title="dj %d"%i)
+        interactive()
+        return
+
 
     # Not capable of running taylor test...
     try_taylor_test = False
@@ -643,33 +671,63 @@ def main():
         # TODO: Run taylor test!
         conv_rate = da.taylor_test(RJ, m, Jm, dJdm) # This fails, bug reported in dolfin-adjoint
         print "conv_rate =", conv_rate
-
-        # Try plotting gradients when we have them computed:
-        #print type(dJdm)
-        #print type(dJdm[0])
-        #for i, dj in enumerate(dJdm):
-        #    plot(dj, title="dj%d"%i)
-        #interactive()
         return
 
-    # Try optimizing
-    for gc in gcs:
-        gc.vector().zero()
-    for fc in data.bcs.bcu.inflow.functions:
-        fc.vector().zero()
-    m_opt = minimize(RJ)
 
-    #print m_opt
-    #for i, mo in enumerate(m_opt):
-    #    if i % 2 == 0:
-    #        plot(mo, title="m%d"%(i//2))
-    #interactive()
-    #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
+    run_minimize = True
+    if run_minimize:
+        # Try optimizing
+        for gc in gcs:
+            gc.vector().zero()
+        bc = data.bcs.bcu.inflow
+        for fc in bc.functions:
+            fc.vector().zero()
+        m_opt = minimize(RJ, tol=1e-2, method="L-BFGS-B", options={"disp": True, "maxiter": 5})
 
-    # Run final problem
-    controls = Controls(data.controls.initial_velocity, m_opt)
-    finproblem = FinalReplayProblem(shared_problem_params, problem.geometry, controls)
-    # TODO: Setup scheme and solver and run finproblem with postprocessing
+        #print m_opt
+        #for i, mo in enumerate(m_opt):
+        #    if i % 2 == 0:
+        #        plot(mo, title="m%d"%(i//2))
+        #interactive()
+        #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
+
+
+    run_final = True
+    if run_final:
+        # Run final problem
+        u0 = data.controls.initial_velocity
+        d = len(u0)
+        glist = [[m_opt[d*i+j] for j in range(d)] for i in range(len(m_opt)//d)]
+        controls = Controls(u0, glist)
+        finproblem = FinalReplayProblem(shared_problem_params, problem.geometry, controls)
+
+        # Setup scheme
+        finscheme = CoupledScheme(shared_scheme_params)
+
+        # Setup postprocessor
+        fincasedir = casedir + "_fin"
+        finpostprocessor = PostProcessor(ParamDict(
+                casedir=fincasedir,
+            ))
+        plot_and_save = dict(plot=True, save=True)
+        finpostprocessor.add_fields([
+            Pressure(plot_and_save),
+            Velocity(plot_and_save),
+            ])
+
+        # Setup and run solver
+        finsolver_params = ParamDict(
+            enable_annotation=True,
+            #timer_frequency=1,
+            #check_memory_frequency=1,
+            )
+        finsolver = NSSolver(finproblem, finscheme, finpostprocessor, finsolver_params)
+
+        # Step through forward simulation
+        diffs = []
+        for i, data in enumerate(finsolver.isolve()):
+            pass
+
 
 if __name__ == "__main__":
     main()
