@@ -30,20 +30,15 @@ from cbcflow.schemes.utils import (
     # ... implemented inline below for now
     )
 
-def assign_ics_mixed(up0, spaces, ics):
-    """Assign initial conditions from ics to up0.
+def assign_ics_mixed(up, spaces, ics):
+    """Assign initial conditions from ics to up.
 
-    up0 is a mixed function in spaces.W = spaces.V * spaces.Q,
+    up is a mixed function in spaces.W = spaces.V * spaces.Q,
     while ics = (icu, icp); icu = (icu0, icu1, ...).
     """
-    up = as_vector(list(ics[0]) + [ics[1]])
-    #project(up, spaces.W, function=up0) # TODO: Can do this in fenics dev
-
-    upp = project(up, spaces.W, name="icup0_projection")
-    #upp = project(up, spaces.W)
-    #upp.rename("icup0_projection", "icup0_projection")
-
-    up0.assign(upp)
+    icup = as_vector(list(ics[0]) + [ics[1]])
+    #project(icup, spaces.W, function=up) # TODO: Can do this in fenics dev
+    up.assign(project(icup, spaces.W, name="icup_projection"))
 
 class CoupledScheme(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
@@ -138,7 +133,7 @@ class CoupledScheme(NSScheme):
         controls = problem.controls(spaces)
         cost_functionals = problem.cost_functionals(spaces, t, observations, controls)
         ics = problem.initial_conditions(spaces, controls)
-        bcs = problem.boundary_conditions(spaces, u0, p0, t, controls)
+        bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
 
         # Problem parameters
         nu = Constant(problem.params.mu/problem.params.rho, name="nu")
@@ -155,8 +150,7 @@ class CoupledScheme(NSScheme):
             kval = 1
 
         # Apply initial conditions and use it as initial guess
-        assign_ics_mixed(up0, spaces, ics)
-        up1.assign(up0)
+        assign_ics_mixed(up1, spaces, ics)
 
         # Make scheme-specific representation of bcs
         abc, Lbc = 0, 0
@@ -273,12 +267,17 @@ class CoupledScheme(NSScheme):
         #u_assigner.assign(uv, up0.sub(0))
         #p_assigner.assign(pv, up0.sub(1))
 
-        # Yield initial data for postprocessing
-        yield ParamDict(t=float(t), timestep=start_timestep,
-                        u=u0, p=p0,
-                        spaces=spaces,
-                        bcs=bcs,
-                        observations=observations, controls=controls, cost_functionals=cost_functionals)
+        # Update various functions
+        problem.update(spaces,
+                       # Input from time t:
+                       u1, p1, t, start_timestep,
+                       # Update to time t:
+                       bcs, observations, controls, cost_functionals)
+
+        # Yield initial data for postprocessing (all variables here consistently time t)
+        yield ParamDict(spaces=spaces,
+                        u=u1, p=p1, t=float(t), timestep=start_timestep,
+                        bcs=bcs, observations=observations, controls=controls, cost_functionals=cost_functionals)
 
         # Loop over fixed timesteps
         ##adj_start_timestep(float(t))
@@ -286,24 +285,26 @@ class CoupledScheme(NSScheme):
             #assign_time(t, timesteps[timestep])
             t.assign(timesteps[timestep])
 
-            # Update various functions
-            problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls, cost_functionals)
+            # Set up0 (u0, p0) to be u from previous timestep
+            up0.assign(up1)
 
-            # Solve for up1
+            # Solve for up1 (u1, p1 becomes u, p at time t)
             solver.solve()
             #solve(F == 0, up1, bc_strong, J=J_approx,
             #      form_compiler_parameters=self.params.form_compiler_parameters,
             #      solver_parameters=self.params.nonlinear_solver.to_dict())
 
-            # Rotate functions for next timestep
-            up0.assign(up1)
+            # Update various functions
+            problem.update(spaces,
+                           # Input from time t:
+                           u1, p1, t, timestep,
+                           # Update to time t:
+                           bcs, observations, controls, cost_functionals)
 
-            # Yield data for postprocessing
-            yield ParamDict(t=float(t), timestep=timestep,
-                            u=u0, p=p0,
-                            spaces=spaces,
-                            bcs=bcs,
-                            observations=observations, controls=controls, cost_functionals=cost_functionals)
+            # Yield data for postprocessing (all variables here consistently time t)
+            yield ParamDict(spaces=spaces,
+                            u=u1, p=p1, t=float(t), timestep=timestep,
+                            bcs=bcs, observations=observations, controls=controls, cost_functionals=cost_functionals)
 
             ##adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)
 

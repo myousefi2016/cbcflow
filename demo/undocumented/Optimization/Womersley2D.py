@@ -13,11 +13,12 @@ import numpy as np
 import time
 
 
-# TODO:
+# TODO: Improving scheme:
 # - BDF-2 time scheme
+# - Coarser time discretization of g(t) control with
+# TODO: Testing:
 # - Setting u0 initial control values to (beta*z(0) + eta(0,x))
 # - Setting g initial control values to (beta*z(t) + eta(t,x))
-# - Coarser time discretization of g(t) control with
 
 
 # TODO: Move to cbcpost utils
@@ -232,7 +233,11 @@ class AnalyticProblem(ProblemBase):
 
         return InitialConditions(icu, icp)
 
-    def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
+    def update(self, spaces,
+               # Input from time t:
+               u, p, t, timestep,
+               # Output to be updated to time t:
+               bcs, observations, controls, cost_functionals):
         d = len(u)
         facet_domains = self.geometry.facet_domains
 
@@ -355,7 +360,11 @@ class AssimilationProblem(ProblemBase):
 
         return InitialConditions(icu, icp)
 
-    def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
+    def update(self, spaces,
+               # Input from time t:
+               u, p, t, timestep,
+               # Output to be updated to time t:
+               bcs, observations, controls, cost_functionals):
         d = len(u)
         facet_domains = self.geometry.facet_domains
 
@@ -429,7 +438,11 @@ class FinalReplayProblem(ProblemBase):
         icp = Function(spaces.Q, name="ip") # Is this actually used?
         return InitialConditions(icu, icp)
 
-    def update(self, spaces, u, p, t, timestep, bcs, observations, controls, cost_functionals):
+    def update(self, spaces,
+               # Input from time t:
+               u, p, t, timestep,
+               # Output to be updated to time t:
+               bcs, observations, controls, cost_functionals):
         bc = bcs.bcu.inflow
         us = bc.functions
         gs = self._controls.g_timesteps[timestep-1]
@@ -445,16 +458,16 @@ def main():
 
     # Configure geometry
     geometry_params = ParamDict(
-            refinement_level=1,
-            length=3.0,
+            refinement_level=2,
+            length=2.0,
             radius=0.5,
             )
 
     # Setup parameters shared between analytic and assimilation problem
     shared_problem_params = ParamDict(
             # Time
-            dt=1e-1,
-            T=0.4,#8,
+            dt=1e-2,
+            T=0.1,#8,
             num_periods=None,
             )
 
@@ -468,9 +481,9 @@ def main():
         alpha_u0_grad_uncontrolled=0.0,
         alpha_u0_wall=0.0,
         # Boundary control regularization
-        alpha_g=0.0,
-        alpha_g_grad=0.0,
-        alpha_g_volume=0.0,
+        alpha_g=1e-8,
+        alpha_g_grad=1e-8,
+        alpha_g_volume=1e-12,
         alpha_g_grad_volume=0.0,
         )
 
@@ -628,8 +641,9 @@ def main():
     J = binsum(data.cost_functionals)
 
     # Compute norms of boundary control functions
-    #dsi = problem.ds(problem.geometry.boundary_ids.left)
-    #print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.g_timesteps]
+    dsi = problem.ds(problem.geometry.boundary_ids.left)
+    print "|m| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in data.controls.g_timesteps]
+    #print "|u-obs| on inflod =", [sqrt(assemble((u-z)**2*dsi)) for g in data.controls.g_timesteps]
     #print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
 
     # Setup controls and functionals for dolfin-adjoint
@@ -642,18 +656,17 @@ def main():
     # Plot gradients
     try_plotting_gradients = False
     if try_plotting_gradients:
-
-        # Compute dJ/dm at m
+        # Compute dJ/dm at m and plot animated gradients on boundary:
         dJdm = da.compute_gradient(J, m, forget=False)
-
-        # Try plotting gradients when we have them computed:
-        #print type(dJdm)
-        #print type(dJdm[0])
-        djp = Function(dJdm[0].function_space())
+        Vdj = dJdm[0].function_space()
+        djp = Function(Vdj)
         for i, dj in enumerate(dJdm):
-            # TODO: Use dbc trick to set only boundary values
-            djp.assign(dj)
-            plot(dj, title="dj %d"%i)
+            # Using dbc trick to set only boundary values of djp, ignoring the rest of the domain
+            dbc = DirichletBC(Vdj, dj, problem.geometry.facet_domains, data.bcs.bcu.inflow.region)
+            djp.vector().zero()
+            dbc.apply(djp.vector())
+            plot(djp, title="dj %d"%i)
+            time.sleep(0.1)
         interactive()
         return
 
@@ -682,7 +695,8 @@ def main():
         bc = data.bcs.bcu.inflow
         for fc in bc.functions:
             fc.vector().zero()
-        m_opt = minimize(RJ, tol=1e-2, method="L-BFGS-B", options={"disp": True, "maxiter": 5})
+        m_opt = minimize(RJ, tol=1e-6, method="L-BFGS-B", options={"disp": True, "maxiter": 20})
+        #m_opt = minimize(RJ)
 
         #print m_opt
         #for i, mo in enumerate(m_opt):
