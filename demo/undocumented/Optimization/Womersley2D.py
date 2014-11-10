@@ -15,28 +15,44 @@ import time
 
 # TODO: Improving scheme:
 # - BDF-2 time scheme
-# - Coarser time discretization of g(t) control with
+# - Coarser time discretization of g(t) control with piecwise time UFL functions
 # TODO: Testing:
-# - Setting u0 initial control values to (beta*z(0) + eta(0,x))
-# - Setting g initial control values to (beta*z(t) + eta(t,x))
+# - Setting u0 initial control values to (beta*z(0) + eta(0, x))
+# - Setting g initial control values to (beta*z(t) + eta(t, x))
 
 
 # TODO: Move to cbcpost utils
 def timestamp():
     return "{t.tm_year}_{t.tm_mon}_{t.tm_mday}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}".format(t=time.localtime())
 
-
-def binsum(seq):
+def bsum(seq, zero=0):
     "Add items in sequence in a binary tree structure."
     n = len(seq)
-    if n <= 3:
-        result = sum(seq)
-    else:
-        m = n // 2
-        result = binsum(seq[:m]) + binsum(seq[m:])
-    # Trigger hash computation for this result, workaround for hitting UFL recursion limit
-    dummy = hash(result)
-    return result
+    if n <= 2:
+        if n == 0:
+            return zero
+        elif n == 1:
+            return seq[0]
+        elif n == 2:
+            return seq[0] + seq[1]
+    m = n // 2
+    return bsum(seq[:m]) + bsum(seq[m:])
+
+import ufl
+def rebalance_expr(expr): # FIXME: Validate this
+    output_terms = []
+    input_terms = [expr]
+    while input_terms:
+        term = input_terms.pop()
+        if isinstance(term, ufl.classes.Sum):
+            input_terms.extend(term.operands())
+        else:
+            output_terms.append(term)
+    return bsum(output_terms)
+
+def rebalance_form(form): # FIXME: Validate this
+    integrals = [itg.reconstruct(integrand=rebalance_expr(itg.integrand())) for itg in form.integrals()]
+    return ufl.Form(integrals)
 
 class NoOp(object):
     def __mul__(self, other):
@@ -74,8 +90,8 @@ class Geometry(Parameterized):
 
         # Create mesh
         mesh = UnitSquareMesh(m, n)
-        mesh.coordinates()[:,0] = l * mesh.coordinates()[:,0]
-        mesh.coordinates()[:,1] = 2.0 * r * (mesh.coordinates()[:,1] - 0.5)
+        mesh.coordinates()[:, 0] = l * mesh.coordinates()[:, 0]
+        mesh.coordinates()[:, 1] = 2.0 * r * (mesh.coordinates()[:, 1] - 0.5)
 
         # Define boundary markers
         boundary_ids = ParamDict(
@@ -146,15 +162,15 @@ class ProblemBase(NSProblem):
         bids = self.geometry.boundary_ids
 
         # Create inflow BC control functions to be returned and used in scheme forms
-        uin = [Function(spaces.U, name="g%d"%i) for i in range(d)]
+        uin = [Function(spaces.U, name="bc_g%d" % i) for i in range(d)]
         inflow = VelocityBC(uin, bids.left, "nietche")
 
         # Create no-slip bcs
-        u_noslip = [Constant(0.0, name="noslip%d"%i) for i in range(d)]
+        u_noslip = [Constant(0.0, name="bc_noslip%d" % i) for i in range(d)]
         noslip = VelocityBC(u_noslip, bids.wall, "strong")
 
         # Create outflow bcs for pressure
-        outflow = PressureBC(Constant(0.0, name="p_out"), bids.right)
+        outflow = PressureBC(Constant(0.0, name="bc_p_out"), bids.right)
 
         # Return bcs in two lists
         bcu = VelocityBoundaryConditions(inflow, noslip)
@@ -223,8 +239,8 @@ class AnalyticProblem(ProblemBase):
         d = spaces.d
 
         # Create IC functions
-        icu = [Function(spaces.U, name="iu%d"%i) for i in range(d)]
-        icp = Function(spaces.Q, name="ip") # Is this actually used?
+        icu = [Function(spaces.U, name="ic_u%d" % i) for i in range(d)]
+        icp = Function(spaces.Q, name="ic_p")
 
         # Interpolate womersley solution into entire initial condition (only possible for this simple pipe case!)
         for i in range(d):
@@ -313,7 +329,7 @@ class AssimilationProblem(ProblemBase):
         d = spaces.d
 
         # Initial condition control (may choose to use this or not when computing gradient later)
-        initial_velocity = [Function(spaces.U, name="icu%d"%i) for i in range(d)]
+        initial_velocity = [Function(spaces.U, name="ic_u%d" % i) for i in range(d)]
 
         # Boundary control list is extended in update() for each timestep
         g_timesteps = []
@@ -327,13 +343,14 @@ class AssimilationProblem(ProblemBase):
         # Define static terms in cost functional (transient terms are added in update())
         cost_functionals = []
 
+        # Choose time measure to apply to static cost functional terms
+        dtt = NoOp()
+        #dtt = dt[START_TIME]
+        #dtt = dt[FINISH_TIME]
+
         # Add initial condition control terms
         if controls.initial_velocity:
             u0 = as_vector(controls.initial_velocity)
-            dtt = NoOp()
-            #dtt = dt[START_TIME]
-            #dtt = dt[0]
-            #dtt = dt[FINISH_TIME]
             J_terms = [
                 self.alpha_u0              * u0**2       * dx * dtt,
                 self.alpha_u0_div          * div(u0)**2  * dx * dtt,
@@ -342,7 +359,7 @@ class AssimilationProblem(ProblemBase):
                 self.alpha_u0_grad_uncontrolled * grad(u0)**2 * ds(self.uncontrolled_boundary_ids) * dtt,
                 self.alpha_u0_wall              * u0**2       * ds(self.geometry.boundary_ids.wall) * dtt,
                 ]
-            J = binsum(J_terms)
+            J = sum(J_terms)
             cost_functionals.append(J)
 
         return cost_functionals
@@ -352,7 +369,7 @@ class AssimilationProblem(ProblemBase):
 
         # Get/create IC functions
         icu = controls.initial_velocity
-        icp = Function(spaces.Q, name="ip") # Is this actually used?
+        icp = Function(spaces.Q, name="ic_p")
 
         # Copy initial condition from observations
         for i in range(d):
@@ -378,7 +395,7 @@ class AssimilationProblem(ProblemBase):
         bc = bcs.bcu.inflow
 
         # Create new BC control functions at time t
-        g = [Function(spaces.U, name="g%d_%d"%(i,timestep)) for i in range(d)]
+        g = [Function(spaces.U, name="g%d_%d" % (i,timestep)) for i in range(d)]
 
         # Make a record of BC controls in list
         controls.g_timesteps.append(g)
@@ -398,14 +415,16 @@ class AssimilationProblem(ProblemBase):
         dx = self.dx
         g = as_vector(g)
 
-        # Project the velocity state into the observation function space
-        u_t = project(u, spaces.V, name="u_at_t%d"%timestep)
+        # Choose time measure to apply to per-timestep terms in cost functional
         dtt = NoOp()
         #dtt = dt[timestep]
         #dtt = dt[float(t)]
         #dtt = dt[FINISH_TIME]
+
+        # Project the velocity state into the observation function space
+        u_t = project(u, spaces.V, name="u_at_ts%d" % timestep)
         J_terms = [
-            # Add distance to observations at time t to cost functional,
+            # Distance between state and observations at time t
             (u_t - z)**2 * dx * dtt,
             # Add regularization of boundary control function to cost functional at time t
             self.alpha_g             * g**2       * ds(self.controlled_boundary_ids) * dtt,
@@ -413,14 +432,7 @@ class AssimilationProblem(ProblemBase):
             self.alpha_g_volume      * g**2       * dx * dtt,
             self.alpha_g_grad_volume * grad(g)**2 * dx * dtt,
             ]
-        J = binsum(J_terms)
-
-        #print "DEBUG", str(g[0]), str(g[1]), str(timestep), str(float(t))
-
-        # Hack to trigger hash computation to work around ufl recursion limit when computing hash of functional later
-        dummy = hash(J)
-
-        # Append contribution to list
+        J = sum(J_terms)
         cost_functionals.append(J)
 
 
@@ -435,7 +447,7 @@ class FinalReplayProblem(ProblemBase):
 
     def initial_conditions(self, spaces, controls):
         icu = self._controls.initial_velocity
-        icp = Function(spaces.Q, name="ip") # Is this actually used?
+        icp = Function(spaces.Q, name="ic_p")
         return InitialConditions(icu, icp)
 
     def update(self, spaces,
@@ -467,7 +479,7 @@ def main():
     shared_problem_params = ParamDict(
             # Time
             dt=1e-2,
-            T=0.1,#8,
+            T=0.4,#8,
             num_periods=None,
             )
 
@@ -510,7 +522,7 @@ def main():
             enable_convection=True, # False = Stokes
 
             # Nonlinear solver params
-            picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, (0.0,1.0) = mix
+            picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, in (0.0, 1.0) = mix
             nonlinear_solver=ParamDict(
                 newton_solver=ParamDict(
                     report=True,
@@ -556,7 +568,7 @@ def main():
     # Step through forward simulation
     observations = []
     for data in solver.isolve():
-        z = [project(u, data.spaces.U) for u in data.u]
+        z = [project(u, data.spaces.U, name="z_at_ts%d" % data.timestep) for u in data.u]
 
         # Observations look good:
         #plot(as_vector(z), title="z")
@@ -638,7 +650,7 @@ def main():
     # This gives us a ridiculously long form...
     # Trying to use a hierarchic binary tree sum structure to avoid
     # recursion limit problems in ufl, but this doesn't really work...
-    J = binsum(data.cost_functionals)
+    J = rebalance_form(sum(data.cost_functionals))
 
     # Compute norms of boundary control functions
     dsi = problem.ds(problem.geometry.boundary_ids.left)
@@ -665,7 +677,7 @@ def main():
             dbc = DirichletBC(Vdj, dj, problem.geometry.facet_domains, data.bcs.bcu.inflow.region)
             djp.vector().zero()
             dbc.apply(djp.vector())
-            plot(djp, title="dj %d"%i)
+            plot(djp, title="dj %d" % i)
             time.sleep(0.1)
         interactive()
         return
@@ -695,13 +707,13 @@ def main():
         bc = data.bcs.bcu.inflow
         for fc in bc.functions:
             fc.vector().zero()
-        m_opt = minimize(RJ, tol=1e-6, method="L-BFGS-B", options={"disp": True, "maxiter": 20})
+        m_opt = minimize(RJ, tol=1e-8, method="L-BFGS-B", options={"disp": True, "maxiter": 100})
         #m_opt = minimize(RJ)
 
         #print m_opt
         #for i, mo in enumerate(m_opt):
         #    if i % 2 == 0:
-        #        plot(mo, title="m%d"%(i//2))
+        #        plot(mo, title="m%d" % (i//2))
         #interactive()
         #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsi)) for g in m_opt]
 
