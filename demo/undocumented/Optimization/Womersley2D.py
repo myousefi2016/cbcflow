@@ -18,7 +18,6 @@ import time
 # - Coarser time discretization of g(t) control with piecwise time UFL functions
 # - BDF-2 time scheme
 # - (Improve stability in scheme with N unannotated Picard iterations plus annotated Newton iterations)
-# - Consider moving cost_functionals and observations out of problem and into external loop?
 # TODO: Testing:
 # - Setting u0 initial control values to (beta*z(0) + eta(0, x))
 # - Setting g initial control values to (beta*z(t) + eta(t, x))
@@ -260,13 +259,14 @@ class AnalyticProblem(ProblemBase):
         d = self.geometry.mesh.geometry().dim()
         facet_domains = self.geometry.facet_domains
         bc = boundary_conditions.bcu.inflow
-        for u, w in zip(bc.functions, self.womersley):
-            # Update Womersley Expression state
+        for g_comp, w in zip(bc.functions, self.womersley):
+            # Update internal Womersley Expression state
             w.set_t(t)
-            # Trick to efficiently set u = w only at boundary dofs
+            # Trick to efficiently set g = w only at boundary dofs,
+            # avoiding full interpolation of the expensive Womersley expression
+            g_comp.vector().zero()
             dbc = DirichletBC(spaces.U, w, facet_domains, bc.region)
-            u.vector().zero()
-            dbc.apply(u.vector())
+            dbc.apply(g_comp.vector())
 
 
 class AssimilationProblem(ProblemBase):
@@ -275,9 +275,6 @@ class AssimilationProblem(ProblemBase):
     Observations and initial condition for velocity are given.
 
     Controls are both boundary inflow and velocity initial condition.
-
-    The cost functional is parameterized with a bunch of
-    regularization parameters, by default most of these are zero.
     """
 
     def __init__(self, params, geometry, initial_velocity, observations):
@@ -285,7 +282,7 @@ class AssimilationProblem(ProblemBase):
         self.geometry = geometry
         self.initialize_geometry(self.geometry.mesh, self.geometry.facet_domains)
 
-        # Store observations for later
+        # Store observations for use in setting initial values of boundary control functions
         self._observations = observations
         self._initial_velocity = initial_velocity
 
@@ -293,9 +290,6 @@ class AssimilationProblem(ProblemBase):
     def default_params(cls):
         params = ProblemBase.default_params()
         return params
-
-    def observations(self, spaces, t):
-        return self._observations
 
     def controls(self, spaces):
         d = spaces.d
@@ -315,7 +309,7 @@ class AssimilationProblem(ProblemBase):
         icu = controls.initial_velocity
         icp = Function(spaces.Q, name="ic_p")
 
-        # Copy given initial condition
+        # Copy given initial condition into initial velocity control functions
         for i in range(d):
             icu[i].assign(self._initial_velocity[i])
 
@@ -331,17 +325,31 @@ class AssimilationProblem(ProblemBase):
         Ug = spaces.U # TODO: Configure control space
         g_at_t = [Function(Ug, name="g%d_%d" % (i,timestep)) for i in range(d)]
 
-
-        # Update 'initial guess' of the boundary control functions at time t by copying from initial condition
-        for g_control, initial_u in zip(g_at_t, self._initial_velocity):
-            #dbc = DirichletBC(spaces.U, initial_u, self.geometry.facet_domains, bc.region)
-            #dbc.apply(g_control.vector())
-            g_control.assign(initial_u) # TODO: Implement alternative initial guesses (e.g. beta*u0 + eta)
-
-
         # Make a record of BC controls in list
         controls.g_timesteps.append((float(t), g_at_t))
         assert len(controls.g_timesteps) == timestep
+
+        # Assign initial values to BC control functions at time t
+        initial_g = "z"
+
+        if initial_g == "u0": # TODO: Make choice a parameter
+            # Get 'initial guess' from initial condition, i.e. set g(t) = u(t=0)
+            for g_control, initial_u in zip(g_at_t, self._initial_velocity):
+                #dbc = DirichletBC(spaces.U, initial_u, self.geometry.facet_domains, bc.region)
+                #dbc.apply(g_control.vector())
+                g_control.assign(initial_u)
+                #g_control.interpolate(initial_u) # TODO: Handle nonmatching spaces
+
+        elif initial_g == "z":
+            # Get observation at time t
+            tz, z = self._observations[timestep]
+            assert abs(float(t) - tz) < 1e-6, "Expecting matching times!"
+            # Get 'initial guess' from observation, i.e. set g(t) = z(t)
+            for g_control, z_component in zip(g_at_t, z):
+                g_control.assign(z_component) # TODO: Handle nonmatching spaces
+                #g_control.interpolate(z_component)
+
+        # TODO: Implement adding of noise
 
         # Assign 'initial guess' control function values to the BC functions used in scheme forms
         for g_bc, g_control in zip(bc.functions, g_at_t):
@@ -504,6 +512,9 @@ class FinalReplayProblem(ProblemBase):
 def main():
     set_log_level(100)
 
+    # This is to remove rounding errors caused by tensor representation when computing norms
+    parameters["form_compiler"]["representation"] = "quadrature"
+
 
     # Configure geometry
     geometry_params = ParamDict(
@@ -549,7 +560,7 @@ def main():
                 enable=True,
                 formulation=1,
                 stabilize=True,
-                gamma=100.0,
+                gamma=1000.0,
                 ),
 
             # Variational formulation params
@@ -603,33 +614,54 @@ def main():
             )
         analytic_solver = NSSolver(analytic_problem, CoupledScheme(scheme_params), analytic_postprocessor, analytic_solver_params)
 
-        # Step through analytic simulation
+        # Step through simulation
         observations = []
         for data in analytic_solver.isolve():
+
+            # Store projection of u into observation space
             Uz = data.spaces.U # TODO: Configure different observation space
-            z = [project(u, Uz, name="z_at_ts%d" % data.timestep) for u in data.u]
+            u, p = data.state
+            ds = analytic_problem.ds
+            print "u2:", assemble(u**2*ds(analytic_problem.geometry.boundary_ids.left))
+            z = [project(u_comp, Uz, name="z_at_ts%d" % data.timestep) for u_comp in u]
+            print "z2:", assemble(as_vector(z)**2*ds(analytic_problem.geometry.boundary_ids.left))
             observations.append((data.t, z))
 
             # Debugging evaluations:
-            if 0:
+            compute_boundary_diffs = False
+            if compute_boundary_diffs:
                 # Should have that z(t) = u(t) = g(t) on boundary bc.region.
-                # Compute and print. If this fails, the weak boundary conditions have failed.
+                # If this fails, the weak boundary conditions have failed.
+                # Increase and decrease the gamma parameter to see these
+                # comparisons tighten and loosen.
                 bc = data.bcs.bcu.inflow
                 dsc = analytic_problem.ds(bc.region)
 
-                u = as_vector(data.u) # u(t)
-                g = as_vector(bc.functions) # g(t)
-                z = as_vector(z) # g(t)
-
+                u, p = data.state
+                u = as_vector(u) # u(t)
                 u2 = assemble(u**2*dsc)
-                g2 = assemble(g**2*dsc)
+
+                z = as_vector(z) # g(t)
                 z2 = assemble(z**2*dsc)
+                diffz = sqrt(assemble((u-z)**2*dsc) / u2)
 
-                diffg = assemble((u-g)**2*dsc)
-                diffz = assemble((u-z)**2*dsc)
+                if data.timestep >= 1:
+                    g = as_vector(bc.functions) # g(t)
+                    g2 = assemble(g**2*dsc)
+                    diffg = sqrt(assemble((u-g)**2*dsc) / u2)
+                    diffgz = sqrt(assemble((z-g)**2*dsc) / u2)
 
-                print "ts ={}, t={}, u(t)^2={}, g(t)^2={}, z(t)^2={}, (u(t)-g(t))^2={}, (u(t)-z(t))^2={}".format(
-                    data.timestep, float(data.t), u2, g2, z2, diffg, diffz)
+                print "Comparing control boundary values:"
+                print "ts={}; t={}".format(data.timestep, float(data.t))
+                print "    u(t)^2={}".format(u2)
+                print "    z(t)^2={}".format(u2)
+                if data.timestep >= 1:
+                    print "    g(t)^2={}".format(g2)
+                    print "    |u(t)-g(t)| / |u(t)|  = {}".format(diffg)
+                    print "    |g(t)-z(t)| / |u(t)|  = {}".format(diffgz)
+                print "    |u(t)-z(t)| / |u(t)| = {}".format(diffz)
+                print
+
                 #assert diffg < 1e-10
                 #assert diffz < 1e-10
 
@@ -688,26 +720,24 @@ def main():
 
         # Step through forward simulation and build cost functional
         diffs = []
-        for i, data in enumerate(forward_solver.isolve()):
+        for data in forward_solver.isolve():
             CF.update(data.timestep, data.t, data.spaces, data.state, data.controls)
 
             # Compare observations with 'observations' from assimilation problem
-            if 1:
+            compute_observation_diffs = True
+            if compute_observation_diffs:
                 # Avoid annotating these steps
                 parameters["adjoint"]["stop_annotating"] = True
                 dx = CF.dx
-                dz = [project(u, data.spaces.U, name="dz%d"%j) for j,u in enumerate(data.u)]
-                t, z = observations[i]
-                diff = assemble((as_vector(dz)-as_vector(z))**2*dx) / assemble((as_vector(z))**2*dx)
-                diffs.append(diff)
+                u, p = data.state
+                t, z = observations[data.timestep]
+                z2 = assemble(as_vector(z)**2*dx)
+                error = sqrt(assemble((as_vector(u) - as_vector(z))**2*dx) / z2)
+                print data.timestep, "ERROR", error, z2
                 parameters["adjoint"]["stop_annotating"] = False
 
         # Stop annotating after forward simulation
         parameters["adjoint"]["stop_annotating"] = True
-
-        # HACK drop last control
-        # FIXME XXX TODO: Need this still? TODO: Add timestamp to g_timesteps to assert for timeshifting bugs.
-        #data.controls.g_timesteps.pop()
 
         # Extract flat list of boundary control components
         all_g_components = [gc for (tg, g) in data.controls.g_timesteps for gc in g]
@@ -716,14 +746,6 @@ def main():
         J = CF.accumulate()
         #print str(J)
         J = da.Functional(J)
-
-        # TODO: Clean up and formalize norm computations here and elsewhere, maybe
-        #       add to postprocessor so we get them stored in the result directories?
-        # Compute norms of boundary control functions
-        #dsc = CF.dsc
-        #print "|g| =", [sqrt(assemble(as_vector(g)**2*dsc)) for (tg, g) in data.controls.g_timesteps]
-        #print "|u-obs| on inflod =", [sqrt(assemble((u-z)**2*dsc)) for (tg, g) in data.controls.g_timesteps]
-        #print "Diff in observations:", sqrt(sum(di for di in diffs)/len(diffs))
 
 
     # Always write tape to files for eventual debugging
@@ -741,12 +763,10 @@ def main():
 
     # TODO: Make this a function
     # Plot gradients
-    run_plotting_gradients = False
-    if run_plotting_gradients:
+    run_plot_gradients = False
+    if run_plot_gradients:
         # Select controls
         m_values = list(all_g_components)
-        #m_values = [all_g_components[0]] # DEBUGGING
-        #m_values = [all_g_components[-1]] # DEBUGGING
         m = [da.Control(mv) for mv in m_values]
 
         # Compute dJ/dm at m and plot animated gradients on boundary:
@@ -765,64 +785,112 @@ def main():
         return
 
 
+    dsc = analytic_problem.ds(geometry.boundary_ids.left)
+    print "CHECKING 1", assemble(as_vector(observations[0][1])**2*dsc)
+
+    # TODO: Make this a function
+    # Compare various functions by computing some norms
+    run_consistency_computations = True
+    if run_consistency_computations:
+        dsc = CF.dsc
+
+        # Check that boundary control functions and observations have matching timesteps:
+        print "Checking timestamps of boundary controls vs observations"
+        assert abs(observations[0][0]) < 1e-6, "Expecting first observation at time 0."
+        for timestep in range(1, len(observations)):
+            tg = data.controls.g_timesteps[timestep-1][0]
+            tz = observations[timestep][0]
+            assert abs(tz - tg) < 1e-6, "Expecting matching time!"
+
+        # Compute some norms for reference values
+        print "Computing |z(t)|, |g(t)| on control boundary for each timestep:"
+        tz0, z0 = observations[0]
+        z2 = assemble(as_vector(z0)**2*dsc)
+        print "timestep %d;  |z(t)|^2 = %g;" % (0, z2)
+        for timestep in range(1, len(observations)):
+            tg, g = data.controls.g_timesteps[timestep-1]
+            tz, z = observations[timestep]
+            assert abs(tz - tg) < 1e-6, "Expecting matching time!"
+            g2 = assemble(as_vector(g)**2*dsc)
+            z2 = assemble(as_vector(z)**2*dsc)
+            print "timestep %d;  |g(t)|^2 = %g;  |z(t)|^2 = %g;" % (timestep, g2, z2)
+
+        # This should be zero if this g(t) = z(t0) is the initial value used in the forward problem
+        print "Computing |z(t0)-g(t)| on control boundary for each timestep:"
+        tz0, z0 = observations[0]
+        for timestep in range(1, len(observations)):
+            tg, g = data.controls.g_timesteps[timestep-1]
+            tz, z = observations[timestep]
+            assert abs(tz - tg) < 1e-6, "Expecting matching time!"
+            gz0diff = assemble((as_vector(g) - as_vector(z0))**2*dsc)
+            gzdiff = assemble((as_vector(g) - as_vector(z))**2*dsc)
+            zz0diff = assemble((as_vector(z) - as_vector(z0))**2*dsc)
+            print "timestep %d;  |g(t)-z(0)| = %g;  |g(t)-z(t)| = %g;  |z(t)-z(0)| = %g;" % (timestep, gz0diff, gzdiff, zz0diff)
+
+    crash
+
     # TODO: Make this a function
     # Test gradient computation with convergence order tests
     run_taylor_test = True
     if run_taylor_test:
-        # This is to remove rounding errors caused by tensor representation when computing norms
-        parameters["form_compiler"]["representation"] = "quadrature"
-
         dsc = CF.dsc
-        if 0:
-            print "Compute z0-g"
-            tz, z = observations[0]
+
+        set_g_choice = 1
+
+        # Set boundary control functions to zero
+        if set_g_choice == 0:
+            print "Setting g(t) = 0"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
-                assert abs(tz - tg) < 1e-6, "Expecting matching time!"
-                for j in range(len(g)):
-                    print j, assemble((g[j]-z[j])**2*dsc)
+                for g_comp, z_comp in zip(g, observations[i+1][1]):
+                    g_comp.vector().zero()
 
-            # Copy observations into boundary controls
+        # Set boundary control functions to observations
+        if set_g_choice == 1:
+            print "Setting g(t) = z(t)"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
-                tz, z = observations[i+1]
-                assert abs(tz - tg) < 1e-6, "Expecting matching time!"
-                for j in range(len(g)):
-                    g[j].assign(z[j], annotate=False)
+                for g_comp, z_comp in zip(g, observations[i+1][1]):
+                    g_comp.assign(z_comp)
+                    #g_comp.interpolate(z_comp) # TODO: Handle nonmatching spaces
 
-        # Update boundary control functions at time t
-        for i, (tg, g) in enumerate(data.controls.g_timesteps):
-            for u, w in zip(g, analytic_problem.womersley):
-                w.set_t(tg)
-                u.vector().zero()
-                for bid in CF.controlled_boundary_ids:
-                    dbc = DirichletBC(data.spaces.U, w,
-                                      geometry.facet_domains, bid)
-                    dbc.apply(u.vector())
+        if set_g_choice == 2:
+            print "Setting g(t) = z(t) using dbc trick"
+            for i, (tg, g) in enumerate(data.controls.g_timesteps):
+                for g_comp, z_comp in zip(g, observations[i+1][1]):
+                    g_comp.vector().zero()
+                    for bid in CF.controlled_boundary_ids:
+                        dbc = DirichletBC(data.spaces.U, z_comp, geometry.facet_domains, bid)
+                        dbc.apply(g_comp.vector())
 
-        print "Compute zi-g"
-        for i, (tg, g) in enumerate(data.controls.g_timesteps):
-            tz, z = observations[i+1]
-            assert abs(tz - tg) < 1e-6, "Expecting matching time!"
-            for j in range(len(g)):
-                print j, assemble((g[j]-z[j])**2*dsc)
-
-        #timesteps 2,3,4:  (u-z)**2*dx != 0
+        if set_g_choice == 3:
+            print "Setting g(t) = w(t) using dbc trick"
+            for i, (tg, g) in enumerate(data.controls.g_timesteps):
+                for g_comp, w in zip(g, analytic_problem.womersley):
+                    w.set_t(tg)
+                    g_comp.vector().zero()
+                    for bid in CF.controlled_boundary_ids:
+                        dbc = DirichletBC(data.spaces.U, w, geometry.facet_domains, bid)
+                        dbc.apply(g_comp.vector())
 
         # Select controls for componentwise taylor test
         m_values = list(all_g_components)
         #m_values = [all_g_components[0]] # DEBUGGING
         #m_values = [all_g_components[-1]] # DEBUGGING
 
+        conv_rates = []
         for i, mv in enumerate(m_values):
             m = da.Control(mv)
             RJ = da.ReducedFunctional(J, m)
             Jm = RJ(mv)
             dJdm = da.compute_gradient(J, m, forget=False)
             conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
+            conv_rates.append(conv_rate)
             print
             print "m = g_%d(t_%d)" % ((i%2), (i//2))
             print "  J(m)      =", Jm
             print "  dJdm(m)   =", assemble(dJdm**2*dx)
             print "  conv_rate =", conv_rate
+        print
+        print "min_conv_rate =", min(conv_rates)
         return
 
 
@@ -887,7 +955,7 @@ def main():
 
         # Step through forward simulation
         diffs = []
-        for i, data in enumerate(final_solver.isolve()):
+        for data in final_solver.isolve():
             pass
 
 
