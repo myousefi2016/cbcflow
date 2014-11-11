@@ -27,7 +27,7 @@ def decide_family(family, degree):
     return galerkin_family(degree) if family == "auto" else family
 
 class NSSpacePool():
-    "A function space pool with custom named spaces for use with Navier-Stokes schemes."   
+    "A function space pool with custom named spaces for use with Navier-Stokes schemes."
     def __init__(self, mesh, u_degree, p_degree, u_family="auto", p_family="auto"):
         self.spacepool = SpacePool(mesh)
         assert isinstance(u_degree, int)
@@ -39,7 +39,7 @@ class NSSpacePool():
         self.u_family = u_family
         self.p_family = p_family
         self._spaces = {}
-        
+
         # Get dimensions for convenience
         cell = mesh.ufl_cell()
         self.gdim = cell.geometric_dimension()
@@ -50,15 +50,6 @@ class NSSpacePool():
         # For compatibility, remove when code has been converted
         self.d = self.gdim
         self.dims = self.gdims
-        
-
-    @property
-    def U_CG1(self): # TODO: Remove, use get_space instead
-        return self.spacepool.get_space(1, 0)
-
-    @property
-    def V_CG1(self): # TODO: Remove, use get_space instead
-        return self.spacepool.get_space(1, 1)
 
     @property
     def U(self):
