@@ -134,11 +134,12 @@ class CoupledScheme(NSScheme):
         cost_functionals = problem.cost_functionals(spaces, t, observations, controls)
         ics = problem.initial_conditions(spaces, controls)
         bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
+        body_force = problem.body_force(spaces, t)
 
         # Problem parameters
         nu = Constant(problem.params.mu/problem.params.rho, name="nu")
         k  = Constant(dt, name="dt")
-        f  = as_vector(problem.body_force(spaces, t))
+        f  = as_vector(body_force)
 
         if self.params.scale_by_dt:
             # Scaled by k (smaller residual, nonlinear solver hits absolute stopping criteria faster)
@@ -267,26 +268,33 @@ class CoupledScheme(NSScheme):
         #u_assigner.assign(uv, up0.sub(0))
         #p_assigner.assign(pv, up0.sub(1))
 
-        # Update various functions
-        problem.update(spaces,
-                       # Input from time t:
-                       u1, p1, t, start_timestep,
-                       # Update to time t:
-                       bcs, observations, controls, cost_functionals)
-
-        # Yield initial data for postprocessing (all variables here consistently time t)
-        yield ParamDict(spaces=spaces,
-                        u=u1, p=p1, t=float(t), timestep=start_timestep,
-                        bcs=bcs, observations=observations, controls=controls, cost_functionals=cost_functionals)
+        # Callback to problem and yield data for postprocessing
+        # (all variables here are consistently at time t)
+        state = (u1, p1)
+        timestep = start_timestep
+        data = ParamDict(timestep=timestep, t=float(t),
+                         spaces=spaces,
+                         u=u1, p=p1, bcs=bcs, # TODO: Remove
+                         state=state,
+                         boundary_conditions=bcs,
+                         controls=controls,
+                         observations=observations, cost_functionals=cost_functionals)
+        #problem.post_update(**data)
+        yield data
 
         # Loop over fixed timesteps
         ##adj_start_timestep(float(t))
         for timestep in xrange(start_timestep+1, len(timesteps)):
+            t0 = float(t)
             #assign_time(t, timesteps[timestep])
             t.assign(timesteps[timestep])
 
             # Set up0 (u0, p0) to be u from previous timestep
             up0.assign(up1)
+
+            # Advance boundary conditions and body force from time t0 to time t
+            problem.advance(t0, t, timestep, spaces, state,
+                            bcs, body_force, controls)
 
             # Solve for up1 (u1, p1 becomes u, p at time t)
             solver.solve()
@@ -294,17 +302,17 @@ class CoupledScheme(NSScheme):
             #      form_compiler_parameters=self.params.form_compiler_parameters,
             #      solver_parameters=self.params.nonlinear_solver.to_dict())
 
-            # Update various functions
-            problem.update(spaces,
-                           # Input from time t:
-                           u1, p1, t, timestep,
-                           # Update to time t:
-                           bcs, observations, controls, cost_functionals)
-
-            # Yield data for postprocessing (all variables here consistently time t)
-            yield ParamDict(spaces=spaces,
-                            u=u1, p=p1, t=float(t), timestep=timestep,
-                            bcs=bcs, observations=observations, controls=controls, cost_functionals=cost_functionals)
+            # Callback to problem and yield data for postprocessing
+            # (all variables here consistently time t)
+            data = ParamDict(timestep=timestep, t=float(t),
+                             spaces=spaces,
+                             u=u1, p=p1, bcs=bcs, # TODO: Remove
+                             state=state,
+                             boundary_conditions=bcs,
+                             controls=controls,
+                             observations=observations, cost_functionals=cost_functionals)
+            #problem.post_update(**data)
+            yield data
 
             ##adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)
 
