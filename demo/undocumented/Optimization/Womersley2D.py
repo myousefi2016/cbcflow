@@ -802,6 +802,9 @@ def main():
             tz = observations[timestep][0]
             assert abs(tz - tg) < 1e-6, "Expecting matching time!"
 
+        dsc = analytic_problem.ds(geometry.boundary_ids.left)
+        print "CHECKING 2", assemble(as_vector(observations[0][1])**2*dsc)
+
         # Compute some norms for reference values
         print "Computing |z(t)|, |g(t)| on control boundary for each timestep:"
         tz0, z0 = observations[0]
