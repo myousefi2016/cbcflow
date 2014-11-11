@@ -375,9 +375,9 @@ class CostFunctional(Parameterized):
         # Setup integration measures
         self.dx = Measure("dx", domain=geometry.mesh)
         self.ds = Measure("ds", domain=geometry.mesh, subdomain_data=geometry.facet_domains)
-        self.dsw = ds(self.wall_boundary_ids)
-        self.dsc = ds(self.controlled_boundary_ids)
-        self.dsu = ds(self.uncontrolled_boundary_ids)
+        self.dsw = self.ds(self.wall_boundary_ids)
+        self.dsc = self.ds(self.controlled_boundary_ids)
+        self.dsu = self.ds(self.uncontrolled_boundary_ids)
 
         # Wrap regularization parameters in Constants
         for k in self.params.keys():
@@ -785,9 +785,6 @@ def main():
         return
 
 
-    dsc = analytic_problem.ds(geometry.boundary_ids.left)
-    print "CHECKING 1", assemble(as_vector(observations[0][1])**2*dsc)
-
     # TODO: Make this a function
     # Compare various functions by computing some norms
     run_consistency_computations = True
@@ -802,21 +799,18 @@ def main():
             tz = observations[timestep][0]
             assert abs(tz - tg) < 1e-6, "Expecting matching time!"
 
-        dsc = analytic_problem.ds(geometry.boundary_ids.left)
-        print "CHECKING 2", assemble(as_vector(observations[0][1])**2*dsc)
-
         # Compute some norms for reference values
         print "Computing |z(t)|, |g(t)| on control boundary for each timestep:"
         tz0, z0 = observations[0]
-        z2 = assemble(as_vector(z0)**2*dsc)
-        print "timestep %d;  |z(t)|^2 = %g;" % (0, z2)
+        z02 = assemble(as_vector(z0)**2*dsc)
+        print "timestep %d;  |z(t)|^2 = %g;" % (0, z02)
         for timestep in range(1, len(observations)):
             tg, g = data.controls.g_timesteps[timestep-1]
             tz, z = observations[timestep]
             assert abs(tz - tg) < 1e-6, "Expecting matching time!"
-            g2 = assemble(as_vector(g)**2*dsc)
-            z2 = assemble(as_vector(z)**2*dsc)
-            print "timestep %d;  |g(t)|^2 = %g;  |z(t)|^2 = %g;" % (timestep, g2, z2)
+            g2 = sqrt(assemble(as_vector(g)**2*dsc) / z02)
+            z2 = sqrt(assemble(as_vector(z)**2*dsc) / z02)
+            print "timestep %d;  |g(t)| / |z(0)| = %g;  |z(t)| / |z(0)| = %g;" % (timestep, g2, z2)
 
         # This should be zero if this g(t) = z(t0) is the initial value used in the forward problem
         print "Computing |z(t0)-g(t)| on control boundary for each timestep:"
@@ -825,12 +819,11 @@ def main():
             tg, g = data.controls.g_timesteps[timestep-1]
             tz, z = observations[timestep]
             assert abs(tz - tg) < 1e-6, "Expecting matching time!"
-            gz0diff = assemble((as_vector(g) - as_vector(z0))**2*dsc)
-            gzdiff = assemble((as_vector(g) - as_vector(z))**2*dsc)
-            zz0diff = assemble((as_vector(z) - as_vector(z0))**2*dsc)
-            print "timestep %d;  |g(t)-z(0)| = %g;  |g(t)-z(t)| = %g;  |z(t)-z(0)| = %g;" % (timestep, gz0diff, gzdiff, zz0diff)
+            gz0diff = sqrt(assemble((as_vector(g) - as_vector(z0))**2*dsc) / z02)
+            gzdiff = sqrt(assemble((as_vector(g) - as_vector(z))**2*dsc) / z02)
+            zz0diff = sqrt(assemble((as_vector(z) - as_vector(z0))**2*dsc) / z02)
+            print "timestep %d;  |g(t)-z(0)| / |z(0)| = %g;  |g(t)-z(t)| / |z(0)| = %g;  |z(t)-z(0)| / |z(0)| = %g;" % (timestep, gz0diff, gzdiff, zz0diff)
 
-    crash
 
     # TODO: Make this a function
     # Test gradient computation with convergence order tests
