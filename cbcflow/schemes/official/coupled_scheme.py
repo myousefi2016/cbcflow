@@ -274,7 +274,7 @@ class CoupledScheme(NSScheme):
         timestep = start_timestep
         data = ParamDict(timestep=timestep, t=float(t),
                          spaces=spaces,
-                         u=u1, p=p1, bcs=bcs, # TODO: Remove
+                         u=u1, p=p1, # TODO: Remove u,p, only need NSSolver and other schemes to use state instead
                          state=state,
                          boundary_conditions=bcs,
                          controls=controls,
@@ -306,7 +306,7 @@ class CoupledScheme(NSScheme):
             # (all variables here consistently time t)
             data = ParamDict(timestep=timestep, t=float(t),
                              spaces=spaces,
-                             u=u1, p=p1, bcs=bcs, # TODO: Remove
+                             u=u1, p=p1, # TODO: Remove u,p, only need NSSolver and other schemes to use state instead
                              state=state,
                              boundary_conditions=bcs,
                              controls=controls,

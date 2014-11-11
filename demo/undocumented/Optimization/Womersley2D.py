@@ -330,7 +330,7 @@ class AssimilationProblem(ProblemBase):
         assert len(controls.g_timesteps) == timestep
 
         # Assign initial values to BC control functions at time t
-        initial_g = "z"
+        initial_g = "u0"
 
         if initial_g == "u0": # TODO: Make choice a parameter
             # Get 'initial guess' from initial condition, i.e. set g(t) = u(t=0)
@@ -346,8 +346,8 @@ class AssimilationProblem(ProblemBase):
             assert abs(float(t) - tz) < 1e-6, "Expecting matching times!"
             # Get 'initial guess' from observation, i.e. set g(t) = z(t)
             for g_control, z_component in zip(g_at_t, z):
-                g_control.assign(z_component) # TODO: Handle nonmatching spaces
-                #g_control.interpolate(z_component)
+                g_control.assign(z_component)
+                #g_control.interpolate(z_component) # TODO: Handle nonmatching spaces
 
         # TODO: Implement adding of noise
 
@@ -357,12 +357,11 @@ class AssimilationProblem(ProblemBase):
 
 
 class CostFunctional(Parameterized):
-    def __init__(self, params, geometry, initial_velocity, observations):
+    def __init__(self, params, geometry, observations):
         Parameterized.__init__(self, params)
 
         self._geometry = geometry
         self._observations = observations
-        self._initial_velocity = initial_velocity
 
         self.J_timesteps = []
 
@@ -447,7 +446,7 @@ class CostFunctional(Parameterized):
             ]
 
         # ... Update cost functional with regularization of initial velocity control
-        if timestep == 0 and controls.initial_velocity:
+        if timestep == 0:
             u0 = as_vector(controls.initial_velocity)
             J_terms += [
                 self.alpha_u0              * u0**2       * dx * dts,
@@ -476,7 +475,6 @@ class CostFunctional(Parameterized):
 
         # Accumulate all contributions and add to list
         self.J_timesteps += [rebalance_form(sum(J_terms))]
-
 
     def accumulate(self):
         "Collect terms gathered up during timestep updates."
@@ -526,7 +524,7 @@ def main():
     # Configure time
     time_params = ParamDict(
             dt=1e-2,
-            T=0.04,#8,
+            T=0.01,#4,#8,
             num_periods=None,
             )
 
@@ -634,7 +632,7 @@ def main():
                 # If this fails, the weak boundary conditions have failed.
                 # Increase and decrease the gamma parameter to see these
                 # comparisons tighten and loosen.
-                bc = data.bcs.bcu.inflow
+                bc = data.boundary_conditions.bcu.inflow
                 dsc = analytic_problem.ds(bc.region)
 
                 u, p = data.state
@@ -677,7 +675,10 @@ def main():
         # or in a different space, then the initial velocity
         # could be e.g. the solution to an artificially constructed
         # forward problem with a reasonable flow rate
-        initial_velocity = observations[0][1]
+        z0 = observations[0][1]
+        initial_velocity = [z0_comp.copy() for z0_comp in z0]
+        for u0_comp in initial_velocity:
+            u0_comp.vector().zero()
 
         # Extract geometry from analytic problem,
         # for another problem this may be
@@ -713,7 +714,7 @@ def main():
         forward_solver = NSSolver(forward_problem, CoupledScheme(scheme_params), forward_postprocessor, forward_solver_params)
 
         # Setup cost functional
-        CF = CostFunctional(J_params, geometry, initial_velocity, observations)
+        CF = CostFunctional(J_params, geometry, observations)
         dx = CF.dx
         ds = CF.ds
         dsc = CF.dsc
@@ -724,7 +725,7 @@ def main():
             CF.update(data.timestep, data.t, data.spaces, data.state, data.controls)
 
             # Compare observations with 'observations' from assimilation problem
-            compute_observation_diffs = True
+            compute_observation_diffs = False
             if compute_observation_diffs:
                 # Avoid annotating these steps
                 parameters["adjoint"]["stop_annotating"] = True
@@ -741,6 +742,7 @@ def main():
 
         # Extract flat list of boundary control components
         all_g_components = [gc for (tg, g) in data.controls.g_timesteps for gc in g]
+        all_u0_components = data.controls.initial_velocity
 
         # Accumulate terms from cost functional.
         J = CF.accumulate()
@@ -753,12 +755,13 @@ def main():
     adj_html("adjoint.html", "adjoint")
 
 
-    # Try replaying with dolfin-adjoint (works within a small tolerance around 1e-12 to 1e-14)
-    run_replay = False
+    # Try replaying with dolfin-adjoint (works within a small tolerance)
+    run_replay = True
     if run_replay:
-        success = da.replay_dolfin()
-        print "replay success:", success
-        return
+        success = da.replay_dolfin(forget=False, tol=1e-14)
+        print
+        print "Replay success (within tiny tolerance):", success
+        print
 
 
     # TODO: Make this a function
@@ -773,7 +776,7 @@ def main():
         dJdm = da.compute_gradient(J, m, forget=False)
         Vdj = dJdm[0].function_space()
         djp = Function(Vdj)
-        bc = data.bcs.bcu.inflow
+        bc = data.boundary_conditions.bcu.inflow
         for i, dj in enumerate(dJdm):
             # Using dbc trick to set only boundary values of djp, ignoring the rest of the domain
             dbc = DirichletBC(Vdj, dj, geometry.facet_domains, bc.region)
@@ -787,7 +790,7 @@ def main():
 
     # TODO: Make this a function
     # Compare various functions by computing some norms
-    run_consistency_computations = True
+    run_consistency_computations = False
     if run_consistency_computations:
         dsc = CF.dsc
 
@@ -827,29 +830,29 @@ def main():
 
     # TODO: Make this a function
     # Test gradient computation with convergence order tests
-    run_taylor_test = True
+    run_taylor_test = False
     if run_taylor_test:
         dsc = CF.dsc
 
-        set_g_choice = 1
+        set_g_choice = 4
 
         # Set boundary control functions to zero
         if set_g_choice == 0:
-            print "Setting g(t) = 0"
+            print "Setting g(t) = 0, J(m) should be nonzero"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
                 for g_comp, z_comp in zip(g, observations[i+1][1]):
                     g_comp.vector().zero()
 
         # Set boundary control functions to observations
         if set_g_choice == 1:
-            print "Setting g(t) = z(t)"
+            print "Setting g(t) = z(t), J(m) should be zero"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
                 for g_comp, z_comp in zip(g, observations[i+1][1]):
                     g_comp.assign(z_comp)
                     #g_comp.interpolate(z_comp) # TODO: Handle nonmatching spaces
 
         if set_g_choice == 2:
-            print "Setting g(t) = z(t) using dbc trick"
+            print "Setting g(t) = z(t) using dbc trick, J(m) should be zero"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
                 for g_comp, z_comp in zip(g, observations[i+1][1]):
                     g_comp.vector().zero()
@@ -858,7 +861,7 @@ def main():
                         dbc.apply(g_comp.vector())
 
         if set_g_choice == 3:
-            print "Setting g(t) = w(t) using dbc trick"
+            print "Setting g(t) = w(t) using dbc trick, J(m) should be zero"
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
                 for g_comp, w in zip(g, analytic_problem.womersley):
                     w.set_t(tg)
@@ -868,7 +871,9 @@ def main():
                         dbc.apply(g_comp.vector())
 
         # Select controls for componentwise taylor test
-        m_values = list(all_g_components)
+        #m_values = list(all_u0_components)
+        m_values = list(all_u0_components) + list(all_g_components)
+        #m_values = list(all_g_components)
         #m_values = [all_g_components[0]] # DEBUGGING
         #m_values = [all_g_components[-1]] # DEBUGGING
 
@@ -881,7 +886,10 @@ def main():
             conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
             conv_rates.append(conv_rate)
             print
-            print "m = g_%d(t_%d)" % ((i%2), (i//2))
+            if i < 2:
+                print "m = u_%d(t_%d)" % ((i%2), (i//2))
+            else:
+                print "m = g_%d(t_%d)" % ((i%2), (i//2))
             print "  J(m)      =", Jm
             print "  dJdm(m)   =", assemble(dJdm**2*dx)
             print "  conv_rate =", conv_rate
@@ -894,22 +902,25 @@ def main():
     # Optimize! This is where the main work goes!
     run_minimize = True
     if run_minimize:
-        # Clear problem functions so we're sure dolfin-adjoint gets its values from the tape!
+        # Clear problem control functions so we're sure dolfin-adjoint doesn't cheat and gets its values from the tape!
+        for u0c in all_u0_components:
+            u0c.vector().zero()
         for gc in all_g_components:
             gc.vector().zero()
-        bc = data.bcs.bcu.inflow
+        bc = data.boundary_conditions.bcu.inflow
         for fc in bc.functions:
             fc.vector().zero()
 
-        # Select controls TODO: Test adding initial_velocity here
-        m_values = list(all_g_components)
-        #m_values = [all_g_components[0]] # DEBUGGING
-        #m_values = [all_g_components[-1]] # DEBUGGING
+        # Select controls
+        # TODO: Make choice of controls a parameter
+        #m_values = list(all_u0_components)
+        m_values = list(all_u0_components) + list(all_g_components)
+        #m_values = list(all_g_components)
         m = [da.Control(mv) for mv in m_values]
 
         # TODO: Expose parameters
         RJ = da.ReducedFunctional(J, m)
-        m_opt = minimize(RJ, tol=1e-8, method="L-BFGS-B", options={"disp": True, "maxiter": 100})
+        m_opt = minimize(RJ, tol=1e-8, method="L-BFGS-B", options={"disp": True, "maxiter": 1000})
         #m_opt = minimize(RJ)
 
         #print m_opt
@@ -925,10 +936,28 @@ def main():
     run_final_problem = True
     if run_final_problem:
         # Setup controls on the right format
-        u0 = data.controls.initial_velocity
-        d = len(u0)
-        glist = [[m_opt[d*i+j] for j in range(d)] for i in range(len(m_opt)//d)] # NB! Assumes m_values above use all g components!
-        controls = Controls(u0, glist)
+        d = data.spaces.d
+        if len(m_opt) == len(all_g_components):
+            # Using all g components as controls
+            u0_opt = data.controls.initial_velocity
+            g_opt = []
+            for i, (tg, g) in enumerate(data.controls.g_timesteps):
+                gv = [m_opt[d*i + j] for j in range(d)]
+                g_opt.append((tg, gv))
+        elif len(m_opt) == len(all_u0_components) + len(all_g_components):
+            # Using all u0 and g components as controls
+            u0_opt = m_opt[:d]
+            g_opt = []
+            for i, (tg, g) in enumerate(data.controls.g_timesteps):
+                gv = [m_opt[d + d*i + j] for j in range(d)]
+                g_opt.append((tg, gv))
+        elif len(m_opt) == len(all_u0_components):
+            # Using all u0 components as controls
+            u0_opt = m_opt[:d]
+            g_opt = [FIXME] # FIXME: Get from observations
+        else:
+            error("Failed to guess at controls layout.")
+        controls = Controls(u0_opt, g_opt)
 
         # Setup problem
         final_problem = FinalReplayProblem(final_problem_params, geometry, controls)
