@@ -25,7 +25,7 @@ from cbcflow.schemes.utils import (
     # Spaces
     NSSpacePoolMixed,
     # ICs
-    assign_ics_mixed,
+    #assign_ics_mixed, # Modified implementation below
     # BCs
     # ... implemented inline below for now
     )
@@ -37,8 +37,9 @@ def assign_ics_mixed(up, spaces, ics, annotate):
     while ics = (icu, icp); icu = (icu0, icu1, ...).
     """
     icup = as_vector(list(ics[0]) + [ics[1]])
-    #project(icup, spaces.W, function=up) # TODO: Can do this in fenics dev
-    up.assign(project(icup, spaces.W, name="icup_projection"), annotate=annotate)
+    #project(icup, spaces.W, function=up, annotate=annotate) # TODO: Can pass function in fenics-dev
+    icup = project(icup, spaces.W, name="icup_projection")
+    up.assign(icup, annotate=annotate) # Force annotation
 
 class CoupledScheme(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
@@ -167,8 +168,10 @@ class CoupledScheme(NSScheme):
             kinv = 1.0 / k
             kval = 1
 
+
         # Apply initial conditions and use it as initial guess
         assign_ics_mixed(up1, spaces, ics, annotate=self.params.annotate)
+
 
         # Make scheme-specific representation of bcs
         abc, Lbc = 0, 0
