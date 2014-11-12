@@ -22,7 +22,7 @@ from cbcflow.core.nsscheme import *
 from cbcflow.schemes.utils import (RhsGenerator,
                                    compute_regular_timesteps,
                                    assign_ics_mixed,
-                                   make_velocity_bcs,
+                                   make_mixed_velocity_bcs,
                                    make_rhs_pressure_bcs,
                                    is_periodic,
                                    epsilon, sigma,
@@ -90,7 +90,7 @@ class CoupledNonLinear(NSScheme):
 
         # Make scheme-specific representation of bcs
         bcs = problem.boundary_conditions(spaces, u0, p0, t, controls)
-        bcu = make_velocity_bcs(problem, spaces, bcs)
+        bcu = make_mixed_velocity_bcs(problem, spaces, bcs)
         Lbc = make_rhs_pressure_bcs(problem, spaces, bcs, v)
 
         # Remove boundary stress term if problem is periodic

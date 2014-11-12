@@ -34,10 +34,8 @@ def test_nsspacepool_mixed_bcspaces():
     p = NSSpacePoolMixed(mesh, 2, 1)
     W = p.W
     Ubc = p.Ubc
-    Qbc = p.Qbc
     for i in range(d):
         assert Ubc[i].component() in (i,) # subspace i of subspace 0 of mixed space
-    assert Qbc.component() in (1,) # subspace 1 of mixed space
 
 def test_nsspacepool_split_bcspaces():
     d = 2
@@ -46,10 +44,8 @@ def test_nsspacepool_split_bcspaces():
     V = p.V
     Q = p.Q
     Ubc = p.Ubc
-    Qbc = p.Qbc
     for i in range(d):
         assert Ubc[i].component() in (i,)
-    assert id(Q) == id(Qbc)
 
 def test_nsspacepool_segregated_bcspaces():
     d = 2
@@ -58,7 +54,5 @@ def test_nsspacepool_segregated_bcspaces():
     U = p.U
     Q = p.Q
     Ubc = p.Ubc
-    Qbc = p.Qbc
     for i in range(d):
         assert id(Ubc[i]) == id(U)
-    assert id(Q) == id(Qbc)

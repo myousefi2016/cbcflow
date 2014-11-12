@@ -30,7 +30,7 @@ from cbcflow.schemes.utils import (
     # ... implemented inline below for now
     )
 
-def assign_ics_mixed(up, spaces, ics):
+def assign_ics_mixed(up, spaces, ics, annotate):
     """Assign initial conditions from ics to up.
 
     up is a mixed function in spaces.W = spaces.V * spaces.Q,
@@ -38,7 +38,7 @@ def assign_ics_mixed(up, spaces, ics):
     """
     icup = as_vector(list(ics[0]) + [ics[1]])
     #project(icup, spaces.W, function=up) # TODO: Can do this in fenics dev
-    up.assign(project(icup, spaces.W, name="icup_projection"))
+    up.assign(project(icup, spaces.W, name="icup_projection"), annotate=annotate)
 
 class CoupledScheme(NSScheme):
     "Coupled scheme using a fixed point (Picard) nonlinear solver."
@@ -94,6 +94,9 @@ class CoupledScheme(NSScheme):
             picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, (0.0,1.0) = mix
             nonlinear_solver=nonlinear_solver,
 
+            # Annotation on/off
+            annotate=True,
+
             # Form compiler parameters for optimizing run time
             form_compiler_parameters=fc,
             )
@@ -115,6 +118,20 @@ class CoupledScheme(NSScheme):
         # Function spaces
         spaces = NSSpacePoolMixed(mesh, self.params.u_degree, self.params.p_degree)
         W = spaces.W
+
+
+        # TODO: Could use this to yield u0,p0 in proper spaces below:
+        #u_assigner = FunctionAssigner(spaces.V, spaces.W.sub(0))
+        #u_assigners = [FunctionAssigner(spaces.U, spaces.W.sub(0).sub(i)) for i in range(d)]
+        #p_assigner = FunctionAssigner(spaces.Q, spaces.W.sub(1))
+        #up = up0
+        #uvec = Function(spaces.V)
+        #ucomp = [Function(spaces.U) for i in range(d)]
+        #psub = Function(spaces.Q)
+        #u_assigner.assign(vsub, up0.sub(0))
+        #u_assigners.assign(usub, up0.sub(0).sub(0))
+        #p_assigner.assign(psub, up0.sub(1))
+
 
         # Test and trial functions
         up = TrialFunction(W)
@@ -151,7 +168,7 @@ class CoupledScheme(NSScheme):
             kval = 1
 
         # Apply initial conditions and use it as initial guess
-        assign_ics_mixed(up1, spaces, ics)
+        assign_ics_mixed(up1, spaces, ics, annotate=self.params.annotate)
 
         # Make scheme-specific representation of bcs
         abc, Lbc = 0, 0
@@ -213,7 +230,7 @@ class CoupledScheme(NSScheme):
 
         # Create Dirichlet boundary terms for velocity where it should be applied strongly
         # Note that this implies v = 0 and thus (p*n - nu*Dn(u)) . v = 0 on the same regions.
-        bc_strong = [DirichletBC(spaces.Ubc[i], function, problem.facet_domains, region)
+        bc_strong = [DirichletBC(W.sub(0).sub(i), function, problem.facet_domains, region)
                      for functions, region in bcu_strong
                      for i, function in enumerate(functions)]
 
@@ -260,14 +277,6 @@ class CoupledScheme(NSScheme):
         solver = NonlinearVariationalSolver(nonlinear_problem)
         solver.parameters.update(self.params.nonlinear_solver)
 
-        # TODO: Could use this to yield u0,p0 in proper spaces below:
-        #u_assigner = FunctionAssigner(spaces.V, spaces.W.sub(0))
-        #p_assigner = FunctionAssigner(spaces.Q, spaces.W.sub(1))
-        #uv = Function(spaces.V)
-        #pv = Function(spaces.Q)
-        #u_assigner.assign(uv, up0.sub(0))
-        #p_assigner.assign(pv, up0.sub(1))
-
         # Callback to problem and yield data for postprocessing
         # (all variables here are consistently at time t)
         state = (u1, p1)
@@ -279,7 +288,6 @@ class CoupledScheme(NSScheme):
                          boundary_conditions=bcs,
                          controls=controls,
                          observations=observations, cost_functionals=cost_functionals)
-        #problem.post_update(**data)
         yield data
 
         # Loop over fixed timesteps
@@ -311,7 +319,6 @@ class CoupledScheme(NSScheme):
                              boundary_conditions=bcs,
                              controls=controls,
                              observations=observations, cost_functionals=cost_functionals)
-            #problem.post_update(**data)
             yield data
 
             ##adj_inc_timestep(float(t), finished=timestep == len(timesteps)-1)

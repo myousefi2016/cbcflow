@@ -551,7 +551,6 @@ def main():
 
 
     # Configure scheme (reused in all stages)
-    Scheme = CoupledScheme
     scheme_params = ParamDict(
             # BC params
             nietche=ParamDict(
@@ -564,6 +563,9 @@ def main():
             # Variational formulation params
             scale_by_dt=True,
             enable_convection=True, # False = Stokes
+
+            # Annotation
+            annotate=True,
 
             # Nonlinear solver params
             picard_newton_fraction=1.0, # 0.0 = Picard, 1.0 = Newton, in (0.0, 1.0) = mix
@@ -584,7 +586,7 @@ def main():
     all_params = [scheme_params, analytic_problem_params, forward_problem_params, final_problem_params]
     params_string = str(hash(' '.join(map(str, all_params))))[:8]
     date = timestamp()
-    casedir = "results_{}_{}_{}".format(Scheme.__name__, date, params_string)
+    casedir = "results_{}_{}_{}".format(CoupledScheme.__name__, date, params_string)
 
 
     # TODO: Make this a function
@@ -604,13 +606,17 @@ def main():
             Velocity(fp),
             ])
 
+        # Setup scheme
+        scheme_params.annotate = False
+        scheme = CoupledScheme(scheme_params)
+
         # Setup analytic_solver
         analytic_solver_params = ParamDict(
             enable_annotation=False,
             #timer_frequency=1,
             #check_memory_frequency=1,
             )
-        analytic_solver = NSSolver(analytic_problem, CoupledScheme(scheme_params), analytic_postprocessor, analytic_solver_params)
+        analytic_solver = NSSolver(analytic_problem, scheme, analytic_postprocessor, analytic_solver_params)
 
         # Step through simulation
         observations = []
@@ -705,13 +711,17 @@ def main():
             Velocity(fp),
             ])
 
+        # Setup scheme
+        scheme_params.annotate = True
+        scheme = CoupledScheme(scheme_params)
+
         # Setup and run solver
         forward_solver_params = ParamDict(
             enable_annotation=True,
             #timer_frequency=1,
             #check_memory_frequency=1,
             )
-        forward_solver = NSSolver(forward_problem, CoupledScheme(scheme_params), forward_postprocessor, forward_solver_params)
+        forward_solver = NSSolver(forward_problem, scheme, forward_postprocessor, forward_solver_params)
 
         # Setup cost functional
         CF = CostFunctional(J_params, geometry, observations)
@@ -813,7 +823,8 @@ def main():
             assert abs(tz - tg) < 1e-6, "Expecting matching time!"
             g2 = sqrt(assemble(as_vector(g)**2*dsc) / z02)
             z2 = sqrt(assemble(as_vector(z)**2*dsc) / z02)
-            print "timestep %d;  |g(t)| / |z(0)| = %g;  |z(t)| / |z(0)| = %g;" % (timestep, g2, z2)
+            print "timestep %d;  |g(t)| / |z(0)| = %g" % (timestep, g2)
+            print "              |z(t)| / |z(0)| = %g" % (z2,)
 
         # This should be zero if this g(t) = z(t0) is the initial value used in the forward problem
         print "Computing |z(t0)-g(t)| on control boundary for each timestep:"
@@ -825,7 +836,9 @@ def main():
             gz0diff = sqrt(assemble((as_vector(g) - as_vector(z0))**2*dsc) / z02)
             gzdiff = sqrt(assemble((as_vector(g) - as_vector(z))**2*dsc) / z02)
             zz0diff = sqrt(assemble((as_vector(z) - as_vector(z0))**2*dsc) / z02)
-            print "timestep %d;  |g(t)-z(0)| / |z(0)| = %g;  |g(t)-z(t)| / |z(0)| = %g;  |z(t)-z(0)| / |z(0)| = %g;" % (timestep, gz0diff, gzdiff, zz0diff)
+            print "timestep %d;  |g(t)-z(0)| / |z(0)| = %g" % (timestep, gz0diff)
+            print "              |g(t)-z(t)| / |z(0)| = %g" % (gzdiff,)
+            print "              |g(t)-z(t)| / |z(0)| = %g" % (zz0diff,)
 
 
     # TODO: Make this a function
@@ -970,13 +983,17 @@ def main():
             Velocity(fp),
             ])
 
+        # Setup scheme
+        scheme_params.annotate = False
+        scheme = CoupledScheme(scheme_params)
+
         # Setup and run solver
         final_solver_params = ParamDict(
             enable_annotation=False,
             #timer_frequency=1,
             #check_memory_frequency=1,
             )
-        final_solver = NSSolver(final_problem, CoupledScheme(scheme_params), final_postprocessor, final_solver_params)
+        final_solver = NSSolver(final_problem, scheme, final_postprocessor, final_solver_params)
 
         # Step through forward simulation
         diffs = []

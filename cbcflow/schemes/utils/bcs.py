@@ -34,14 +34,21 @@ def _domainargs(problem, D):
 
 def make_velocity_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
-    bcu = [DirichletBC(spaces.Ubc[d], functions[d], *_domainargs(problem, region))
+    bcu = [DirichletBC(spaces.V.sub(d), functions[d], *_domainargs(problem, region))
+           for functions, region in bcu_raw
+           for d in range(len(functions))]
+    return bcu
+
+def make_mixed_velocity_bcs(problem, spaces, bcs):
+    bcu_raw, bcp_raw = bcs
+    bcu = [DirichletBC(spaces.W.sub(0).sub(d), functions[d], *_domainargs(problem, region))
            for functions, region in bcu_raw
            for d in range(len(functions))]
     return bcu
 
 def make_segregated_velocity_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
-    bcu = [[DirichletBC(spaces.Ubc[d], functions[d], *_domainargs(problem, region))
+    bcu = [[DirichletBC(spaces.V.sub(d), functions[d], *_domainargs(problem, region))
             for d in range(len(functions))]
            for functions, region in bcu_raw]
     return bcu

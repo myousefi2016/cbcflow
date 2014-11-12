@@ -102,36 +102,12 @@ class NSSpacePool():
 
 class NSSpacePoolMixed(NSSpacePool):
     "A function space pool with custom named spaces for use with mixed Navier-Stokes schemes."
-    @property
-    def Ubc(self):
-        "List of scalar valued spaces for setting velocity BCs."
-        return [self.W.sub(0).sub(d) for d in self.gdims]
-
-    @property
-    def Qbc(self):
-        "Scalar valued space for setting pressure BCs."
-        return self.W.sub(1)
+    pass
 
 class NSSpacePoolSplit(NSSpacePool):
     "A function space pool with custom named spaces for use with split Navier-Stokes schemes."
-    @property
-    def Ubc(self):
-        "List of scalar valued spaces for setting velocity BCs."
-        return [self.V.sub(d) for d in self.gdims]
-
-    @property
-    def Qbc(self):
-        "Scalar valued space for setting pressure BCs."
-        return self.Q
+    pass
 
 class NSSpacePoolSegregated(NSSpacePool):
     "A function space pool with custom named spaces for use with segregated Navier-Stokes schemes."
-    @property
-    def Ubc(self):
-        "List of scalar valued spaces for setting velocity BCs."
-        return [self.U for d in self.spacepool.gdims]
-
-    @property
-    def Qbc(self):
-        "Scalar valued space for setting pressure BCs."
-        return self.Q
+    pass
