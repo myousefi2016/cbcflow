@@ -13,19 +13,27 @@ import numpy as np
 import time
 
 
+# TODO: Testing:
+# - Output diff between optimal boundary controls and observations without noise
+# - Try 3D!
+
+# TODO: optimization setup:
+# - Allow z in CG1/DG0
+# - Add noise to z
+# - Skip observations
+# - Observations on slices
+# - Allow g in CG1 (will be projected into spaces.V in scheme?)
+# - Coarser time discretization of g(t) control with piecwise time UFL functions
+
+
 # TODO: coupled scheme:
 # - Add time discretization schemes: BDF-2 and theta-rule
 # - Improve stability in scheme with N unannotated Picard iterations plus annotated Newton iterations?
-# TODO: optimization setup:
-# - Allow z in CG1/DG0
-# - Allow g in CG1 (will be projected into spaces.V in scheme?)
-# - Coarser time discretization of g(t) control with piecwise time UFL functions
-# TODO: Testing:
-# - Setting u0 initial control values to (beta*z(0) + eta(0, x))
-# - Setting g initial control values to (beta*z(t) + eta(t, x))
+
 # TODO: Cbcflow structure:
 # - Want to get u in V and p in Q as the physically scaled pressure in advance() and from yield?
 #   Get rid of converters to achieve this? Only problem is performance of subfunction assignment.
+
 
 # TODO: Move to cbcpost utils
 def timestamp():
