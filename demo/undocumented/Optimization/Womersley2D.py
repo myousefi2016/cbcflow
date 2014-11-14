@@ -380,7 +380,7 @@ class AssimilationProblem(ProblemBase):
     def default_params(cls):
         params = ProblemBase.default_params()
         params.update(
-            initial_g="z",
+            initial_g="0",
             )
         return params
 
@@ -433,6 +433,9 @@ class AssimilationProblem(ProblemBase):
             for i in range(d):
                 g_at_t[i].assign(z[i])
                 #g_at_t[i].interpolate(z[i]) # TODO: Handle nonmatching spaces
+
+        elif self.params.initial_g == "0":
+            pass # g_at_t is already zero here
 
         # Assign 'initial guess' control function values to the BC functions used in scheme forms
         for i in range(d):
@@ -775,7 +778,7 @@ def main():
     # Configure time
     time_params = ParamDict(
             dt=1e-2,
-            T=0.3,#8,
+            T=0.1,#8,
             )
 
     # Configure controls
@@ -785,8 +788,8 @@ def main():
         u0_scale = 1.0,
         maxiter = 100,
         relative_tolerance = 1e-12,
-        #method = "CG",
-        method = "L-BFGS-B",
+        method = "Newton-CG",
+        #method = "L-BFGS-B",
         options = {
             # These are scipy.optimize.fmin_l_bfgs_b options:
             # Typical values for `factr` are:
@@ -813,9 +816,9 @@ def main():
         alpha_u0_dn_uncontrolled=0.0,
         alpha_u0_wall=0.0, # "Weak enforcing" of no-slip boundary condition on u0
         # Boundary control regularization
-        alpha_g=1e-8, # This seems to be commonly included
+        alpha_g=0.0, # This seems to be commonly included
         alpha_g_t=0.0, # TODO: This messed up the initial condition control! Why?
-        alpha_g_grad_tangent=1e-8, # This seems to be commonly included
+        alpha_g_grad_tangent=0.0, # This seems to be commonly included
         alpha_g_grad_full=0.0,
         alpha_g_volume=0.0,
         alpha_g_grad_volume=0.0,
@@ -900,10 +903,14 @@ def main():
 
 
     # Try replaying with dolfin-adjoint (works within a small tolerance)
-    run_replay = False
+    run_replay = True
     if run_replay:
+        import time
+        t0 = time.time()
         success = da.replay_dolfin(forget=False, tol=1e-13)
+        t1 = time.time()
         print
+        print "Replay time:", (t1-t0)
         print "Replay success (within tiny tolerance):", success
         print
 
@@ -1011,9 +1018,26 @@ def main():
         tol = opt_params.relative_tolerance * z_scale
         print "Problem scale:", z_scale
 
+
+        def eval_cb(j, m):
+            print "eval", (time.time() - eval_cb.t0)
+        def derivative_cb(j, dj, m):
+            print "derivative", (time.time() - derivative_cb.t0)
+        import time
+        eval_cb.t0 = time.time()
+        derivative_cb.t0 = time.time()
+
         # TODO: Try Moola?
-        RJ = da.ReducedFunctional(J, m)
-        m_opt = minimize(RJ, tol=tol, method=opt_params.method, options={"disp": True, "maxiter": opt_params.maxiter})
+        RJ = da.ReducedFunctional(J, m, eval_cb=eval_cb, derivative_cb=derivative_cb)
+
+        #import time
+        #t0 = time.time()
+        #DJ = RJ.derivative(m_values)
+        #t1 = time.time()
+        #print "gradient time:", (t1-t0)
+
+        m_opt = minimize(RJ, tol=tol, method=opt_params.method,
+                         options={"disp": True, "maxiter": opt_params.maxiter})
 
 
         # Setup controls on the right format
