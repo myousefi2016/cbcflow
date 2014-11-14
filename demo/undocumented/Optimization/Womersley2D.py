@@ -126,6 +126,7 @@ class Geometry(Parameterized):
         self.mesh = mesh
         self.facet_domains = facet_domains
         self.boundary_ids = boundary_ids
+        self.dim = 2
 
     @classmethod
     def default_params(cls):
@@ -164,7 +165,7 @@ class ProblemBase(NSProblem):
         return params
 
     def boundary_conditions(self, spaces, u, p, t, controls):
-        d = len(u)
+        d = self.geometry.dim
         bids = self.geometry.boundary_ids
 
         # Create inflow BC control functions to be returned and used in scheme forms
@@ -245,7 +246,7 @@ class AnalyticProblem(ProblemBase):
                                             "Q", num_fourier_coefficients=wp.num_womersley_coefficients)
 
     def initial_conditions(self, spaces, controls):
-        d = spaces.d
+        d = self.geometry.dim
 
         # Create initial condition functions for velocity
         icu = [Function(spaces.U, name="ic_u%d" % i) for i in range(d)]
@@ -259,9 +260,9 @@ class AnalyticProblem(ProblemBase):
 
     def advance(self, t0, t, timestep, spaces, state, boundary_conditions, body_force, controls):
         "Advance boundary condition functions to time t."
+        d = self.geometry.dim
         facet_domains = self.geometry.facet_domains
         bc = boundary_conditions.bcu.inflow
-        d = len(bc.functions)
         for i in range(d):
             # Update internal Womersley Expression state
             self.womersley[i].set_t(t)
@@ -271,6 +272,91 @@ class AnalyticProblem(ProblemBase):
             bc.functions[i].vector().zero()
             dbc = DirichletBC(spaces.U, self.womersley[i], facet_domains, bc.region)
             dbc.apply(bc.functions[i].vector())
+
+
+def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
+    # DON'T annotate the initial observation production
+    parameters["adjoint"]["stop_annotating"] = True
+
+    # Setup analytic problem to produce observations
+    analytic_problem = AnalyticProblem(analytic_problem_params)
+
+    # Extract geometry from analytic problem,
+    # for another problem this may be created separately
+    geometry = analytic_problem.geometry
+
+    # Setup postprocessor
+    analytic_postprocessor = PostProcessor(dict(casedir=casedir + "_analytic"))
+
+    fp = dict(save=True, plot=False)
+    analytic_postprocessor.add_fields([
+        Pressure(fp),
+        Velocity(fp),
+        ])
+
+    # Setup scheme
+    scheme_params = ParamDict(scheme_params)
+    scheme_params.annotate = False
+    scheme = CoupledScheme(scheme_params)
+
+    # Setup analytic_solver
+    analytic_solver_params = ParamDict(enable_annotation=False)
+    analytic_solver = NSSolver(analytic_problem, scheme, analytic_postprocessor, analytic_solver_params)
+
+    # Step through simulation
+    observations = []
+    for data in analytic_solver.isolve():
+        # Store projection of u into observation space
+        Uz = data.spaces.U # TODO: Configure different observation space
+        u, p = data.state
+        z = [project(u_comp, Uz, name="z_at_ts%d" % data.timestep) for u_comp in u]
+        observations.append((data.t, z))
+
+        # Debugging evaluations:
+        compute_boundary_diffs = False
+        if compute_boundary_diffs:
+            # Should have that z(t) = u(t) = g(t) on boundary bc.region.
+            # If this fails, the weak boundary conditions have failed.
+            # Increase and decrease the gamma parameter to see these
+            # comparisons tighten and loosen.
+            bc = data.boundary_conditions.bcu.inflow
+            dsc = analytic_problem.ds(bc.region)
+
+            u, p = data.state
+            u = as_vector(u) # u(t)
+            u2 = assemble(u**2*dsc)
+
+            z = as_vector(z) # g(t)
+            z2 = assemble(z**2*dsc)
+            diffz = sqrt(assemble((u-z)**2*dsc) / u2)
+
+            if data.timestep >= 1:
+                g = as_vector(bc.functions) # g(t)
+                g2 = assemble(g**2*dsc)
+                diffg = sqrt(assemble((u-g)**2*dsc) / u2)
+                diffgz = sqrt(assemble((z-g)**2*dsc) / u2)
+
+            print "Comparing control boundary values:"
+            print "ts={}; t={}".format(data.timestep, float(data.t))
+            print "    u(t)^2={}".format(u2)
+            print "    z(t)^2={}".format(u2)
+            if data.timestep >= 1:
+                print "    g(t)^2={}".format(g2)
+                print "    |u(t)-g(t)| / |u(t)|  = {}".format(diffg)
+                print "    |g(t)-z(t)| / |u(t)|  = {}".format(diffgz)
+            print "    |u(t)-z(t)| / |u(t)| = {}".format(diffz)
+            print
+
+            #assert diffg < 1e-10
+            #assert diffz < 1e-10
+
+    # Consistency check of observation times
+    dt = analytic_problem_params.dt
+    T = analytic_problem_params.T
+    assert abs(observations[0][0]) < dt * 0.01, "Expecting t = 0 at first observation!"
+    assert T - dt*0.01 < abs(observations[-1][0]) < T + dt * 0.51, "Expecting t = T at last observation!"
+
+    return geometry, observations, data
 
 
 class AssimilationProblem(ProblemBase):
@@ -299,7 +385,7 @@ class AssimilationProblem(ProblemBase):
         return params
 
     def controls(self, spaces):
-        d = len(self._initial_velocity_value)
+        d = self.geometry.dim
 
         # Create initial condition control functions
         initial_velocity = [Function(spaces.U, name="ic_u%d" % i) for i in range(d)]
@@ -319,12 +405,13 @@ class AssimilationProblem(ProblemBase):
 
     def advance(self, t0, t, timestep, spaces, state, boundary_conditions, body_force, controls):
         "Advance boundary condition functions to control values at time t."
+        d = self.geometry.dim
+
         Ug = spaces.U # TODO: Configure control space
 
         bc = boundary_conditions.bcu.inflow
 
         # Create new BC control functions at time t
-        d = len(state[0])
         g_at_t = [Function(Ug, name="g%d_%d" % (i,timestep)) for i in range(d)]
 
         # Make a record of BC controls in list
@@ -357,7 +444,7 @@ class CostFunctional(Parameterized):
     def __init__(self, params, geometry, observations):
         Parameterized.__init__(self, params)
 
-        self._geometry = geometry
+        self.geometry = geometry
         self._observations = observations
 
         self.J_timesteps = []
@@ -374,6 +461,10 @@ class CostFunctional(Parameterized):
         self.dsw = self.ds(self.wall_boundary_ids)
         self.dsc = self.ds(self.controlled_boundary_ids)
         self.dsu = self.ds(self.uncontrolled_boundary_ids)
+
+        # Temporaries used in form for trace grad computation
+        self._n = FacetNormal(geometry.mesh)
+        self._I_nn = Identity(geometry.dim) - outer(self._n, self._n)
 
         # Wrap regularization parameters in Constants
         for k in self.params.keys():
@@ -403,7 +494,8 @@ class CostFunctional(Parameterized):
             # Boundary control regularization
             alpha_g=0.0,
             alpha_g_t=0.0,
-            alpha_g_grad=0.0,
+            alpha_g_grad_tangent=0.0,
+            alpha_g_grad_full=0.0,
             alpha_g_volume=0.0,
             alpha_g_grad_volume=0.0,
             )
@@ -411,8 +503,8 @@ class CostFunctional(Parameterized):
 
     def update(self, timestep, t, spaces, state, controls):
         "Update cost functionals."
+        d = self.geometry.dim
         u, p = state
-        d = len(u)
 
         # Setup integration measures
         dx = self.dx
@@ -476,13 +568,15 @@ class CostFunctional(Parameterized):
             if timestep == 1:
                 g_prev = as_vector(controls.initial_velocity)
             else:
-                g_prev = as_vector(controls.g_timesteps[timestep-2])
+                g_prev = as_vector(controls.g_timesteps[timestep-2][1])
 
             # Add regularization of boundary control function to cost functional at time t
+            Dtg = dot(grad(g), self._I_nn) # Tangential components of grad(g) on boundary plane
             J_terms += [
                 self.alpha_g             * g**2       * dsc * dtt,
-                self.alpha_g_t           * (1.0/dt)*(g-g_prev)**2 * dsc * dtt, # TODO: This messed up the initial condition control! Why?
-                self.alpha_g_grad        * grad(g)**2 * dsc * dtt, # TODO: Use trace grad on boundary
+                self.alpha_g_t           * (1.0/dt)*(g-g_prev)**2 * dsc * dtt,
+                self.alpha_g_grad_tangent * Dtg**2  * dsc * dtt,
+                self.alpha_g_grad_full   * grad(g)**2 * dsc * dtt,
                 self.alpha_g_volume      * g**2       * dx * dtt,
                 self.alpha_g_grad_volume * grad(g)**2 * dx * dtt,
                 ]
@@ -498,26 +592,170 @@ class CostFunctional(Parameterized):
         return rebalance_form(sum(self.J_timesteps))
 
 
+def run_forward_problem(casedir, forward_problem_params, scheme_params, J_params, geometry, initial_velocity, observations):
+    # DO annotate the forward model
+    parameters["adjoint"]["stop_annotating"] = False
+
+    # Enable derivative testing (TODO: Does this actually do anything?)
+    parameters["adjoint"]["test_derivative"] = True
+
+    # Setup assimilation problem to reproduce observations
+    forward_problem = AssimilationProblem(forward_problem_params, geometry, initial_velocity, observations)
+
+    # Setup postprocessor
+    forward_postprocessor = PostProcessor(dict(casedir=casedir + "_forward"))
+
+    fp = dict(save=True, plot=False)
+    forward_postprocessor.add_fields([
+        Pressure(fp),
+        Velocity(fp),
+        ])
+
+    # Setup scheme
+    scheme_params = ParamDict(scheme_params)
+    scheme_params.annotate = True
+    scheme = CoupledScheme(scheme_params)
+
+    # Setup and run solver
+    forward_solver_params = ParamDict(enable_annotation=True)
+    forward_solver = NSSolver(forward_problem, scheme, forward_postprocessor, forward_solver_params)
+
+    # Setup cost functional
+    CF = CostFunctional(J_params, geometry, observations)
+
+    # Step through forward simulation and build cost functional
+    diffs = []
+    for data in forward_solver.isolve():
+        CF.update(data.timestep, data.t, data.spaces, data.state, data.controls)
+
+        # Compare observations with 'observations' from assimilation problem
+        compute_observation_diffs = False
+        if compute_observation_diffs:
+            # Avoid annotating these steps
+            parameters["adjoint"]["stop_annotating"] = True
+            u, p = data.state
+            t, z = observations[data.timestep]
+            z2 = assemble(as_vector(z)**2*dx)
+            error = sqrt(assemble((as_vector(u) - as_vector(z))**2*dx) / z2)
+            print data.timestep, "ERROR", error, z2
+            parameters["adjoint"]["stop_annotating"] = False
+
+    # Stop annotating after forward simulation
+    parameters["adjoint"]["stop_annotating"] = True
+
+    # Extract flat list of boundary control components
+    all_g_components = [gc for (tg, g) in data.controls.g_timesteps for gc in g]
+    all_u0_components = data.controls.initial_velocity
+
+    # Accumulate terms from cost functional.
+    J = CF.accumulate()
+    #print str(J)
+    J = da.Functional(J)
+
+    return all_g_components, all_u0_components, CF, J, data
+
+
 class FinalReplayProblem(ProblemBase):
     "Problem setup to run with the final control functions."
 
-    def __init__(self, params, geometry, controls):
+    def __init__(self, params, geometry, initial_velocity, g_timesteps):
         ProblemBase.__init__(self, params)
         self.geometry = geometry
         self.initialize_geometry(self.geometry.mesh, self.geometry.facet_domains)
-        self._controls = controls
+        self._initial_velocity = initial_velocity
+        self._g_timesteps = g_timesteps
 
     def initial_conditions(self, spaces, controls):
-        return InitialConditions(self._controls.initial_velocity, 0.0)
+        return InitialConditions(self._initial_velocity, 0.0)
 
     def advance(self, t0, t, timestep, spaces, state, boundary_conditions, body_force, controls):
         "Advance boundary condition functions to control values at time t."
+        d = self.geometry.dim
         bc = boundary_conditions.bcu.inflow
-        d = len(bc.functions)
-        tg, g_at_t = self._controls.g_timesteps[timestep-1]
+        tg, g_at_t = self._g_timesteps[timestep-1]
         assert abs(float(t) - tg) < 1e-6, "Expecting matching time!"
         for i in range(d):
             bc.functions[i].assign(g_at_t[i])
+
+
+def run_final_problem(casedir, problem_params, scheme_params, geometry, initial_velocity, g_timesteps):
+    problem = FinalReplayProblem(problem_params, geometry, initial_velocity, g_timesteps)
+
+    postprocessor = PostProcessor(dict(casedir=casedir + "_final"))
+
+    fp = dict(save=True, plot=False)
+    postprocessor.add_fields([
+        Pressure(fp),
+        Velocity(fp),
+        ])
+
+    scheme_params = ParamDict(scheme_params)
+    scheme_params.annotate = False
+    scheme = CoupledScheme(scheme_params)
+
+    solver_params = ParamDict(enable_annotation=False)
+    solver = NSSolver(problem, scheme, postprocessor, solver_params)
+    solver.solve()
+
+
+def run_taylor_test(set_u0_choice, set_g_choice, geometry,
+                    J, observations, controls,
+                    all_u0_components, all_g_components):
+    d = geometry.dim
+
+    # Set value of boundary control functions
+    if set_g_choice == 0:
+        print "Setting g(t) = 0"
+        for i, (tg, g) in enumerate(controls.g_timesteps):
+            for j in range(d):
+                g[j].vector().zero()
+
+    if set_g_choice == 1:
+        print "Setting g(t) = z(t)"
+        for i, (tg, g) in enumerate(controls.g_timesteps):
+            for j in range(d):
+                g[j].assign(observations[i+1][1][j])
+                #g[j].interpolate(observations[i+1][1][j]) # TODO: Handle nonmatching spaces
+
+    # Set value of initial velocity control functions
+    if set_u0_choice == 0:
+        print "Setting u(0) = 0"
+        for j in range(d):
+            controls.initial_velocity[j].vector().zero()
+
+    elif set_u0_choice == 1:
+        print "Setting u(0) = z(0)"
+        for j in range(d):
+            controls.initial_velocity[j].assign(observations[0][1][j])
+            #controls.initial_velocity[j].interpolate(observations[0][1][j]) # TODO: Handle nonmatching spaces
+
+    if set_u0_choice == 1 and set_g_choice == 1:
+        print "Since u0,g==analytic solution, J(m) should be zero."
+    else:
+        print "Since u0,g!=analytic solution, J(m) should be nonzero."
+
+    # Select controls for componentwise taylor test
+    m_values = list(all_u0_components) + list(all_g_components)
+
+    conv_rates = []
+    for i, mv in enumerate(m_values):
+        m = da.Control(mv)
+        RJ = da.ReducedFunctional(J, m)
+        Jm = RJ(mv)
+        dJdm = da.compute_gradient(J, m, forget=False)
+        conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
+        conv_rates.append(conv_rate)
+        print
+        if i < 2:
+            print "m = u_%d(t_%d)" % ((i%2), (i//2))
+        else:
+            print "m = g_%d(t_%d)" % ((i%2), (i//2))
+        print "  J(m)      =", Jm
+        print "  dJdm(m)   =", assemble(dJdm**2*dx)
+        print "  conv_rate =", conv_rate
+    print
+    print "min_conv_rate =", min(conv_rates)
+    return 1.95 < min(conv_rates)
 
 
 def main():
@@ -537,25 +775,49 @@ def main():
     # Configure time
     time_params = ParamDict(
             dt=1e-2,
-            T=0.01,#4,#8,
+            T=0.4,#8,
             num_periods=None,
             )
+
+    # Configure controls
+    opt_params = ParamDict(
+        enable_u0_control = False,
+        enable_g_control = True,
+        u0_scale = 1.0,
+        maxiter = 100,
+        relative_tolerance = 1e-12,
+        #method = "CG",
+        method = "L-BFGS-B",
+        options = {
+            # These are scipy.optimize.fmin_l_bfgs_b options:
+            # Typical values for `factr` are:
+            #   1e12 for low accuracy;
+            #   1e7 for moderate accuracy;
+            #   10.0 for extremely high accuracy.
+            # Stops when: (f^k - f^{k+1})/max{|f^k|,|f^{k+1}|,1} <= factr * eps
+            "factr": 1e3,
+            # Stops when: max{|proj g_i | i = 1, ..., n} <= pgtol
+            # where ``pg_i`` is the i-th component of the projected gradient
+            #"pgtol": 1e-9, # I think this is what dolfin-adjoint calls 'tol'
+            },
+        )
 
     # Configure cost functional
     J_params = ParamDict(
         # Initial control regularization
         alpha_u0=0.0,
-        alpha_u0_div=1.0,
+        alpha_u0_div=0.0, # "Weak enforcing" of mass conservation on u0
         alpha_u0_grad=0.0,
         alpha_u0_grad_controlled=0.0,
         alpha_u0_grad_uncontrolled=0.0,
         alpha_u0_dn_controlled=0.0,
         alpha_u0_dn_uncontrolled=0.0,
-        alpha_u0_wall=1.0,
+        alpha_u0_wall=0.0, # "Weak enforcing" of no-slip boundary condition on u0
         # Boundary control regularization
-        alpha_g=0.0,
-        alpha_g_t=0.0,
-        alpha_g_grad=0.0,
+        alpha_g=1e-8, # This seems to be commonly included
+        alpha_g_t=0.0, # TODO: This messed up the initial condition control! Why?
+        alpha_g_grad_tangent=1e-8, # This seems to be commonly included
+        alpha_g_grad_full=0.0,
         alpha_g_volume=0.0,
         alpha_g_grad_volume=0.0,
         )
@@ -605,195 +867,32 @@ def main():
     casedir = "results_{}_{}_{}".format(CoupledScheme.__name__, date, params_string)
 
 
-    # TODO: Make this a function
-    run_analytic_problem = True
-    if run_analytic_problem:
-        # DON'T annotate the initial observation production
-        parameters["adjoint"]["stop_annotating"] = True
-
-        # Setup analytic problem to produce observations
-        analytic_problem = AnalyticProblem(analytic_problem_params)
-
-        # Setup postprocessor
-        fp = dict(save=True, plot=False)
-        analytic_postprocessor = PostProcessor(dict(casedir=casedir+"_analytic"))
-        analytic_postprocessor.add_fields([
-            Pressure(fp),
-            Velocity(fp),
-            ])
-
-        # Setup scheme
-        scheme_params.annotate = False
-        scheme = CoupledScheme(scheme_params)
-
-        # Setup analytic_solver
-        analytic_solver_params = ParamDict(
-            enable_annotation=False,
-            #timer_frequency=1,
-            #check_memory_frequency=1,
-            )
-        analytic_solver = NSSolver(analytic_problem, scheme, analytic_postprocessor, analytic_solver_params)
-
-        # Step through simulation
-        observations = []
-        for data in analytic_solver.isolve():
-            # Store projection of u into observation space
-            Uz = data.spaces.U # TODO: Configure different observation space
-            u, p = data.state
-            z = [project(u_comp, Uz, name="z_at_ts%d" % data.timestep) for u_comp in u]
-            observations.append((data.t, z))
-
-            # Debugging evaluations:
-            compute_boundary_diffs = False
-            if compute_boundary_diffs:
-                # Should have that z(t) = u(t) = g(t) on boundary bc.region.
-                # If this fails, the weak boundary conditions have failed.
-                # Increase and decrease the gamma parameter to see these
-                # comparisons tighten and loosen.
-                bc = data.boundary_conditions.bcu.inflow
-                dsc = analytic_problem.ds(bc.region)
-
-                u, p = data.state
-                u = as_vector(u) # u(t)
-                u2 = assemble(u**2*dsc)
-
-                z = as_vector(z) # g(t)
-                z2 = assemble(z**2*dsc)
-                diffz = sqrt(assemble((u-z)**2*dsc) / u2)
-
-                if data.timestep >= 1:
-                    g = as_vector(bc.functions) # g(t)
-                    g2 = assemble(g**2*dsc)
-                    diffg = sqrt(assemble((u-g)**2*dsc) / u2)
-                    diffgz = sqrt(assemble((z-g)**2*dsc) / u2)
-
-                print "Comparing control boundary values:"
-                print "ts={}; t={}".format(data.timestep, float(data.t))
-                print "    u(t)^2={}".format(u2)
-                print "    z(t)^2={}".format(u2)
-                if data.timestep >= 1:
-                    print "    g(t)^2={}".format(g2)
-                    print "    |u(t)-g(t)| / |u(t)|  = {}".format(diffg)
-                    print "    |g(t)-z(t)| / |u(t)|  = {}".format(diffgz)
-                print "    |u(t)-z(t)| / |u(t)| = {}".format(diffz)
-                print
-
-                #assert diffg < 1e-10
-                #assert diffz < 1e-10
-
-        # Consistency check of observation times
-        dt = time_params.dt
-        T = time_params.T
-        assert abs(observations[0][0]) < dt * 0.01, "Expecting t = 0 at first observation!"
-        assert T - dt*0.01 < abs(observations[-1][0]) < T + dt * 0.51, "Expecting t = T at last observation!"
-
-        # Extract initial velocity from observations,
-        # for another problem this may be given separately,
-        # e.g. if the observations are not everywhere, noisy,
-        # or in a different space, then the initial velocity
-        # could be e.g. the solution to an artificially constructed
-        # forward problem with a reasonable flow rate
-        z0 = observations[0][1]
-        d = len(z0)
-        Uz = z0[0].function_space()
-        initial_velocity = [Function(Uz) for i in range(d)]
-
-        if 1: #enable_u0_control: # TODO: Make parameter
-            if 0:
-                # Set initial velocity to 0
-                pass
-                #for j in range(d):
-                #    initial_velocity[j].vector().zero()
-            elif 1:
-                # Set initial velocity to scaling of exact initial
-                for j in range(d):
-                    initial_velocity[j].vector().axpy(0.1, z0[j].vector())
-            else:
-                # Keep exact initial condition
-                pass
+    # Produce synthetic data
+    geometry, observations, data = run_analytic_problem(casedir, analytic_problem_params, scheme_params)
 
 
-        # DEBUGGING: Plot suspect initial condition directly
-        if 0:
-            print z0[0].id()
-            print initial_velocity[0].id()
-            plot(as_vector(z0), title="observed initial velocity")
-            plot(as_vector(initial_velocity), title="applied initial velocity")
-            interactive()
-            return
+    # Extract initial velocity from observations,
+    # for another problem this may be given separately,
+    # e.g. if the observations are not everywhere, noisy,
+    # or in a different space, then the initial velocity
+    # could be e.g. the solution to an artificially constructed
+    # forward problem with a reasonable flow rate
+    d = geometry.dim
+    z0 = observations[0][1]
+    initial_velocity = [interpolate(z0[i], data.spaces.U, name="initial_velocity%d" % i) for i in range(d)]
 
-        # Extract geometry from analytic problem,
-        # for another problem this may be
-        geometry = analytic_problem.geometry
+    if opt_params.enable_u0_control:
+        # Scale initial condition
+        for j in range(d):
+            u0vec = initial_velocity[j].vector()
+            u0vec *= opt_params.u0_scale
+
+        # TODO: Add noise based on a parameter opt_params.u0_noise
 
 
     # TODO: Make this a function
-    run_forward_problem = True
-    if run_forward_problem:
-        # DO annotate the forward model
-        parameters["adjoint"]["stop_annotating"] = False
-
-        # Enable derivative testing (TODO: Does this actually do anything?)
-        parameters["adjoint"]["test_derivative"] = True
-
-        # Setup assimilation problem to reproduce observations
-        forward_problem = AssimilationProblem(forward_problem_params, geometry, initial_velocity, observations)
-
-        # Setup postprocessor
-        fp = dict(save=True, plot=False)
-        forward_postprocessor = PostProcessor(dict(casedir=casedir+"_forward"))
-        forward_postprocessor.add_fields([
-            Pressure(fp),
-            Velocity(fp),
-            ])
-
-        # Setup scheme
-        scheme_params.annotate = True
-        scheme = CoupledScheme(scheme_params)
-
-        # Setup and run solver
-        forward_solver_params = ParamDict(
-            enable_annotation=True,
-            #timer_frequency=1,
-            #check_memory_frequency=1,
-            )
-        forward_solver = NSSolver(forward_problem, scheme, forward_postprocessor, forward_solver_params)
-
-        # Setup cost functional
-        CF = CostFunctional(J_params, geometry, observations)
-        dx = CF.dx
-        ds = CF.ds
-        dsc = CF.dsc
-
-        # Step through forward simulation and build cost functional
-        diffs = []
-        for data in forward_solver.isolve():
-            CF.update(data.timestep, data.t, data.spaces, data.state, data.controls)
-
-            # Compare observations with 'observations' from assimilation problem
-            compute_observation_diffs = False
-            if compute_observation_diffs:
-                # Avoid annotating these steps
-                parameters["adjoint"]["stop_annotating"] = True
-                dx = CF.dx
-                u, p = data.state
-                t, z = observations[data.timestep]
-                z2 = assemble(as_vector(z)**2*dx)
-                error = sqrt(assemble((as_vector(u) - as_vector(z))**2*dx) / z2)
-                print data.timestep, "ERROR", error, z2
-                parameters["adjoint"]["stop_annotating"] = False
-
-        # Stop annotating after forward simulation
-        parameters["adjoint"]["stop_annotating"] = True
-
-        # Extract flat list of boundary control components
-        all_g_components = [gc for (tg, g) in data.controls.g_timesteps for gc in g]
-        all_u0_components = data.controls.initial_velocity
-
-        # Accumulate terms from cost functional.
-        J = CF.accumulate()
-        #print str(J)
-        J = da.Functional(J)
+    all_g_components, all_u0_components, CF, J, data = \
+      run_forward_problem(casedir, forward_problem_params, scheme_params, J_params, geometry, initial_velocity, observations)
 
 
     # Always write tape to files for eventual debugging
@@ -802,7 +901,7 @@ def main():
 
 
     # Try replaying with dolfin-adjoint (works within a small tolerance)
-    run_replay = True
+    run_replay = False
     if run_replay:
         success = da.replay_dolfin(forget=False, tol=1e-13)
         print
@@ -877,71 +976,14 @@ def main():
             print "              |g(t)-z(t)| / |z(0)| = %g" % (zz0diff,)
 
 
-    # TODO: Make this a function
     # Test gradient computation with convergence order tests
-    run_taylor_test = False
-    if run_taylor_test:
-        set_u0_choice = 1 # TODO: Make parameter?
-        set_g_choice = 1 # TODO: Make parameter?
-
-        dsc = CF.dsc
-        Ug = data.spaces.U # TODO: Configure control space
-        d = data.spaces.d
-
-        # Set value of boundary control functions
-        if set_g_choice == 0:
-            print "Setting g(t) = 0"
-            for i, (tg, g) in enumerate(data.controls.g_timesteps):
-                for j in range(d):
-                    g[j].vector().zero()
-        if set_g_choice == 1:
-            print "Setting g(t) = z(t)"
-            for i, (tg, g) in enumerate(data.controls.g_timesteps):
-                for j in range(d):
-                    g[j].assign(observations[i+1][1][j])
-                    #g[j].interpolate(observations[i+1][1][j]) # TODO: Handle nonmatching spaces
-
-        # Set value of initial velocity control functions
-        if set_u0_choice == 0:
-            print "Setting u(0) = 0"
-            for j in range(d):
-                data.controls.initial_velocity[j].vector().zero()
-        elif set_u0_choice == 1:
-            print "Setting u(0) = z(0)"
-            for j in range(d):
-                data.controls.initial_velocity[j].assign(observations[0][1][j])
-                #data.controls.initial_velocity[j].interpolate(observations[0][1][j]) # TODO: Handle nonmatching spaces
-
-        if set_u0_choice == 1 and set_g_choice == 1:
-            print "Since u0,g==analytic solution, J(m) should be zero."
-        else:
-            print "Since u0,g!=analytic solution, J(m) should be nonzero."
-
-        # Select controls for componentwise taylor test
-        m_values = list(all_u0_components)
-        #m_values = list(all_u0_components) + list(all_g_components)
-        #m_values = list(all_g_components)
-        #m_values = [all_g_components[0]] # DEBUGGING
-        #m_values = [all_g_components[-1]] # DEBUGGING
-
-        conv_rates = []
-        for i, mv in enumerate(m_values):
-            m = da.Control(mv)
-            RJ = da.ReducedFunctional(J, m)
-            Jm = RJ(mv)
-            dJdm = da.compute_gradient(J, m, forget=False)
-            conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
-            conv_rates.append(conv_rate)
-            print
-            if i < 2:
-                print "m = u_%d(t_%d)" % ((i%2), (i//2))
-            else:
-                print "m = g_%d(t_%d)" % ((i%2), (i//2))
-            print "  J(m)      =", Jm
-            print "  dJdm(m)   =", assemble(dJdm**2*dx)
-            print "  conv_rate =", conv_rate
-        print
-        print "min_conv_rate =", min(conv_rates)
+    if 0:
+        set_u0_choice = 1 # 0 = set u0 to zero before test, 1 = set u0 to observation before test
+        set_g_choice = 1  # 0 = set g to zero before test, 1 = set g to observation before test
+        success = run_taylor_test(set_u0_choice, set_g_choice,
+                                  geometry, J, observations, data.controls,
+                                  all_u0_components, all_g_components)
+        print "Taylor test passing?", success
         return
 
 
@@ -949,14 +991,14 @@ def main():
     # Optimize! This is where the main work goes!
     run_minimize = True
     if run_minimize:
-        enable_u0_control = True # TODO: Make a parameter
-        enable_g_control = False # TODO: Make a parameter
+        d = geometry.dim
 
-        # Select controls
+
+        # Select controls and pack in flat list
         m_values = []
-        if enable_u0_control:
+        if opt_params.enable_u0_control:
             m_values += list(all_u0_components)
-        if enable_g_control:
+        if opt_params.enable_g_control:
             m_values += list(all_g_components)
         m = [da.Control(mv) for mv in m_values]
 
@@ -965,42 +1007,25 @@ def main():
             m_values[i].vector().zero()
 
 
-        # TODO: Expose optimization parameters
-        # TODO: Scale tolerance to problem somehow?
-        # TODO: Solver method choice?
+        # TODO: Scale tolerance to problem data somehow? Is this ok?
+        z_scale = assemble(rebalance_form(sum(z[1][j]**2 for z in observations for j in range(d))*dx))
+        tol = opt_params.relative_tolerance * z_scale
+        print "Problem scale:", z_scale
+
+        # TODO: Try Moola?
         RJ = da.ReducedFunctional(J, m)
-        m_opt = minimize(RJ, tol=1e-14, method="L-BFGS-B", options={"disp": True, "maxiter": 100})
+        m_opt = minimize(RJ, tol=tol, method=opt_params.method, options={"disp": True, "maxiter": opt_params.maxiter})
 
-
-        # DEBUGGING: Plot suspect initial condition directly
-        if 0:
-            plot(as_vector(m_opt))
-            interactive()
-
-
-        #print m_opt
-        #for i, mo in enumerate(m_opt):
-        #    if i % 2 == 0:
-        #        plot(mo, title="m%d" % (i//2))
-        #interactive()
-        #print "|m_opt| =", [sqrt(assemble(as_vector(g)**2*dsc)) for g in m_opt]
-
-
-    # TODO: Make this a function
-    # Run final problem with controls input from optimization run
-    run_final_problem = True
-    if run_final_problem:
-        d = data.spaces.d
 
         # Setup controls on the right format
-        if enable_u0_control:
+        if opt_params.enable_u0_control:
             u0_opt = m_opt[:d]
             m_opt = m_opt[d:]
         else:
             #u0_opt = data.controls.initial_velocity
             u0_opt = observations[0][1]
 
-        if enable_g_control:
+        if opt_params.enable_g_control:
             g_opt = []
             for i, (tg, g) in enumerate(data.controls.g_timesteps):
                 gv = m_opt[d*i: d*(i+1)]
@@ -1012,42 +1037,10 @@ def main():
                 gv = observations[i+1][1]
                 g_opt.append((tg, gv))
 
-        controls = Controls(u0_opt, g_opt)
 
+        # Run final problem with controls input from optimization run
+        run_final_problem(casedir, final_problem_params, scheme_params, geometry, u0_opt, g_opt)
 
-        # DEBUGGING: Plot suspect initial condition directly
-        if 0:
-            plot(as_vector(u0_opt))
-            interactive()
-            # TODO: This causes a floating point exception?!?!
-
-        # Setup problem
-        final_problem = FinalReplayProblem(final_problem_params, geometry, controls)
-
-        # Setup postprocessor
-        fp = dict(save=True, plot=False)
-        final_postprocessor = PostProcessor(dict(casedir=casedir + "_final"))
-        final_postprocessor.add_fields([
-            Pressure(fp),
-            Velocity(fp),
-            ])
-
-        # Setup scheme
-        scheme_params.annotate = False
-        scheme = CoupledScheme(scheme_params)
-
-        # Setup and run solver
-        final_solver_params = ParamDict(
-            enable_annotation=False,
-            #timer_frequency=1,
-            #check_memory_frequency=1,
-            )
-        final_solver = NSSolver(final_problem, scheme, final_postprocessor, final_solver_params)
-
-        # Step through forward simulation
-        diffs = []
-        for data in final_solver.isolve():
-            pass
 
 
 if __name__ == "__main__":
