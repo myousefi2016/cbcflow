@@ -150,10 +150,10 @@ class ProblemBase(NSProblem):
 
         # Override default time parameters from NSProblem
         params.replace(
-            T=None,
             dt=1e-2,
             period=0.8,
-            num_periods=1.0,
+            T=0.8,
+            num_periods=None,
             )
 
         # Override default physical parameters from NSProblem
@@ -775,8 +775,7 @@ def main():
     # Configure time
     time_params = ParamDict(
             dt=1e-2,
-            T=0.4,#8,
-            num_periods=None,
+            T=0.3,#8,
             )
 
     # Configure controls
