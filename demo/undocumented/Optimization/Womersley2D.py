@@ -13,11 +13,8 @@ import numpy as np
 import time
 
 
-# TODO: Testing:
-# - Output diff between optimal boundary controls and observations without noise
-# - Try 3D!
-
 # TODO: optimization setup:
+# - Use Moola
 # - Allow z in CG1/DG0
 # - Add noise to z
 # - Skip observations
@@ -25,10 +22,10 @@ import time
 # - Allow g in CG1 (will be projected into spaces.V in scheme?)
 # - Coarser time discretization of g(t) control with piecwise time UFL functions
 
-
 # TODO: coupled scheme:
 # - Add time discretization schemes: BDF-2 and theta-rule
 # - Improve stability in scheme with N unannotated Picard iterations plus annotated Newton iterations?
+# - Preconditioning?
 
 # TODO: Cbcflow structure:
 # - Want to get u in V and p in Q as the physically scaled pressure in advance() and from yield?
@@ -88,7 +85,14 @@ VelocityBoundaryConditions = namedtuple("VelocityBoundaryConditions", ["inflow",
 PressureBoundaryConditions = namedtuple("PressureBoundaryConditions", ["outflow"])
 
 
-class Geometry(Parameterized):
+from os.path import join, dirname, realpath
+def datafilename(name):
+    filepath = dirname(realpath(__file__))
+    datapath = join(filepath, "../../../cbcflow-data")
+    return join(datapath, name)
+
+
+class Geometry2D(Parameterized):
     def __init__(self, params=None):
         Parameterized.__init__(self, params)
 
@@ -114,6 +118,12 @@ class Geometry(Parameterized):
             right = 2,
             undefined = 3,
             )
+        # Define boundary marker collections
+        boundary_ids = ParamDict(boundary_ids,
+            walls = (boundary_ids.wall,),
+            controlled = (boundary_ids.left,),
+            uncontrolled = (boundary_ids.right,),
+            )
 
         class Left(SubDomain):
             def inside(self, x, on_boundary):
@@ -134,7 +144,17 @@ class Geometry(Parameterized):
         self.mesh = mesh
         self.facet_domains = facet_domains
         self.boundary_ids = boundary_ids
-        self.dim = 2
+        self.dim = mesh.geometry().dim()
+
+        # Attach markers to measures for convenience
+        self.ds = ufl.Measure("ds", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dS = ufl.Measure("dS", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dx = ufl.Measure("dx", domain=self.mesh)
+
+        # Define problem specific subdomain boundary measures for convenience
+        self.dsw = self.ds(self.boundary_ids.wall)
+        self.dsc = self.ds(self.boundary_ids.controlled)
+        self.dsu = self.ds(self.boundary_ids.uncontrolled)
 
     @classmethod
     def default_params(cls):
@@ -142,6 +162,84 @@ class Geometry(Parameterized):
             refinement_level=2,
             length=10.0,
             radius=0.5,
+            )
+        return params
+
+class Geometry3D(Parameterized):
+    def __init__(self, params=None):
+        Parameterized.__init__(self, params)
+
+        # Get parameters
+        #l = self.params.length
+        #r = self.params.radius
+        nr = self.params.refinement_level
+
+        # These are the dimensions of the meshes in these files:
+        LENGTH = 10.0
+        RADIUS = 0.5
+        filename = datafilename([
+            "pipe_1k.xml.gz",
+            "pipe_3k.xml.gz",
+            "pipe_24k.xml.gz",
+            "pipe_203k.xml.gz",
+            "pipe_1611k.xml.gz",
+            ][nr])
+        #filename = self.params.mesh_filename
+
+        # Load mesh
+        mesh = Mesh(filename)
+
+        class Left(SubDomain):
+            def inside(self, x, on_boundary):
+                return x[0] < 1e-6 and on_boundary
+
+        class Right(SubDomain):
+            def inside(self, x, on_boundary):
+                return x[0] > LENGTH-1e-6 and on_boundary
+
+        # We know that the mesh contains markers with these id values
+        boundary_ids = ParamDict(
+            wall = 0,
+            left = 1,
+            right = 2,
+            undefined = 3,
+            )
+        # Define boundary marker collections
+        boundary_ids = ParamDict(boundary_ids,
+            walls = (boundary_ids.wall,),
+            controlled = (boundary_ids.left,),
+            uncontrolled = (boundary_ids.right,),
+            )
+
+        # Create boundary markers
+        facet_domains = FacetFunction("size_t", mesh)
+        facet_domains.set_all(boundary_ids.undefined)
+        DomainBoundary().mark(facet_domains, boundary_ids.wall)
+        Left().mark(facet_domains, boundary_ids.left)
+        Right().mark(facet_domains, boundary_ids.right)
+
+        # Store as member data
+        self.mesh = mesh
+        self.facet_domains = facet_domains
+        self.boundary_ids = boundary_ids
+        self.dim = mesh.geometry().dim()
+
+        # Attach markers to measures for convenience
+        self.ds = ufl.Measure("ds", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dS = ufl.Measure("dS", domain=self.mesh, subdomain_data=self.facet_domains)
+        self.dx = ufl.Measure("dx", domain=self.mesh)
+
+        # Define problem specific subdomain boundary measures for convenience
+        self.dsw = self.ds(self.boundary_ids.wall)
+        self.dsc = self.ds(self.boundary_ids.controlled)
+        self.dsu = self.ds(self.boundary_ids.uncontrolled)
+
+    @classmethod
+    def default_params(cls):
+        params = ParamDict(
+            refinement_level=2,
+            #length=10.0,
+            #radius=0.5,
             )
         return params
 
@@ -196,21 +294,18 @@ class ProblemBase(NSProblem):
         pass # TODO: Move to problem base and document
 
 
-class AnalyticProblem(ProblemBase):
+class SyntheticProblem(ProblemBase):
     "2D pipe test problem with known stationary analytical solution."
 
-    def __init__(self, params=None):
+    def __init__(self, params, geometry):
         ProblemBase.__init__(self, params)
-        self.geometry = Geometry(self.params.geometry)
+        self.geometry = geometry
         self.initialize_geometry(self.geometry.mesh, self.geometry.facet_domains)
         self._init_womersley()
 
     @classmethod
     def default_params(cls):
         params = ProblemBase.default_params()
-
-        # Geometry parameters
-        geometry = Geometry.default_params()
 
         # Analytical solution parameters
         womersley = ParamDict(
@@ -223,7 +318,6 @@ class AnalyticProblem(ProblemBase):
 
         # Add parameter groups
         params.update(
-            geometry=geometry,
             womersley=womersley,
             )
 
@@ -282,22 +376,18 @@ class AnalyticProblem(ProblemBase):
             dbc.apply(bc.functions[i].vector())
 
 
-def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
+def run_synthetic_problem(casedir, problem_params, scheme_params, geometry):
     # DON'T annotate the initial observation production
     parameters["adjoint"]["stop_annotating"] = True
 
-    # Setup analytic problem to produce observations
-    analytic_problem = AnalyticProblem(analytic_problem_params)
-
-    # Extract geometry from analytic problem,
-    # for another problem this may be created separately
-    geometry = analytic_problem.geometry
+    # Setup synthetic problem to produce observations
+    problem = SyntheticProblem(problem_params, geometry)
 
     # Setup postprocessor
-    analytic_postprocessor = PostProcessor(dict(casedir=casedir + "_analytic"))
+    postprocessor = PostProcessor(dict(casedir=casedir + "_synthetic"))
 
     fp = dict(save=True, plot=False)
-    analytic_postprocessor.add_fields([
+    postprocessor.add_fields([
         Pressure(fp),
         Velocity(fp),
         ])
@@ -307,13 +397,13 @@ def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
     scheme_params.annotate = False
     scheme = CoupledScheme(scheme_params)
 
-    # Setup analytic_solver
-    analytic_solver_params = ParamDict(enable_annotation=False)
-    analytic_solver = NSSolver(analytic_problem, scheme, analytic_postprocessor, analytic_solver_params)
+    # Setup solver
+    solver_params = ParamDict(enable_annotation=False)
+    solver = NSSolver(problem, scheme, postprocessor, solver_params)
 
     # Step through simulation
     observations = []
-    for data in analytic_solver.isolve():
+    for data in solver.isolve():
         # Store projection of u into observation space
         Uz = data.spaces.U # TODO: Configure different observation space
         u, p = data.state
@@ -328,7 +418,7 @@ def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
             # Increase and decrease the gamma parameter to see these
             # comparisons tighten and loosen.
             bc = data.boundary_conditions.bcu.inflow
-            dsc = analytic_problem.ds(bc.region)
+            dsc = geometry.ds(bc.region)
 
             u, p = data.state
             u = as_vector(u) # u(t)
@@ -344,6 +434,7 @@ def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
                 diffg = sqrt(assemble((u-g)**2*dsc) / u2)
                 diffgz = sqrt(assemble((z-g)**2*dsc) / u2)
 
+            # TODO: Output to casedir instead
             print "Comparing control boundary values:"
             print "ts={}; t={}".format(data.timestep, float(data.t))
             print "    u(t)^2={}".format(u2)
@@ -359,15 +450,15 @@ def run_analytic_problem(casedir, analytic_problem_params, scheme_params):
             #assert diffz < 1e-10
 
     # Consistency check of observation times
-    dt = analytic_problem_params.dt
-    T = analytic_problem_params.T
+    dt = problem_params.dt
+    T = problem_params.T
     assert abs(observations[0][0]) < dt * 0.01, "Expecting t = 0 at first observation!"
     assert T - dt*0.01 < abs(observations[-1][0]) < T + dt * 0.51, "Expecting t = T at last observation!"
 
-    return geometry, observations, data
+    return observations, data
 
 
-class AssimilationProblem(ProblemBase):
+class ForwardProblem(ProblemBase):
     """Problem setup for dolfin-adjoint annotation.
 
     Observations and initial condition for velocity are given.
@@ -460,19 +551,6 @@ class CostFunctional(Parameterized):
 
         self.J_timesteps = []
 
-        # TODO: Configure with these id tuples
-        # Control id tuples to make the below code more generic
-        self.controlled_boundary_ids = (geometry.boundary_ids.left,)
-        self.uncontrolled_boundary_ids = (geometry.boundary_ids.right,)
-        self.wall_boundary_ids = (geometry.boundary_ids.wall,)
-
-        # Setup integration measures
-        self.dx = Measure("dx", domain=geometry.mesh)
-        self.ds = Measure("ds", domain=geometry.mesh, subdomain_data=geometry.facet_domains)
-        self.dsw = self.ds(self.wall_boundary_ids)
-        self.dsc = self.ds(self.controlled_boundary_ids)
-        self.dsu = self.ds(self.uncontrolled_boundary_ids)
-
         # Temporaries used in form for trace grad computation
         self._n = FacetNormal(geometry.mesh)
         self._I_nn = Identity(geometry.dim) - outer(self._n, self._n)
@@ -518,10 +596,11 @@ class CostFunctional(Parameterized):
         u, p = state
 
         # Setup integration measures
-        dx = self.dx
-        dsw = self.dsw
-        dsc = self.dsc
-        dsu = self.dsu
+        dx = self.geometry.dx
+        ds = self.geometry.ds
+        dsw = self.geometry.dsw
+        dsc = self.geometry.dsc
+        dsu = self.geometry.dsu
 
         # Choose time measure to apply to static cost functional terms
         dts = NoOp()
@@ -603,21 +682,21 @@ class CostFunctional(Parameterized):
         return rebalance_form(sum(self.J_timesteps))
 
 
-def run_forward_problem(casedir, forward_problem_params, scheme_params, J_params, geometry, initial_velocity, observations):
+def run_forward_problem(casedir, problem_params, scheme_params, J_params, geometry, initial_velocity, observations):
     # DO annotate the forward model
     parameters["adjoint"]["stop_annotating"] = False
 
     # Enable derivative testing (TODO: Does this actually do anything?)
     parameters["adjoint"]["test_derivative"] = True
 
-    # Setup assimilation problem to reproduce observations
-    forward_problem = AssimilationProblem(forward_problem_params, geometry, initial_velocity, observations)
+    # Setup forward problem to reproduce observations
+    problem = ForwardProblem(problem_params, geometry, initial_velocity, observations)
 
     # Setup postprocessor
-    forward_postprocessor = PostProcessor(dict(casedir=casedir + "_forward"))
+    postprocessor = PostProcessor(dict(casedir=casedir + "_forward"))
 
     fp = dict(save=True, plot=False)
-    forward_postprocessor.add_fields([
+    postprocessor.add_fields([
         Pressure(fp),
         Velocity(fp),
         ])
@@ -628,18 +707,18 @@ def run_forward_problem(casedir, forward_problem_params, scheme_params, J_params
     scheme = CoupledScheme(scheme_params)
 
     # Setup and run solver
-    forward_solver_params = ParamDict(enable_annotation=True)
-    forward_solver = NSSolver(forward_problem, scheme, forward_postprocessor, forward_solver_params)
+    solver_params = ParamDict(enable_annotation=True)
+    solver = NSSolver(problem, scheme, postprocessor, solver_params)
 
     # Setup cost functional
     CF = CostFunctional(J_params, geometry, observations)
 
     # Step through forward simulation and build cost functional
     diffs = []
-    for data in forward_solver.isolve():
+    for data in solver.isolve():
         CF.update(data.timestep, data.t, data.spaces, data.state, data.controls)
 
-        # Compare observations with 'observations' from assimilation problem
+        # Compare observations with 'observations' from forward problem
         compute_observation_diffs = False
         if compute_observation_diffs:
             # Avoid annotating these steps
@@ -648,6 +727,8 @@ def run_forward_problem(casedir, forward_problem_params, scheme_params, J_params
             t, z = observations[data.timestep]
             z2 = assemble(as_vector(z)**2*dx)
             error = sqrt(assemble((as_vector(u) - as_vector(z))**2*dx) / z2)
+
+            # TODO: Output to casedir instead
             print data.timestep, "ERROR", error, z2
             parameters["adjoint"]["stop_annotating"] = False
 
@@ -666,7 +747,7 @@ def run_forward_problem(casedir, forward_problem_params, scheme_params, J_params
     return all_g_components, all_u0_components, CF, J, data
 
 
-class FinalReplayProblem(ProblemBase):
+class FinalProblem(ProblemBase):
     "Problem setup to run with the final control functions."
 
     def __init__(self, params, geometry, initial_velocity, g_timesteps):
@@ -689,8 +770,8 @@ class FinalReplayProblem(ProblemBase):
             bc.functions[i].assign(g_at_t[i])
 
 
-def run_final_problem(casedir, problem_params, scheme_params, geometry, initial_velocity, g_timesteps):
-    problem = FinalReplayProblem(problem_params, geometry, initial_velocity, g_timesteps)
+def run_final_problem(casedir, problem_params, scheme_params, geometry, observations, initial_velocity, g_timesteps):
+    problem = FinalProblem(problem_params, geometry, initial_velocity, g_timesteps)
 
     postprocessor = PostProcessor(dict(casedir=casedir + "_final"))
 
@@ -704,10 +785,29 @@ def run_final_problem(casedir, problem_params, scheme_params, geometry, initial_
     scheme_params.annotate = False
     scheme = CoupledScheme(scheme_params)
 
+    # Setup integration measures
+    dx = geometry.dx
+    ds = geometry.ds
+    dsc = geometry.dsc
+    dsu = geometry.dsu
+    dsw = geometry.dsw
+
     solver_params = ParamDict(enable_annotation=False)
     solver = NSSolver(problem, scheme, postprocessor, solver_params)
-    solver.solve()
+    for i, data in enumerate(solver.isolve()):
+        tz, z = observations[i]
+        u, p = data.state
+        u = as_vector(u)
+        z = as_vector(u)
 
+        # Compute some norms
+        e_dx = sqrt(assemble((u-z)**2*dx))
+        e_dsc = sqrt(assemble((u-z)**2*dsc))
+        e_dsu = sqrt(assemble((u-z)**2*dsu))
+        e_dsw = sqrt(assemble((u-z)**2*dsw))
+
+        # TODO: Output to casedir instead
+        print "Errors |u-z| over dx, dsc, dsu, dsw:  %.2e  %.2e  %.2e  %.2e" % (e_dx, e_dsc, e_dsu, e_dsw)
 
 def run_taylor_test(set_u0_choice, set_g_choice, geometry,
                     J, observations, controls,
@@ -756,6 +856,7 @@ def run_taylor_test(set_u0_choice, set_g_choice, geometry,
         dJdm = da.compute_gradient(J, m, forget=False)
         conv_rate = da.taylor_test(RJ, m, Jm, dJdm)
         conv_rates.append(conv_rate)
+        # TODO: Output to casedir instead
         print
         if i < 2:
             print "m = u_%d(t_%d)" % ((i%2), (i//2))
@@ -777,11 +878,22 @@ def main():
 
 
     # Configure geometry
-    geometry_params = ParamDict(
+    dim = 3
+    if dim == 2:
+        geometry_params = ParamDict(
             refinement_level=2,
             length=2.0,
             radius=0.5,
             )
+        geometry = Geometry2D(geometry_params)
+    elif dim == 3:
+        geometry_params = ParamDict(
+            refinement_level=2,
+            #length=10.0,  # hardcoded to 10
+            #radius=0.5,
+            )
+        geometry = Geometry3D(geometry_params)
+
 
     # Configure time
     time_params = ParamDict(
@@ -794,10 +906,10 @@ def main():
         enable_u0_control = False,
         enable_g_control = True,
         u0_scale = 1.0,
-        maxiter = 100,
+        maxiter = 20,
         relative_tolerance = 1e-12,
-        method = "Newton-CG",
-        #method = "L-BFGS-B",
+        #method = "Newton-CG",
+        method = "L-BFGS-B",
         options = {
             # These are scipy.optimize.fmin_l_bfgs_b options:
             # Typical values for `factr` are:
@@ -833,8 +945,8 @@ def main():
         )
 
     # Configure problems for the three stages
-    analytic_problem_params = ParamDict(time_params, geometry=geometry_params)
-    forward_problem_params = ParamDict(time_params)
+    synthetic_problem_params = ParamDict(time_params)
+    forward_problem_params = ParamDict(time_params, initial_g="0")
     final_problem_params = ParamDict(time_params)
 
 
@@ -871,14 +983,14 @@ def main():
 
 
     # Create unique casedir name
-    all_params = [scheme_params, analytic_problem_params, forward_problem_params, final_problem_params]
+    all_params = [scheme_params, synthetic_problem_params, forward_problem_params, final_problem_params]
     params_string = str(hash(' '.join(map(str, all_params))))[:8]
     date = timestamp()
     casedir = "results_{}_{}_{}".format(CoupledScheme.__name__, date, params_string)
 
 
     # Produce synthetic data
-    geometry, observations, data = run_analytic_problem(casedir, analytic_problem_params, scheme_params)
+    observations, data = run_synthetic_problem(casedir, synthetic_problem_params, scheme_params, geometry)
 
 
     # Extract initial velocity from observations,
@@ -900,7 +1012,7 @@ def main():
         # TODO: Add noise based on a parameter opt_params.u0_noise
 
 
-    # TODO: Make this a function
+    # Run forward problem with annotation
     all_g_components, all_u0_components, CF, J, data = \
       run_forward_problem(casedir, forward_problem_params, scheme_params, J_params, geometry, initial_velocity, observations)
 
@@ -951,7 +1063,7 @@ def main():
     # Compare various functions by computing some norms
     run_consistency_computations = True
     if run_consistency_computations:
-        dsc = CF.dsc
+        dsc = geometry.dsc
 
         # Check that boundary control functions and observations have matching timesteps:
         print "Checking timestamps of boundary controls vs observations"
@@ -1028,12 +1140,14 @@ def main():
 
 
         def eval_cb(j, m):
-            print "eval", (time.time() - eval_cb.t0)
+            #print "eval", (time.time() - eval_cb.t0)
+            pass
         def derivative_cb(j, dj, m):
-            print "derivative", (time.time() - derivative_cb.t0)
-        import time
-        eval_cb.t0 = time.time()
-        derivative_cb.t0 = time.time()
+            #print "derivative", (time.time() - derivative_cb.t0)
+            pass
+        #import time
+        #eval_cb.t0 = time.time()
+        #derivative_cb.t0 = time.time()
 
         # TODO: Try Moola?
         RJ = da.ReducedFunctional(J, m, eval_cb=eval_cb, derivative_cb=derivative_cb)
@@ -1070,7 +1184,7 @@ def main():
 
 
         # Run final problem with controls input from optimization run
-        run_final_problem(casedir, final_problem_params, scheme_params, geometry, u0_opt, g_opt)
+        run_final_problem(casedir, final_problem_params, scheme_params, geometry, observations, u0_opt, g_opt)
 
 
 
