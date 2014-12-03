@@ -243,7 +243,7 @@ class IPCS(NSScheme):
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                            t=float(t), timestep=timestep, u=u0, p=p0)
+                            t=float(t), timestep=timestep, u=u0, p=p0, state=(u1,p1))
 
         # Make sure annotation gets that the timeloop is over
         finalize_time(t)

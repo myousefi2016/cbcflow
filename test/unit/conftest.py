@@ -7,14 +7,15 @@ def create_scheme_factories():
     # Make list of scheme classes that should work with default parameters:
     working_schemes = [
         IPCS,
-        SegregatedIPCS,
-        SegregatedIPCS_Optimized,
-        IPCS_Stabilized,
-        PenaltyIPCS,
-        SegregatedPenaltyIPCS,
+        #SegregatedIPCS,
+        #SegregatedIPCS_Optimized,
+        #IPCS_Stabilized,
+        #PenaltyIPCS,
+        #SegregatedPenaltyIPCS,
         IPCS_Stable,
-        CoupledNonLinear,
-        Stokes,
+        #CoupledScheme,
+        #CoupledNonLinear,
+        #Stokes,
     #    CoupledPicard, # WIP: Needs to set pressure average
         ]
 
@@ -33,10 +34,10 @@ def create_scheme_factories():
 
     # Add list of factory functions for schemes with non-default parameters:
     scheme_factories += [
-        lambda: IPCS_Stable(),
-        lambda: IPCS_Stabilized({'theta':0.0}),
-        lambda: IPCS_Stabilized({'theta':1.0}),
-        lambda: IPCS_Stabilized({'theta':0.5}),
+        #lambda: IPCS_Stable(),
+        #lambda: IPCS_Stabilized({'theta':0.0}),
+        #lambda: IPCS_Stabilized({'theta':1.0}),
+        #lambda: IPCS_Stabilized({'theta':0.5}),
         #lambda: IPCS_Stable({'adaptive_timestepping':True}),
         ]
     return scheme_factories

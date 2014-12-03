@@ -371,7 +371,7 @@ class IPCS_Stable(NSScheme):
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                            t=float(t), timestep=timestep, u=u0, p=p0)
+                            t=float(t), timestep=timestep, u=u1, p=p1, state=(u1,p1))
             timer.completed("updated postprocessing (completed timestep)")
 
         # Make sure annotation gets that the timeloop is over

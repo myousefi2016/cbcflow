@@ -72,8 +72,8 @@ def pytest_addoption(parser):
     parser.addoption("--testsize", action="store", default="fast",
         choices=["all", "fast", "slow", "slowest", "debug"], dest="testsize", help="run all, slow or fast test")
 
-    parser.addoption("--schemes", nargs="*", action=ParseParameterized, dest="schemes")
-    parser.addoption("--problems", nargs="*", action=ParseParameterized, dest="problems")
+    parser.addoption("--schemes", default=None, nargs="*", action=ParseParameterized, dest="schemes")
+    parser.addoption("--problems", default=None, nargs="*", action=ParseParameterized, dest="problems")
 
 def create_default_problem_factories():
     problem_factories = [

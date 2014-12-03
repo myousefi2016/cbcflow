@@ -133,13 +133,14 @@ class MockProblem(NSProblem):
 def test_scheme_calls_update_properly(scheme_factory, dim):
     # Mock postprocessing update function
     update_record = []
-    def update(u, p, t, timestep, spaces):
-        update_record.append((float(t), int(timestep)))
 
     # Run scheme with mock problem and configured scheme
     problem = MockProblem({'d':dim})
     scheme = scheme_factory()
-    namespace = scheme.solve(problem, update, Timer(0))
+
+    #namespace = scheme.solve(problem, Timer(0))
+    for namespace in scheme.solve(problem, Timer(0)):
+        update_record.append((namespace.t, namespace.timestep))
 
     # Check that update has been called properly and that the timesteps are as they should
     assert [r[0] for r in update_record] == [1.0,1.5,2.0]
@@ -160,9 +161,9 @@ def test_scheme_calls_update_properly(scheme_factory, dim):
     assert "spaces" in namespace
     assert "observations" in namespace
     assert "controls" in namespace
-    assert "states" in namespace
+    assert "state" in namespace
     assert "t" in namespace
-    assert "timesteps" in namespace
+    assert "timestep" in namespace
 
     # TODO: Inspect namespace contents
 

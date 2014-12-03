@@ -80,6 +80,7 @@ class NSSolver(Parameterized):
         # Preserve 'solver.solve()' interface
         for data in self.isolve():
             pass
+        return data
 
     def isolve(self):
         "Experimental iterative version of solve()."
