@@ -23,6 +23,7 @@ from .bcs import *
 from .timestepping import *
 from .rhsgenerator import RhsGenerator
 from .spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit
+from .unassembledmatrix import UnassembledMatrix
 
 __all__ = [k for k,v in globals().items()
            if hasattr(v, "__module__")
