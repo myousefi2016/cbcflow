@@ -37,7 +37,7 @@ class OSI(Field):
         #params.pop("finalize")
 
         fields = []
-        fields.append(WSS(params=params))
+        #fields.append(WSS(params=params))
         #return fields
 
         f = TimeIntegral("WSS", params=params, label="OSI")
