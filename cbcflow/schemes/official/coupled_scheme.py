@@ -36,9 +36,8 @@ def assign_ics_mixed(up, spaces, ics, annotate):
     up is a mixed function in spaces.W = spaces.V * spaces.Q,
     while ics = (icu, icp); icu = (icu0, icu1, ...).
     """
-    icup = as_vector(list(ics[0]) + [ics[1]])
-    #project(icup, spaces.W, function=up, annotate=annotate) # TODO: Can pass function in fenics-dev
-    icup = project(icup, spaces.W, name="icup_projection")
+    #project(as_vector(list(ics[0]) + [ics[1]]), spaces.W, function=up, annotate=annotate) # TODO: Can pass function in fenics-dev
+    icup = project(as_vector(list(ics[0]) + [ics[1]]), spaces.W, name="icup_projection")
     up.assign(icup, annotate=annotate) # Force annotation
 
 class CoupledScheme(NSScheme):
@@ -112,7 +111,6 @@ class CoupledScheme(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-
         #t = Time(t0=timesteps[start_timestep])
         t = Constant(timesteps[start_timestep], name="TIME")
 
@@ -146,11 +144,16 @@ class CoupledScheme(NSScheme):
         u0, p0 = split(up0)
         u1, p1 = split(up1)
 
-        # Get problem specific functions
+        # Get functions for data assimilation
         observations = problem.observations(spaces, t)
         controls = problem.controls(spaces)
         cost_functionals = problem.cost_functionals(spaces, t, observations, controls)
+
+        # Apply initial conditions
         ics = problem.initial_conditions(spaces, controls)
+        assign_ics_mixed(up1, spaces, ics, annotate=self.params.annotate)
+
+        # Get other problem specific functions
         bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
         body_force = problem.body_force(spaces, t)
 
@@ -159,6 +162,7 @@ class CoupledScheme(NSScheme):
         k  = Constant(dt, name="dt")
         f  = as_vector(body_force)
 
+        # Handle dt scaling parameters
         if self.params.scale_by_dt:
             # Scaled by k (smaller residual, nonlinear solver hits absolute stopping criteria faster)
             kinv = 1
@@ -167,11 +171,6 @@ class CoupledScheme(NSScheme):
             # Not scaled by k (keep u_t = (u1-u0)/dt, larger residual, nonlinear solver may not converge properly)
             kinv = 1.0 / k
             kval = 1
-
-
-        # Apply initial conditions and use it as initial guess
-        assign_ics_mixed(up1, spaces, ics, annotate=self.params.annotate)
-
 
         # Make scheme-specific representation of bcs
         abc, Lbc = 0, 0
