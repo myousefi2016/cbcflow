@@ -17,7 +17,6 @@
 
 """Utility functions and classes shared between scheme implementations."""
 
-from .mechanics import *
 from .ics import *
 from .bcs import *
 from .timestepping import *
