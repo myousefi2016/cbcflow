@@ -14,22 +14,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-"""A collection of Navier-Stokes schemes."""
 
-from cbcflow.schemes.official import official_schemes
-for f in official_schemes:
-    exec("from cbcflow.schemes.official import %s" % (f,))
+"""These *experimental* schemes carry no promise of quality level whatsoever."""
 
-from cbcflow.schemes.experimental import experimental_schemes
-for f in experimental_schemes:
-    exec("from cbcflow.schemes.experimental import %s" % (f,))
+#from cbcflow.schemes.experimental.coupled_da_scheme import CoupledDAScheme
+#from cbcflow.schemes.experimental.segregated_da_scheme import SegregatedDAScheme
 
-all_schemes = official_schemes + experimental_schemes
+# Collect all schemes in list automatically
+from cbcflow.core.nsscheme import NSScheme
+import types
+experimental_schemes = [k for k,v in globals().items()
+                        if hasattr(v, 'mro')
+                        and issubclass(v, NSScheme)
+                        and v is not NSScheme]
 
-def show_schemes():
-    "Lists which schemes are available."
-    print "Official schemes available:"
-    print "\n".join("    " + f for f in official_schemes)
-    print "Experimental schemes available:"
-    print "\n".join("    " + f for f in experimental_schemes)
-    
