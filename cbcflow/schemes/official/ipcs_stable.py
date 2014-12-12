@@ -53,12 +53,12 @@ from cbcpost.utils import cbc_log
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.schemes.utils import (RhsGenerator,
-                                   compute_regular_timesteps,
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_segregated,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
-                                   NSSpacePoolSegregated)
+                                   NSSpacePoolSegregated,
+                                   RhsGenerator)
 
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."

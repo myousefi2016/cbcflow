@@ -74,12 +74,19 @@ from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.schemes.utils import (epsilon, sigma,
-                                   compute_regular_timesteps,
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
                                    NSSpacePoolSplit)
+
+def epsilon(u):
+    "Return symmetric gradient."
+    return 0.5*(grad(u) + grad(u).T)
+
+def sigma(u, p, mu):
+    "Return stress tensor."
+    return 2.0*mu*epsilon(u) - p*Identity(len(u))
 
 
 class IPCS(NSScheme):

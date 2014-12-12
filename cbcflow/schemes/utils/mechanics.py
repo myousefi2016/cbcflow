@@ -14,16 +14,3 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-
-
-# --- Maths ---
-
-from ufl import grad, Identity
-
-def epsilon(u):
-    "Return symmetric gradient."
-    return 0.5*(grad(u) + grad(u).T)
-
-def sigma(u, p, mu):
-    "Return stress tensor."
-    return 2.0*mu*epsilon(u) - p*Identity(len(u))
