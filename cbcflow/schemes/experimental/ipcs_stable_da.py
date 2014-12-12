@@ -49,6 +49,23 @@ def TimeFunction(Q, name, timesteps):
     return { ts: Function(Q, name="{0}[ts={1}]".format(name, ts))
              for ts in timesteps }
 
+def assign_ics_segregated(u, p, spaces, ics):
+    """Assign initial conditions from ics to u[:], p.
+
+    u is a list of scalar functions each in spaces.U and p is a scalar function in spaces.Q,
+    while ics = (icu, icp); icu = (icu0, icu1, ...).
+    """
+    for i in dims:
+        icu = project(ics[0][i], spaces.U, name="icu{0}_projection".format(i))
+        u[i].assign(icu, annotate=annotate) # Force annotation
+    icp = project(ics[1], spaces.Q, name="icp_projection")
+    p.assign(icp, annotate=annotate) # Force annotation
+
+    # TODO: Can do this in fenics dev:
+    #for i in dims:
+    #    project(ics[0][i], spaces.U, function=u[i], annotate=annotate)
+    #project(ics[1], spaces.Q, function=p, annotate=annotate)
+
 class IPCS_Stable_DA(NSScheme):
     "."
 
@@ -150,7 +167,7 @@ class IPCS_Stable_DA(NSScheme):
         # Apply initial conditions and use it as initial guess
         ics = problem.initial_conditions(spaces, controls)
         # Set u^+1 to be u at t0
-        assign_ics_segregated(u[1], p[1], spaces, ics) # FIXME
+        assign_ics_segregated(u[1], p[1], spaces, ics)
         # Set u^0 to be u at t0-dt
         for i in dims:
             u[0][i].assign(u[1][i])
@@ -230,7 +247,7 @@ class IPCS_Stable_DA(NSScheme):
             + alpha*(k*theta*nu) * inner(dot(grad(utent[i]), n), v)*ds # (ii)
             ) for i in dims]
 
-        # FIXME: Setup solvers here
+        # TODO: Setup solvers here
 
         # Preassemble
         lhs_p = assemble(a_p)
@@ -261,7 +278,7 @@ class IPCS_Stable_DA(NSScheme):
 
             # Advance boundary conditions and body force from time t0 to time t
             problem.advance(t0, t, timestep, spaces, state,
-                            bcs, body_force, controls) # FIXME: bcs, body_force?
+                            bcs, body_force, controls)
 
             # Set u^-1 to be u at t0-dt
             for i in dims:

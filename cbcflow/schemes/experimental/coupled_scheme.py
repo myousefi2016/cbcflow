@@ -83,7 +83,7 @@ class CoupledScheme(NSScheme):
             # Default to P2-P1 (Taylor-Hood)
             u_degree=2,
             p_degree=1,
-            theta=1.0,
+            theta=1.0, # TODO: Implement theta rule, possibly BDF?
 
             # Choice of equation formulation
             scale_by_dt=True,

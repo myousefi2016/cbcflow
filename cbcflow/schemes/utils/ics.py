@@ -43,8 +43,9 @@ def assign_ics_split(u0, p0, spaces, ics):
     p = ics[1]
     u0.assign(project(u, spaces.V)) #, name="u0_init_projection"))
     p0.assign(project(p, spaces.Q)) #, name="p0_init_projection"))
-    #project(u, spaces.V, function=u0) # TODO: Can do this in fenics dev
-    #project(p, spaces.Q, function=p0) # TODO: Can do this in fenics dev
+    # TODO: Can do this in fenics dev
+    #project(u, spaces.V, function=u0)
+    #project(p, spaces.Q, function=p0)
 
 def assign_ics_segregated(u0, p0, spaces, ics):
     """Assign initial conditions from ics to u0[:], p0.
@@ -54,6 +55,8 @@ def assign_ics_segregated(u0, p0, spaces, ics):
     """
     for d in spaces.dims:
         u0[d].assign(project(ics[0][d], spaces.U)) #, name="u0_%d_init_projection"%d))
-        #project(ics[0][d], spaces.U, function=u0[d]) # TODO: Can do this in fenics dev
     p0.assign(project(ics[1], spaces.Q)) #, name="p0_init_projection"))
-    #project(ics[1], spaces.Q, function=p0) # TODO: Can do this in fenics dev
+    # TODO: Can do this in fenics dev
+    #for d in spaces.dims:
+    #    project(ics[0][d], spaces.U, function=u0[d])
+    #project(ics[1], spaces.Q, function=p0)
