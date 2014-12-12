@@ -79,7 +79,6 @@ from cbcflow.schemes.utils import (epsilon, sigma,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_penalty_pressure_bcs,
                                    is_periodic,
                                    NSSpacePoolSplit)
 
