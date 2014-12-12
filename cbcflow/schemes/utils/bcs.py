@@ -17,11 +17,7 @@
 
 from __future__ import division
 
-from cbcflow.dol import FacetNormal, DirichletBC, Constant, dot, Dn, MaxFacetEdgeLength, as_vector, inner
-
-def is_periodic(bcs): # FIXME: Should we just remove this? Currently broken.
-    "Check if boundary conditions are periodic."
-    return False # FIXME: all(isinstance(bc, PeriodicBC) for bc in bcs)
+from cbcflow.dol import FacetNormal, DirichletBC, Constant, dot, as_vector, inner
 
 # --- Boundary condition helper functions for schemes
 
@@ -65,31 +61,3 @@ def make_rhs_pressure_bcs(problem, spaces, bcs, v):
     n = FacetNormal(problem.mesh)
     Lbc = -sum(dot(function*n, v)*ds(region) for (function, region) in bcp_raw)
     return Lbc
-
-def make_penalty_pressure_bcs(problem, spaces, bcs, gamma, test, trial):
-    bcu_raw, bcp_raw = bcs
-
-    # Define trial and test functions
-    p = trial
-    q = test
-    mesh = problem.mesh
-    ds = problem.ds
-
-    # Define Nitche discretization constants
-    gamma = Constant(gamma, name="gamma")
-    hE = MaxFacetEdgeLength(mesh)
-
-    # The Nietche terms to integrate
-    a_dirichlet = (gamma/hE)*(p*q) - Dn(p)*q - p*Dn(q)
-    L_dirichlet = (gamma/hE)*q - Dn(q)
-
-    # Collect Nietche terms for each subboundary
-    a, L = [], []
-    for pbc, D in bcp_raw:
-        a += [    a_dirichlet*ds(D)]
-        L += [pbc*L_dirichlet*ds(D)]
-
-    # Accumulate and return both sides
-    a_pbc = sum(a)
-    L_pbc = sum(L)
-    return a_pbc, L_pbc
