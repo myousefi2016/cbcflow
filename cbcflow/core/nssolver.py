@@ -93,7 +93,8 @@ class NSSolver(Parameterized):
 
         # Loop over scheme steps
         for data in self.scheme.solve(self.problem, self.timer):
-            self.update(data.u, data.p, data.t, data.timestep, data.spaces)
+            u, p = data.state
+            self.update(u, p, data.t, data.timestep, data.spaces)
             yield data
 
         # Finalize postprocessor

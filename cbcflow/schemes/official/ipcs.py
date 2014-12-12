@@ -72,6 +72,8 @@ The scheme can be summarized in the following steps:
 
 from __future__ import division
 
+from argparse import Namespace
+
 from cbcflow.core.nsscheme import *
 
 from cbcflow.schemes.utils import (compute_regular_timesteps,
@@ -189,8 +191,8 @@ class IPCS(NSScheme):
             solver_p_params = self.params.solver_p_dirichlet
 
         # Yield initial data for postprocessing
-        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                        t=float(t), timestep=start_timestep, u=u0, p=p0)
+        state = (u0, p0)
+        yield Namespace(timestep=start_timestep, t=float(t), spaces=spaces, state=state)
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
@@ -210,7 +212,8 @@ class IPCS(NSScheme):
             timer.completed("u1 construct rhs")
 
             iter = solve(A_u_tent, u1.vector(), b, *self.params.solver_u_tent)
-            timer.completed("u1 solve (%s, %d, %d)"%(', '.join(self.params.solver_u_tent), b.size(), iter))
+            msg = "u1 solve (%s, %d, %d)" % (', '.join(self.params.solver_u_tent), b.size(), iter)
+            timer.completed(msg)
 
             # Pressure correction
             b = assemble(L_p_corr)
@@ -219,6 +222,7 @@ class IPCS(NSScheme):
             else:
                 # Scale to physical pressure
                 b *= rho
+                # ... apply bcs
                 for bc in bcp:
                     bc.apply(A_p_corr, b)
                 # ... and back to solver pressure
@@ -228,7 +232,8 @@ class IPCS(NSScheme):
             iter = solve(A_p_corr, p1.vector(), b, *solver_p_params)
             if len(bcp) == 0:
                 normalize(p1.vector())
-            timer.completed("p solve (%s, %d, %d)"%(', '.join(solver_p_params), b.size(), iter))
+            msg = "p solve (%s, %d, %d)" % (', '.join(solver_p_params), b.size(), iter)
+            timer.completed(msg)
 
             # Velocity correction
             b = assemble(L_u_corr)
@@ -238,7 +243,8 @@ class IPCS(NSScheme):
 
             solver_params = self.params.solver_u_corr
             iter = solve(A_u_corr, u1.vector(), b, *solver_params)
-            timer.completed("u2 solve (%s, %d)"%(', '.join(solver_params), b.size()),{"iter": iter})
+            msg = "u2 solve (%s, %d)" % (', '.join(solver_params), b.size())
+            timer.completed(msg, {"iter": iter})
 
             # Rotate functions for next timestep
             u0.assign(u1)
@@ -247,6 +253,6 @@ class IPCS(NSScheme):
             # Scale to physical pressure
             p0.vector()[:] *= rho
 
-            # Yield data for postprocessing
-            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                            t=float(t), timestep=timestep, u=u0, p=p0, state=(u1,p1))
+            # Yield computed data for postprocessing
+            state = (u0, p0)
+            yield Namespace(timestep=timestep, t=float(t), spaces=spaces, state=state)

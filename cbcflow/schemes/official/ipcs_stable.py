@@ -49,7 +49,7 @@ to a large system D times the size.
 
 from __future__ import division
 
-from cbcpost.utils import cbc_log
+from argparse import Namespace
 
 from cbcflow.core.nsscheme import *
 
@@ -84,13 +84,13 @@ class IPCS_Stable(NSScheme):
         return params
 
     def solve(self, problem, timer):
-
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
         ds = problem.ds
         n  = FacetNormal(mesh)
-        dims = range(mesh.topology().dim())
+        dim = mesh.topology().dim()
+        dims = range(dim)
         theta = self.params.theta
 
         # Timestepping
@@ -141,7 +141,7 @@ class IPCS_Stable(NSScheme):
         bcp = make_pressure_bcs(problem, spaces, bcs)
 
         # Problem coefficients
-        nu = Constant(problem.params.mu/problem.params.rho)
+        nu = Constant(problem.params.mu / problem.params.rho)
         rho = float(problem.params.rho)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
@@ -200,16 +200,15 @@ class IPCS_Stable(NSScheme):
                 solver_u_tent.parameters['preconditioner']['structure'] = 'same'
         solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
 
-        timer.completed("create tenative velocity solver")
+        timer.completed("create tentative velocity solver")
 
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx())
         rhs_p_corr = RhsGenerator(Q)
         rhs_p_corr += A_p_corr, p0
-        Ku = [None]*len(dims)
-        for d in dims:
-            Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
-            rhs_p_corr += Ku[d], u1[d]
+        Ku = [assemble(-(1/k)*q*u.dx(i)*dx) for i in dims]
+        for i in dims:
+            rhs_p_corr += Ku[i], u1[i]
 
         # Pressure correction solver
         if self.params.solver_p:
@@ -235,9 +234,8 @@ class IPCS_Stable(NSScheme):
             # Velocity correction. Like for the tentative velocity, a single LHS is used.
             A_u_corr = M
             rhs_u_corr = [None]*len(dims)
-            Kp = [None]*len(dims)
+            Kp = [assemble(-k*inner(v, grad(p)[i])*dx) for i in dims]
             for d in dims:
-                Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
                 rhs_u_corr[d] = RhsGenerator(U)
                 rhs_u_corr[d] += M, u1[d]
                 rhs_u_corr[d] += Kp[d], p1
@@ -271,9 +269,9 @@ class IPCS_Stable(NSScheme):
 
         timer.completed("create velocity correction solver")
 
-        # Yield initial conditions
-        yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                        t=float(t), timestep=start_timestep, u=u1, p=p1)
+        # Yield initial data for postprocessing
+        state = (u0, p0)
+        yield Namespace(timestep=start_timestep, t=float(t), spaces=spaces, state=state)
         timer.completed("initial postprocessor update")
 
         # Time loop
@@ -281,9 +279,10 @@ class IPCS_Stable(NSScheme):
             t.assign(timesteps[timestep])
 
             # Update various functions
-            problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
+            problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
             timer.completed("problem update")
 
+            # Scale to solver pressure
             p0.vector()[:] *= 1.0/rho
 
             # Assemble the u-dependent convection matrix. It is important that
@@ -310,7 +309,8 @@ class IPCS_Stable(NSScheme):
             timer.completed("u_tent construct lhs")
 
             # Check if preconditioner is to be rebuilt
-            if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:
+            if (timestep % self.params.rebuild_prec_frequency == 0
+                and 'preconditioner' in solver_u_tent.parameters):
                 solver_u_tent.parameters['preconditioner']['structure'] = self.params.u_tent_prec_structure
 
             # Compute tentative velocity step
@@ -322,41 +322,50 @@ class IPCS_Stable(NSScheme):
                 timer.completed("u_tent construct rhs")
                 iter = solver_u_tent.solve(u1[d].vector(), b)
 
-                # Preconditioner is the same for all three components, so don't rebuild several times
+                # Preconditioner is the same for all three components,
+                # so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
-
-                timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
+                msg ="u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size())
+                timer.completed(msg, {"iter": iter})
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0:
                 normalize(b)
             for bc in bcp:
+                # Scale to physical pressure
                 b *= rho
+                # ... apply bcs
                 bc.apply(b)
+                # ... and back to solver pressure
                 b *= 1.0/rho
             timer.completed("p_corr construct rhs")
 
             iter = solver_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0:
                 normalize(p1.vector())
-            timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
+            msg = "p_corr solve (%s, %d dofs)" % (', '.join(solver_p_params), b.size())
+            timer.completed(msg, {"iter": iter})
+
+            # Velocity correction
             if self.params.solver_u_corr not in ["WeightedGradient"]:
-                # Velocity correction
                 for d in dims:
                     b = rhs_u_corr[d]()
-                    for bc in bcu: bc[d].apply(b)
+                    for bc in bcu:
+                        bc[d].apply(b)
                     timer.completed("u_corr construct rhs")
 
                     iter = solver_u_corr.solve(u1[d].vector(), b)
-                    timer.completed("u_corr solve (%s, %d dofs)"%(', '.join(self.params.solver_u_corr), b.size()),{"iter": iter})
+                    msg = "u_corr solve (%s, %d dofs)" % (', '.join(self.params.solver_u_corr), b.size())
+                    timer.completed(msg, {"iter": iter})
             elif self.params.solver_u_corr == "WeightedGradient":
                 for d in dims:
                     u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
                     for bc in bcu:
                         bc[d].apply(u1[d].vector())
-                    timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
+                    msg = "u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size()
+                    timer.completed(msg)
 
             # Update Adams-Bashford term for next timestep
             for d in dims:
@@ -364,14 +373,15 @@ class IPCS_Stable(NSScheme):
                 u_ab[d].vector().axpy(1.5, u1[d].vector())
                 u_ab[d].vector().axpy(-0.5, u0[d].vector())
 
-             # Rotate functions for next timestep
+            # Rotate functions for next timestep
             for d in dims:
                 u0[d].assign(u1[d])
             p0.assign(p1)
 
+            # Scale to physical pressure
             p0.vector()[:] *= rho
 
-            # Yield data for postprocessing
-            yield ParamDict(spaces=spaces, observations=observations, controls=controls,
-                            t=float(t), timestep=timestep, u=u1, p=p1, state=(u1,p1))
+            # Yield computed data for postprocessing
+            state = (u0, p0)
+            yield Namespace(timestep=timestep, t=float(t), spaces=spaces, state=state)
             timer.completed("updated postprocessing (completed timestep)")
