@@ -110,7 +110,7 @@ class IPCS(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-        t = Time(t0=timesteps[start_timestep])
+        t = Constant(timesteps[start_timestep], name="TIME")
 
         # Define function spaces
         spaces = NSSpacePoolSplit(mesh, self.params.u_degree, self.params.p_degree)
@@ -192,7 +192,7 @@ class IPCS(NSScheme):
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
-            assign_time(t, timesteps[timestep])
+            t.assign(timesteps[timestep])
 
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
@@ -244,6 +244,3 @@ class IPCS(NSScheme):
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
                             t=float(t), timestep=timestep, u=u0, p=p0, state=(u1,p1))
-
-        # Make sure annotation gets that the timeloop is over
-        finalize_time(t)

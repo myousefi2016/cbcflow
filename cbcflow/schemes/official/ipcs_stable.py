@@ -98,7 +98,7 @@ class IPCS_Stable(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-        t = Time(t0=timesteps[start_timestep])
+        t = Constant(timesteps[start_timestep], name="TIME")
 
         # Define function spaces
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
@@ -287,7 +287,7 @@ class IPCS_Stable(NSScheme):
 
         # Time loop
         for timestep in xrange(start_timestep+1,len(timesteps)):
-            assign_time(t, timesteps[timestep])
+            t.assign(timesteps[timestep])
 
             # Update various functions
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
@@ -320,14 +320,14 @@ class IPCS_Stable(NSScheme):
             for bc in bcu:
                 bc[0].apply(A_u_tent)
             timer.completed("u_tent construct lhs")
-            
+
             if self.params.assemble_convection == "debug":
                 UM.assemble(Kconv2)
                 timer.completed("assembled convection from unassembled matrix")
                 print (Kconv-Kconv2).norm('linf')/(Kconv.norm('linf')+1e-16)
                 assert (Kconv-Kconv2).norm('linf')/(Kconv.norm('linf')+1e-16) < 1e-14
-                
-            
+
+
 
             # Check if preconditioner is to be rebuilt
             if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:
@@ -391,6 +391,3 @@ class IPCS_Stable(NSScheme):
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
                             t=float(t), timestep=timestep, u=u1, p=p1, state=(u1,p1))
             timer.completed("updated postprocessing (completed timestep)")
-
-        # Make sure annotation gets that the timeloop is over
-        finalize_time(t)
