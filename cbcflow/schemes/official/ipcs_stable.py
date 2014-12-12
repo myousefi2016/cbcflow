@@ -60,8 +60,7 @@ from cbcflow.schemes.utils import (RhsGenerator,
                                    make_pressure_bcs,
                                    make_penalty_pressure_bcs,
                                    is_periodic,
-                                   NSSpacePoolSegregated,
-                                   UnassembledMatrix)
+                                   NSSpacePoolSegregated)
 
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
@@ -82,7 +81,7 @@ class IPCS_Stable(NSScheme):
             u_tent_solver_parameters = {},
             p_corr_solver_parameters = {},
             u_corr_solver_parameters = {},
-            assemble_convection = "standard", # unassembled, debug
+            #assemble_convection = "standard", # unassembled, debug
             )
         return params
 
@@ -169,10 +168,6 @@ class IPCS_Stable(NSScheme):
             Kconv_axpy_factor = 1.0
 
         Kconv = Matrix() # assembled from a_conv in the time loop
-        if self.params.assemble_convection in ["unassembled", "debug"]:
-            UM = UnassembledMatrix(a_conv)
-            if self.params.assemble_convection == "debug":
-                Kconv2 = Matrix()
 
         # Create the static part of the coefficient matrix for the tentative
         # velocity step. The convection is added in the time loop. We use a
@@ -304,10 +299,7 @@ class IPCS_Stable(NSScheme):
             else:
                 # Subtract the convection for previous time step before re-assembling Kconv
                 A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
-                if self.params.assemble_convection in ["standard", "debug"]:
-                    assemble(a_conv, tensor=Kconv)
-                elif self.params.assemble_convection == "unassembled":
-                    UM.assemble(Kconv)
+                assemble(a_conv, tensor=Kconv)
             timer.completed("assemble convection matrix")
 
             # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
@@ -320,14 +312,6 @@ class IPCS_Stable(NSScheme):
             for bc in bcu:
                 bc[0].apply(A_u_tent)
             timer.completed("u_tent construct lhs")
-            
-            if self.params.assemble_convection == "debug":
-                UM.assemble(Kconv2)
-                timer.completed("assembled convection from unassembled matrix")
-                print (Kconv-Kconv2).norm('linf')/(Kconv.norm('linf')+1e-16)
-                assert (Kconv-Kconv2).norm('linf')/(Kconv.norm('linf')+1e-16) < 1e-14
-                
-            
 
             # Check if preconditioner is to be rebuilt
             if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:

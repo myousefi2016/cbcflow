@@ -61,8 +61,5 @@ setup(name = "cbcflow",
                   "cbcflow.utils",
                   ],
       package_dir = {"cbcflow": "cbcflow"},
-      package_data = {"cbcflow": ["schemes/utils/UnassembledMatrix.h",
-                                  "schemes/utils/UnassembledMatrix.cpp",]
-                     },
     )
 
