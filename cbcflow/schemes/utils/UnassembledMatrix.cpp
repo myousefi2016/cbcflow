@@ -6,11 +6,34 @@ UnassembledMatrix::~UnassembledMatrix()
 {
 }
 
-UnassembledMatrix::UnassembledMatrix(const Form& a) : _a(a), _num_coefficients(a.num_coefficients())
+//UnassembledMatrix::UnassembledMatrix(const Form& a) : _a(a), _num_coefficients(a.num_coefficients())
+UnassembledMatrix::UnassembledMatrix(const Form& a) : _a(a), coeff_indices(get_function_indices()), _num_coefficients(coeff_indices.size())
 {
-    std::vector<std::size_t> coeff_indices(_num_coefficients);
-    std::iota(coeff_indices.begin(), coeff_indices.end(), 0);
-    init(coeff_indices);
+    //std::vector<std::size_t> coeff_indices(_num_coefficients);
+    //std::iota(coeff_indices.begin(), coeff_indices.end(), 0);
+    //init(coeff_indices);
+    std::cout << "Num coefficients (functions): " << _num_coefficients << std::endl;
+    
+    init();
+}
+
+std::vector<std::size_t> UnassembledMatrix::get_function_indices()
+{
+    std::vector<std::size_t> function_indices;
+    for (std::size_t i=0; i<_a.num_coefficients(); i++)
+    {
+        std::shared_ptr<const dolfin::Function> func = std::dynamic_pointer_cast<const dolfin::Function>(_a.coefficients()[i]);
+        if (func != NULL)
+        {
+            function_indices.push_back(i);
+            std::cout << "Index: " << i << std::endl;
+            std::cout << (func==NULL) << std::endl;
+        }
+        //coeffs[i] = std::dynamic_pointer_cast<const dolfin::Function>(_a.coefficients()[i]);
+        //std::cout << (coeffs[i] == NULL) << std::endl;
+    }
+    //assemble(A, coeffs);
+    return function_indices;
 }
 
 /*
@@ -29,7 +52,8 @@ UnassembledMatrix::UnassembledMatrix(const Form& a, std::vector<std::shared_ptr<
 */
 
 
-void UnassembledMatrix::init(std::vector<std::size_t> coeff_indices)
+void UnassembledMatrix::init()
+//void UnassembledMatrix::init(std::vector<std::size_t> coeff_indices)
 //UnassembledMatrix::UnassembledMatrix(const Form& a, std::vector<std::size_t> coeff_indices) : _a(a)
 {
     //std::cout << (std::string(DOLFIN_VERSION)==std::string("1.4.0")) << std::endl;
@@ -276,7 +300,7 @@ void UnassembledMatrix::init(std::vector<std::size_t> coeff_indices)
 
     // Reclaim unused memory
     std::vector<double>(all_values).swap(all_values);
-    /*
+    
     // Print memory usage
     //std::cout << "all_values memory footprint: " << sizeof(double)*all_values.capacity()/(1024*1024) << " MB" << std::endl;
     
@@ -287,7 +311,7 @@ void UnassembledMatrix::init(std::vector<std::size_t> coeff_indices)
     }
 
     std::cout << "indices memory footprint: " << (sizeof(std::size_t)*indices_capacity)/(1024*1024) << " MB" << std::endl;
-    */
+    
 
 }
 
@@ -298,6 +322,7 @@ void UnassembledMatrix::assemble(dolfin::GenericTensor& A)
     for (std::size_t i=0; i<_num_coefficients; i++)
     {
         coeffs[i] = std::dynamic_pointer_cast<const dolfin::Function>(_a.coefficients()[i]);
+        std::cout << (coeffs[i] == NULL) << std::endl;
     }
     assemble(A, coeffs);
 }
@@ -331,9 +356,9 @@ void UnassembledMatrix::assemble(dolfin::GenericTensor& A, std::vector<std::shar
         std::vector<dolfin::la_index> v(Ndofs);
         std::iota(v.begin(), v.end(), 0);
         local_vector[coeff_index].resize(Ndofs);
+        std::cout << "hei-" << coeff_index << std::endl;
         coeffs[coeff_index]->vector()->get_local(local_vector[coeff_index].data(), Ndofs, v.data());
     }
-
     // Initiate assembled values. No need to resize it in the loop.
     double * assembled_values = new double[_max_cols];
     
@@ -347,12 +372,11 @@ void UnassembledMatrix::assemble(dolfin::GenericTensor& A, std::vector<std::shar
     std::size_t Ncols;
 
     double * coeff_values = new double[_num_coefficients];
-
+    
     // Iterate over all dofs, multiply pre-assembled values with coeff value and add to matrix
     for (std::size_t dof=0; dof<Ndofs; dof++)
     {
         indices_idx = 0;
-
         while (indices_idx < indices[dof].size())
         {
             row = indices[dof][indices_idx++];

@@ -8,8 +8,11 @@ def _compile_code():
         f = open(filename, 'r').read()
         code = f[f.find("namespace dolfin\n{\n"):f.find("#endif")]
         return code
+
+    #folder = os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), ".."))
     
-    folder = os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])
+    #folder = os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])
+    folder = os.path.split(__file__)[0]
     header = os.path.join(folder, "UnassembledMatrix.h")
     source = "UnassembledMatrix.cpp"
     code = strip_essential_code(header)
@@ -59,7 +62,9 @@ if __name__ == '__main__':
         #_U.vector()[:] = 1.0
     #U = [U1, U2, U3]
     
-    form = inner(v, dot(as_vector(U), nabla_grad(u)))*dx
+    #form = inner(v, dot(as_vector(U), nabla_grad(u)))*dx
+    form = Constant(0.5)*inner(v, dot(as_vector(U), nabla_grad(u)))*dx
+    #form = Constant(0.5)*inner(v, Constant(1)*dot(as_vector(U), Constant(1)*nabla_grad(u)))*Constant(1)*dx
     
     tic()
     UM = UnassembledMatrix(form)

@@ -32,14 +32,18 @@ namespace dolfin
         void assemble(dolfin::GenericTensor& A, std::vector<std::shared_ptr<const Function> > coeffs);
     
     protected:
-        void init(std::vector<std::size_t> coeff_indices);
+        //void init(std::vector<std::size_t> coeff_indices);
+        void init();
+        std::vector<std::size_t> get_function_indices();
         
         std::vector<std::vector<dolfin::la_index> > indices;
         std::vector<double> all_values;
         
 
         const Form _a;
+        const std::vector<std::size_t> coeff_indices;
         const std::size_t _num_coefficients;
+        
         std::shared_ptr<const GenericDofMap> dm;
         std::size_t _max_cols;
         
