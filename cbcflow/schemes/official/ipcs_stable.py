@@ -289,6 +289,7 @@ class IPCS_Stable(NSScheme):
             timer.completed("problem update")
 
             p0.vector()[:] *= 1.0/rho
+            p1.vector()[:] *= 1.0/rho
 
             # Assemble the u-dependent convection matrix. It is important that
             # it is assembled into the same tensor, because the tensor is
@@ -370,6 +371,8 @@ class IPCS_Stable(NSScheme):
             p0.assign(p1)
 
             p0.vector()[:] *= rho
+            p1.vector()[:] *= rho
+            
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
