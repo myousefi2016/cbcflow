@@ -53,14 +53,12 @@ from cbcpost.utils import cbc_log
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.schemes.utils import (RhsGenerator,
-                                   compute_regular_timesteps,
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_segregated,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_penalty_pressure_bcs,
-                                   is_periodic,
-                                   NSSpacePoolSegregated)
+                                   NSSpacePoolSegregated,
+                                   RhsGenerator)
 
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
@@ -97,7 +95,7 @@ class IPCS_Stable(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-        t = Time(t0=timesteps[start_timestep])
+        t = Constant(timesteps[start_timestep], name="TIME")
 
         # Define function spaces
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
@@ -125,7 +123,8 @@ class IPCS_Stable(NSScheme):
         # Apply initial conditions and use it as initial guess
         ics = problem.initial_conditions(spaces, controls)
         assign_ics_segregated(u0, p0, spaces, ics)
-        for d in dims: u1[d].assign(u0[d])
+        for d in dims:
+            u1[d].assign(u0[d])
 
         # Update Adams-Bashford term for first timestep
         for d in dims:
@@ -140,9 +139,6 @@ class IPCS_Stable(NSScheme):
         bcs = problem.boundary_conditions(spaces, u1, p1, t, controls)
         bcu = make_segregated_velocity_bcs(problem, spaces, bcs)
         bcp = make_pressure_bcs(problem, spaces, bcs)
-
-        # Remove boundary stress term is problem is periodic
-        #beta = 0 if is_periodic(bcp) else 1
 
         # Problem coefficients
         nu = Constant(problem.params.mu/problem.params.rho)
@@ -218,7 +214,7 @@ class IPCS_Stable(NSScheme):
         # Pressure correction solver
         if self.params.solver_p:
             solver_p_params = self.params.solver_p
-        elif len(bcp) == 0 or is_periodic(bcp):
+        elif len(bcp) == 0:
             solver_p_params = self.params.solver_p_neumann
         else:
             solver_p_params = self.params.solver_p_dirichlet
@@ -282,7 +278,7 @@ class IPCS_Stable(NSScheme):
 
         # Time loop
         for timestep in xrange(start_timestep+1,len(timesteps)):
-            assign_time(t, timesteps[timestep])
+            t.assign(timesteps[timestep])
 
             # Update various functions
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
@@ -322,7 +318,8 @@ class IPCS_Stable(NSScheme):
             for d in dims:
                 b = rhs_u_tent[d]()
 
-                for bc in bcu: bc[d].apply(b)
+                for bc in bcu:
+                    bc[d].apply(b)
                 timer.completed("u_tent construct rhs")
                 iter = solver_u_tent.solve(u1[d].vector(), b)
 
@@ -334,16 +331,17 @@ class IPCS_Stable(NSScheme):
 
             # Pressure correction
             b = rhs_p_corr()
-            if len(bcp) == 0 or is_periodic(bcp): normalize(b)
+            if len(bcp) == 0:
+                normalize(b)
             for bc in bcp:
                 b *= rho
-
                 bc.apply(b)
                 b *= 1.0/rho
             timer.completed("p_corr construct rhs")
 
             iter = solver_p_corr.solve(p1.vector(), b)
-            if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
+            if len(bcp) == 0:
+                normalize(p1.vector())
             timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
             if self.params.solver_u_corr not in ["WeightedGradient"]:
                 # Velocity correction
@@ -357,7 +355,8 @@ class IPCS_Stable(NSScheme):
             elif self.params.solver_u_corr == "WeightedGradient":
                 for d in dims:
                     u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
-                    for bc in bcu: bc[d].apply(u1[d].vector())
+                    for bc in bcu:
+                        bc[d].apply(u1[d].vector())
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
             # Update Adams-Bashford term for next timestep
@@ -367,7 +366,8 @@ class IPCS_Stable(NSScheme):
                 u_ab[d].vector().axpy(-0.5, u0[d].vector())
 
              # Rotate functions for next timestep
-            for d in dims: u0[d].assign(u1[d])
+            for d in dims:
+                u0[d].assign(u1[d])
             p0.assign(p1)
 
             p0.vector()[:] *= rho
@@ -378,6 +378,3 @@ class IPCS_Stable(NSScheme):
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
                             t=float(t), timestep=timestep, u=u1, p=p1, state=(u1,p1))
             timer.completed("updated postprocessing (completed timestep)")
-
-        # Make sure annotation gets that the timeloop is over
-        finalize_time(t)

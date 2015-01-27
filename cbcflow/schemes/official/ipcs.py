@@ -74,14 +74,19 @@ from __future__ import division
 
 from cbcflow.core.nsscheme import *
 
-from cbcflow.schemes.utils import (epsilon, sigma,
-                                   compute_regular_timesteps,
+from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    assign_ics_split,
                                    make_velocity_bcs,
                                    make_pressure_bcs,
-                                   make_penalty_pressure_bcs,
-                                   is_periodic,
                                    NSSpacePoolSplit)
+
+def epsilon(u):
+    "Return symmetric gradient."
+    return 0.5*(grad(u) + grad(u).T)
+
+def sigma(u, p, mu):
+    "Return stress tensor."
+    return 2.0*mu*epsilon(u) - p*Identity(len(u))
 
 
 class IPCS(NSScheme):
@@ -110,7 +115,7 @@ class IPCS(NSScheme):
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
-        t = Time(t0=timesteps[start_timestep])
+        t = Constant(timesteps[start_timestep], name="TIME")
 
         # Define function spaces
         spaces = NSSpacePoolSplit(mesh, self.params.u_degree, self.params.p_degree)
@@ -144,9 +149,6 @@ class IPCS(NSScheme):
         bcu = make_velocity_bcs(problem, spaces, bcs)
         bcp = make_pressure_bcs(problem, spaces, bcs)
 
-        # Remove boundary stress term if problem is periodic
-        beta = 0 if is_periodic(bcp) else 1
-
         # Problem coefficients
         nu = Constant(problem.params.mu/problem.params.rho)
         rho = float(problem.params.rho)
@@ -159,7 +161,7 @@ class IPCS(NSScheme):
         F_u_tent = ((1/k) * inner(v, u_diff) * dx()
                     + inner(v, grad(u0)*u0) * dx()
                     + inner(epsilon(v), sigma(u_mean, p0, nu)) * dx()
-                    - beta * nu * inner(grad(u_mean).T*n, v) * ds()
+                    - nu * inner(grad(u_mean).T*n, v) * ds()
                     + inner(v, p0*n) * ds()
                     - inner(v, f) * dx())
 
@@ -181,7 +183,7 @@ class IPCS(NSScheme):
 
         if self.params.solver_p:
             solver_p_params = self.params.solver_p
-        elif len(bcp) == 0 or is_periodic(bcp):
+        elif len(bcp) == 0:
             solver_p_params = self.params.solver_p_neumann
         else:
             solver_p_params = self.params.solver_p_dirichlet
@@ -192,7 +194,7 @@ class IPCS(NSScheme):
 
         # Loop over fixed timesteps
         for timestep in xrange(start_timestep+1,len(timesteps)):
-            assign_time(t, timesteps[timestep])
+            t.assign(timesteps[timestep])
 
             # Update various functions
             problem.update(spaces, u0, p0, t, timestep, bcs, observations, controls)
@@ -203,7 +205,8 @@ class IPCS(NSScheme):
 
             # Compute tentative velocity step
             b = assemble(L_u_tent)
-            for bc in bcu: bc.apply(A_u_tent, b)
+            for bc in bcu:
+                bc.apply(A_u_tent, b)
             timer.completed("u1 construct rhs")
 
             iter = solve(A_u_tent, u1.vector(), b, *self.params.solver_u_tent)
@@ -211,23 +214,26 @@ class IPCS(NSScheme):
 
             # Pressure correction
             b = assemble(L_p_corr)
-            if len(bcp) == 0 or is_periodic(bcp):
+            if len(bcp) == 0:
                 normalize(b)
             else:
                 # Scale to physical pressure
                 b *= rho
-                for bc in bcp: bc.apply(A_p_corr, b)
+                for bc in bcp:
+                    bc.apply(A_p_corr, b)
                 # ... and back to solver pressure
                 b *= 1.0/rho
             timer.completed("p construct rhs")
 
             iter = solve(A_p_corr, p1.vector(), b, *solver_p_params)
-            if len(bcp) == 0 or is_periodic(bcp): normalize(p1.vector())
+            if len(bcp) == 0:
+                normalize(p1.vector())
             timer.completed("p solve (%s, %d, %d)"%(', '.join(solver_p_params), b.size(), iter))
 
             # Velocity correction
             b = assemble(L_u_corr)
-            for bc in bcu: bc.apply(A_u_corr, b)
+            for bc in bcu:
+                bc.apply(A_u_corr, b)
             timer.completed("u2 construct rhs")
 
             solver_params = self.params.solver_u_corr
@@ -244,6 +250,3 @@ class IPCS(NSScheme):
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
                             t=float(t), timestep=timestep, u=u0, p=p0, state=(u1,p1))
-
-        # Make sure annotation gets that the timeloop is over
-        finalize_time(t)
