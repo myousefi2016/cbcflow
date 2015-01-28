@@ -49,6 +49,6 @@ class Q(Field):
 
         S = (grad(u) + grad(u).T)/2
         Omega = (grad(u) - grad(u).T)/2
-        expr = 0.5*(Omega**2 - S**2)
+        expr = 0.5*Omega**2 - S**2
 
         return self.expr2function(expr, self._function)
