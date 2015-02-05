@@ -35,11 +35,12 @@ class WSS(Field):
 
         spaces = SpacePool(V.mesh())
         degree = V.ufl_element().degree()
-
-        if degree <= 2:
+        
+        if degree <= 1:
             Q = spaces.get_grad_space(V, shape=(spaces.d,))
         else:
-            cbcflow_warning("Unable to handle higher order WSS space. Using CG1.")
+            if degree > 2:
+                cbc_warning("Unable to handle higher order WSS space. Using CG1.")
             Q = spaces.get_space(1,1)
 
         Q_boundary = spaces.get_space(Q.ufl_element().degree(), 1, boundary=True)
