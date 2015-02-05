@@ -37,6 +37,8 @@ class RhsGenerator(object):
         self.matvecs = []
         self.form = None
         self.vecs = []
+        f = Function(self.space)
+        self.b = f.vector().copy()
 
     def __iadd__(self, ins):
         if isinstance(ins, tuple):
@@ -75,8 +77,8 @@ class RhsGenerator(object):
         return assemble(inner(x, TestFunction(self.space)) * dx)
 
     def __call__(self, bcs=None, symmetric_mod=None):
-        f = Function(self.space)
-        b = f.vector().copy() # dolfin bug 889021
+        b = self.b
+        b.zero()
         for mat, x, alpha in self.matvecs:
             b_ = mat * self._as_vector(x)
             if alpha != 1:
