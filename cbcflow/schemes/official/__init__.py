@@ -19,6 +19,7 @@
 
 from cbcflow.schemes.official.ipcs import IPCS
 from cbcflow.schemes.official.ipcs_stable import IPCS_Stable
+from cbcflow.schemes.official.ipcs_stable2 import IPCS_Stable2
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme

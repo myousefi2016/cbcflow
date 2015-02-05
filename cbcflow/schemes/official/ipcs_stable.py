@@ -84,7 +84,8 @@ class IPCS_Stable(NSScheme):
         return params
 
     def solve(self, problem, timer):
-
+        from cbcpost.utils import get_memory_usage
+        print "Begin solve: ", get_memory_usage()
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -101,6 +102,7 @@ class IPCS_Stable(NSScheme):
         spaces = NSSpacePoolSegregated(mesh, self.params.u_degree, self.params.p_degree)
         U = spaces.U
         Q = spaces.Q
+        print "Created function spaces: ", get_memory_usage()
 
         # Test and trial functions
         v = TestFunction(U)
@@ -115,6 +117,7 @@ class IPCS_Stable(NSScheme):
 
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
+        print "Created functions: ", get_memory_usage()
 
         # Get functions for data assimilation
         observations = problem.observations(spaces, t)
@@ -145,7 +148,7 @@ class IPCS_Stable(NSScheme):
         rho = float(problem.params.rho)
         k  = Constant(dt)
         f  = as_vector(problem.body_force(spaces, t))
-
+        print "done creating function stuff: ", get_memory_usage()
         timer.completed("create function spaces, functions and boundary conditions")
 
         # Tentative velocity step. Crank-Nicholson time-stepping is used for diffusion and convection.
@@ -170,17 +173,28 @@ class IPCS_Stable(NSScheme):
         # single matrix for all dimensions, which means that the BCs must match
         # (they must apply to the full vector space at the vertex, not a
         # subspace.
+        print "before A_u_tent matrix creation: ", get_memory_usage()
         A_u_tent = assemble(a1+theta*a2)
-
+        print "A_u_tent norm: ", A_u_tent.norm('frobenius')
+        #exit()
+        print "after A_u_tent matrix creation: ", get_memory_usage()
+        print "after first matrix creation: ", get_memory_usage()
         # Create matrices for generating the RHS
+        print "before B matrix creation: ", get_memory_usage()
         B = assemble(a1-(1-theta)*a2)
+        print "after B matrix creation: ", get_memory_usage()
+        print "before M matrix creation: ", get_memory_usage()
         M = assemble(v*u*dx())
+        print "before M matrix creation: ", get_memory_usage()
+        print "M norm: ", M.norm("frobenius")
 
         # Define how to create the RHS for the tentative velocity. The RHS is
         # (of course) different for each dimension.
         rhs_u_tent = [None]*len(dims)
         for d in dims:
+            print "before C creation: ", get_memory_usage()
             C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
+            print "after C creation: ", get_memory_usage()
             #C = assemble(-v*p.dx(d)*dx())
             rhs_u_tent[d] = RhsGenerator(U)
             rhs_u_tent[d] += B, u0[d]
@@ -199,7 +213,7 @@ class IPCS_Stable(NSScheme):
         if 'preconditioner' in solver_u_tent.parameters:
                 solver_u_tent.parameters['preconditioner']['structure'] = 'same'
         solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
-
+        print "create tenative velocity solver", get_memory_usage()
         timer.completed("create tenative velocity solver")
 
         # Pressure correction
@@ -227,7 +241,7 @@ class IPCS_Stable(NSScheme):
         if 'preconditioner' in solver_p_corr.parameters:
                 solver_p_corr.parameters['preconditioner']['structure'] = 'same'
         solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
-
+        print "create pressure correction solver", get_memory_usage()
         timer.completed("create pressure correction solver")
 
         # Velocity correction solver
@@ -256,7 +270,8 @@ class IPCS_Stable(NSScheme):
         elif self.params.solver_u_corr == "WeightedGradient":
             #from fenicstools.WeightedGradient import compiled_gradient_module
             from fenicstools.WeightedGradient import weighted_gradient_matrix
-            dPdX = weighted_gradient_matrix(mesh, dims, "CG", 1)
+            #dPdX = weighted_gradient_matrix(mesh, dims, "CG", 1)
+            dPdX = weighted_gradient_matrix(mesh, dims, "CG", self.params.u_degree)
 
             #DG = spaces.DQ0
             #CG1 = spaces.spacepool.get_space(1, 0)
@@ -321,6 +336,10 @@ class IPCS_Stable(NSScheme):
                 for bc in bcu:
                     bc[d].apply(b)
                 timer.completed("u_tent construct rhs")
+                
+                #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
+                #print "b[%d] norm: " %d, b.norm('l2')
+                
                 iter = solver_u_tent.solve(u1[d].vector(), b)
 
                 # Preconditioner is the same for all three components, so don't rebuild several times

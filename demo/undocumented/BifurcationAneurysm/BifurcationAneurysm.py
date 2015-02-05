@@ -88,23 +88,31 @@ class BifurcationAneurysm(NSProblem):
 
 def main():
     set_log_level(30)
-    dt = 1e-2
-    problem = BifurcationAneurysm(dict(refinement_level=0, dt=dt, T=2.0))
+    dt = 1e-3
+
+    problem = BifurcationAneurysm(dict(refinement_level=1, dt=dt, T=10*dt))
     print problem.mesh
-    scheme = IPCS_Stable(dict(
-        rebuild_prec_frequency = 1,
+    scheme = IPCS_Stable2(dict(
+        rebuild_prec_frequency = 1e16,
         u_tent_prec_structure = "same_nonzero_pattern",
+        
         #p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),
-        u_degree=1,
+        u_degree=2,
         p_degree=1,
-        solver_u_tent=("gmres", "additive_schwarz"),
-        #solver_u_corr=("cg", "additive_schwarz"),
+        solver_u_tent=("bicgstab", "jacobi"),
+        #solver_u_tent=('bicgstab', 'additive_schwarz'),
+        solver_p=("gmres", "hypre_amg"),
+        #solver_u_tent=("gmres", "additive_schwarz"),
+        #solver_u_corr=("gmres", "additive_schwarz"),
         solver_u_corr = "WeightedGradient",
-        theta=1.0,
+        theta=0.5,
         ))
+    
     
     parameters["krylov_solver"]["relative_tolerance"] = 1e-15
     parameters["krylov_solver"]["absolute_tolerance"] = 1e-15
+    parameters["krylov_solver"]["monitor_convergence"] = True
+    #parameters["krylov_solver"]["error_on_nonconvergence"] = False
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
@@ -122,7 +130,7 @@ def main():
         # Basic fields
         fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
         fields.append(Velocity(dict(plot=plot, save=True, stride_timestep=10)))
-    
+        """
         # On boundary
         fields.append(WSS(dict(plot=plot, save=True, start_time=0)))
         fields.append(Boundary("Pressure", dict(plot=plot, save=True)))
@@ -153,13 +161,17 @@ def main():
         
         # Derivatives
         fields.append(TimeDerivative("Pressure", dict(save=True, plot=plot)))
-        
+        """
         return fields
 
     postproc.add_fields(set_up_fields(problem))
     
-    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=100))
+    solver = NSSolver(problem, scheme, postproc, dict(timer_frequency=10, check_memory_frequency=1))
     solver.solve()
+    u = postproc.get("Velocity")
+    p = postproc.get("Pressure")
+    print norm(u)
+    print norm(p)
     
 
 if __name__ == "__main__":
