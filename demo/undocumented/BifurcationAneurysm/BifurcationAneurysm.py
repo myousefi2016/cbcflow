@@ -92,27 +92,50 @@ def main():
 
     problem = BifurcationAneurysm(dict(refinement_level=1, dt=dt, T=10*dt))
     print problem.mesh
-    scheme = IPCS_Stable2(dict(
+    
+    schemeA = IPCS_Stable(dict(
         rebuild_prec_frequency = 1e16,
         u_tent_prec_structure = "same_nonzero_pattern",
-        
-        #p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),
         u_degree=2,
         p_degree=1,
-        solver_u_tent=("bicgstab", "jacobi"),
-        #solver_u_tent=('bicgstab', 'additive_schwarz'),
+        solver_u_tent=("gmres", "bjacobi"),
         solver_p=("gmres", "hypre_amg"),
-        #solver_u_tent=("gmres", "additive_schwarz"),
-        #solver_u_corr=("gmres", "additive_schwarz"),
         solver_u_corr = "WeightedGradient",
+        theta=0.5,
+    ))
+    
+    
+    schemeB = IPCS_Stable2(dict(
+        rebuild_prec_frequency = 1e16,
+        u_tent_prec_structure = "same_nonzero_pattern",
+        u_degree=2,
+        p_degree=1,
+        #solver_u_tent=("gmres", "additive_schwarz"),
+        solver_u_tent=("mumps",),
+        #solver_p=("gmres", "hypre_amg"),
+        solver_p=("mumps",),
+        solver_u_corr = "WeightedGradient",
+        #low_memory_version = True,
+        store_rhs_matrix_p_corr = True,
+        store_rhs_matrix_u_tent = False,
+        #store_rhs_matrix_u_corr = True,
+        store_stiffness_matrix = False,
         theta=0.5,
         ))
     
+    #PETScOptions.set("pc_asm_blocks", 50)
+    #PETScOptions.set("pc_asm_overlap", 1)
+    #PETScOptions.set("pc_asm_type", "restrict")
+    PETScOptions.set("pc_hypre_boomeramg_max_iter", 3)
+    PETScOptions.set("pc_hypre_boomeramg_rtol", 1e-3)
+    
+    scheme = schemeB
     
     parameters["krylov_solver"]["relative_tolerance"] = 1e-15
     parameters["krylov_solver"]["absolute_tolerance"] = 1e-15
-    parameters["krylov_solver"]["monitor_convergence"] = True
-    #parameters["krylov_solver"]["error_on_nonconvergence"] = False
+    parameters["krylov_solver"]["monitor_convergence"] = False
+    parameters["krylov_solver"]["report"] = False
+    parameters["krylov_solver"]["error_on_nonconvergence"] = False
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
