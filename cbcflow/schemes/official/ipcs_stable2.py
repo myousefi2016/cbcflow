@@ -76,173 +76,41 @@ def delta_memory():
 def _get_weighted_gradient(mesh, dims, v,p):
     DG = FunctionSpace(mesh, "DG", 0)
     q = TestFunction(DG)
-    print "WG: created DG", delta_memory()
-    G = assemble(TrialFunction(DG)*v*dx)
-    A = G
-    #Amat = as_backend_type(A).mat()
-    print "WG: assembled G", delta_memory()
+    #print "WG: created DG", delta_memory()
+    #G = assemble(TrialFunction(DG)*v*dx)
+    #A = G
+    A = assemble(TrialFunction(DG)*v*dx)
     dg = Function(DG)
-    print "WG: created function dg", delta_memory()
     
     dPdX = []
     for d in dims:
-        import gc; gc.collect()
         dP = assemble(p.dx(d)*q*dx)
-        print "WG: created matrix dP %d" %d, delta_memory()
         dPmat = as_backend_type(dP).mat()
-        print "WG: cast dP to backend type %d" %d, delta_memory()
-        #A = Matrix(G)
-        print "WG: copied G into A %d" %d, delta_memory()
         compiled_gradient_module.compute_DG0_to_CG_weight_matrix(A, dg)
-        print "WG: computed weight matrix %d" %d, delta_memory()
         Amat = as_backend_type(A).mat()    
-        print "WG: cast A to backend type %d" %d, delta_memory()
-        #Amat = A.down_cast().mat()
-        #Cp = Matrix()
-        #Cpmat = as_backend_type(Matrix()).mat()
-        #Cpmat = petsc4py.PETSc.Mat()
-        
+
         Cpmat = Amat.matMultSymbolic(dPmat)
         Amat.matMultNumeric(dPmat, Cpmat)
-        print "WG: matMult %d" %d, delta_memory()
-        """        
-        A = PETSc.Mat()
-        A.create()
-        A.setSizes([max_i, max_j])
-        A.setUp()
-        for line in file:
-            # split line, etc
-            A[i,j] = val
-        A.assemble()
-        """
-        #import ipdb; ipdb.set_trace()
-        """
-        nnz = 0
-        for r in range(*Cpmat.owner_range):
-            row = Cpmat.getRow(r)
-            nnz += len(row[1])
-        
-        Cpmat2 = petsc4py.PETSc.Mat()
-        #Cpmat2.create()
-        print nnz
-        nnz = MPI.sum(mpi_comm_world(), nnz)
-        #nnz = int(nnz/Cpmat.size[0])
-        #print int(nnz)
-        #nnz = nnz/Cpmar.owner_range()
-        Cpmat2.createAIJ(Cpmat.size)
-        #Cpmat2.setSizes(Cpmat.size)
-        Cpmat2.setUp()
-        #import ipdb; ipdb.set_trace()
-        Cpmat2.assemblyBegin()
-        print nnz
-        for r in range(*Cpmat.owner_range):
-            row = Cpmat.getRow(r)
-            #print r, row[0], row[1]
-            Cpmat2.setValues(r, row[0], row[1])
-            #for i, c in enumerate(row[0]):
-                #print Cpmat2.size, r, i, row[1][i]
-                #Cpmat2[r,i] = row[1][i]
-        #Cpmat2.assemble()
-        Cpmat2.assemblyEnd()
-        """
+        #print "WG: matMult %d" %d, delta_memory()
 
-        
-        #import ipdb; ipdb.set_trace()
-        #Cpmat2 = Cpmat.duplicate(True) # Good
-        #Cpmat2 = Cpmat.duplicate(True) # Good
-        
-        
+        # Perform some strange copies that apparently saves memory
         Cpmat2 = Cpmat.copy()
-        #Cpmat2 = Cpmat
         Cpmat.destroy()
-        #del Cpmat
-        #gc.collect()
-        #
-        
-        #Cpmat.assemblyBegin()
-        #Cpmat.assemblyEnd()
-        print "WG: assemble %d" %d, delta_memory()
-        """
-        #import ipdb; ipdb.set_trace()
-        #continue
-        #Cpmat2 = petsc4py.PETSc.Mat()
-        #import ipdb; ipdb.set_trace()
-        Cpmat2.create()
-        Cpmat2.setSizes(Cpmat.size)
-        
-        #Cpmat2.assemblyBegin()
-        for r in range(*Cpmat.owner_range):
-            row = Cpmat.getRow(r)
-            
-            Cpmat2.setValuesLocal(r, row[0], row[1])
-            #import ipdb; ipdb.set_trace()
-        #Cpmat2.assemblyEnd()
-        Cpmat2.assemble()
-        #Cpmat2 = Cpmat.copy()
-        #import ipdb; ipdb.set_trace()
-        """
-        """
-        for m in dPdX:
-            #print m.size(0), m.size(1)
-            #for r in range(m.size(0)):
-            for r in range(m.local_range(0)[0], m.local_range(0)[1]):
-                row = m.getrow(r)
-                size += row[0].nbytes+row[1].nbytes
-        """
-        print "WG: performed matMult %d" %d, delta_memory()
         Cp = PETScMatrix(Cpmat2)
         Cp = PETScMatrix(Cp)
-        #Cp = Cp.copy()
-        #Cp = Matrix(Cp)
-        
-        
-        #Cp2 = PETScMatrix()
-        #Cp2 = Matrix()
-        #Cp.compressed(Cp2)
-        print "WG: created PETScMatrix from petsc4py matrix %d" %d, delta_memory()
+
         dPdX.append(Cp)
-        print "WG: appended Cp to dPdX %d" %d, delta_memory()
-        
-        #A.__swig_destroy__(A)
-        #dP.__swig_destroy__(dP)
-        
+
         MPI.barrier(mpi_comm_world())
+        # Destroy petsc4py objects
         dPmat.destroy()
         Amat.destroy()
         Cpmat2.destroy()
-        #Cpmat.destroy()
-        
-        #del dPmat
-        #del Amat
-        #del Cpmat
-        #del Cpmat2
-        #del Cp
-        #del A
-        
-        
-        #import gc; gc.collect()
-        #MPI.barrier(mpi_comm_world())
-        #print "WG: destroyed petsc4py matrices %d" %d, delta_memory()
-        #print Cp.norm("frobenius")
-        #print Cp
-        #import ipdb; ipdb.set_trace()
-        #dPdX.append(compiled_gradient_module.compute_weighted_gradient_matrix(A, dP, dg))
-        
-        #compiled_gradient_module.compute_weighted_gradient_matrix(A, dP, dg)
-    
-    #G.__swig_destroy__(G)
-    #DG.__swig_destroy__(DG)
-    #del q
+
+    #del DG
     #del dg
-    del DG
-    del dg
-    del G
-    del A
-    #print sys.getrefcount(DG)
-    #print sys.getrefcount(dg)
-    #print sys.getrefcount(G)
-    #print sys.getrefcount(A)
-    
+    #del G
+    #del A  
 
     return dPdX
 
@@ -443,6 +311,8 @@ class IPCS_Stable2(NSScheme):
 
         # Tentative velocity solver
         solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        #solver_u_tent = PETScKrylovSolver(*self.params.solver_u_tent)
+        #solver_u_tent.parameters["monitor_convergence"] = True
         #solver_u_tent.set_operator(A_u_tent)
         if 'preconditioner' in solver_u_tent.parameters:
                 solver_u_tent.parameters['preconditioner']['structure'] = 'same'
@@ -463,10 +333,8 @@ class IPCS_Stable2(NSScheme):
                 #print Ku[d].norm('frobenius')
                 rhs_p_corr += Ku[d], u1[d]
         else:
-            print "Will not store rhs matrix for p_corr"
-            #rhs_p_corr = lambda: A_p_corr*p0.vector() + sum([assemble(-(1/k)*q*u1[d].dx(d)*dx()) for d in dims])
             rhs_p_corr = lambda: A_p_corr*p0.vector() + assemble(-(1/k)*q*sum(u1[d].dx(d) for d in dims)*dx())
-            #exit()
+
         # Pressure correction solver
         if self.params.solver_p:
             solver_p_params = self.params.solver_p
@@ -483,10 +351,7 @@ class IPCS_Stable2(NSScheme):
         if 'preconditioner' in solver_p_corr.parameters:
                 solver_p_corr.parameters['preconditioner']['structure'] = 'same'
         solver_p_corr.parameters.update(self.params.p_corr_solver_parameters)
-        
-        #import gc; gc.collect()
 
-        print "create pressure correction solver", delta_memory()
         timer.completed("create pressure correction solver")
 
         # Velocity correction solver
@@ -519,39 +384,12 @@ class IPCS_Stable2(NSScheme):
 
         elif self.params.solver_u_corr == "WeightedGradient":
             assert self.params.p_degree == 1
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-            import gc; gc.collect()
-            M1, _ = delta_memory()
+            #M1, _ = delta_memory()
             dPdX = _get_weighted_gradient(mesh, dims, v,p)
-            #dPdX = weighted_gradient_matrix(mesh, dims, "CG", self.params.u_degree)
-            M2, _ = delta_memory()
-            
-            #from fenicstools.WeightedGradient import weighted_gradient_matrix
-            #dPdX = weighted_gradient_matrix(mesh, dims, "CG", self.params.u_degree)
-            import gc; gc.collect()
-            #del dPdX1
-            #gc.collect()
-            #del dPdX
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-            #gc.collect()
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
+            #M2, _ = delta_memory()
 
-            
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-            #exit()
-            #exit()
-            #from fenicstools.WeightedGradient import weighted_gradient_matrix
-            #dPdX2 = weighted_gradient_matrix(mesh, dims, "CG", self.params.u_degree)
-            #del dPdX2
-            #gc.collect()
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-            #exit()
-            #import ipdb; ipdb.set_trace()
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-            #del weighted_gradient_matrix
-            #print MPI.sum(mpi_comm_world(), get_memory_usage())
-        
-        
+            #import gc; gc.collect()
+        """
         size = 0
         for m in dPdX:
             #print m.size(0), m.size(1)
@@ -559,18 +397,10 @@ class IPCS_Stable2(NSScheme):
             for r in range(m.local_range(0)[0], m.local_range(0)[1]):
                 row = m.getrow(r)
                 size += row[0].nbytes+row[1].nbytes
-        #print "dPdX size: ", size/(1024*1024), "MB"
         print "dPdX size: ", MPI.sum(mpi_comm_world(), size)/(1024*1024), "MB"
         print "M2-M1: ", M2-M1
-        
-        
-        
-        #import ipdb; ipdb.set_trace()
-        #gc.collect()
+        """
 
-        print "create velocity correction solver", delta_memory()
-        
-        #exit()
         timer.completed("create velocity correction solver")
 
         # Yield initial conditions
@@ -584,179 +414,95 @@ class IPCS_Stable2(NSScheme):
 
             # Update various functions
             problem.update(spaces, u1, p1, t, timestep, bcs, observations, controls)
-            #print "problem update", delta_memory()
             timer.completed("problem update")
 
+            # Scale to solver pressure
             p0.vector()[:] *= 1.0/rho
             p1.vector()[:] *= 1.0/rho
-            """
-            # Assemble the u-dependent convection matrix. It is important that
-            # it is assembled into the same tensor, because the tensor is
-            # also stored in rhs. (And it's faster).
-            if Kconv.size(0) == 0:
-                # First time, just assemble normally
-                assemble(a_conv, tensor=Kconv)
-            else:
-                # Subtract the convection for previous time step before re-assembling Kconv
-                A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
-                assemble(a_conv, tensor=Kconv)
-            """
+
             # Assemble convection
             if not self.params.low_memory_version and self.params.store_stiffness_matrix:
-                cbc_log(20, "Assembling convection matrix")
+                # Assemble only convection matrix
                 K_conv.zero()
                 assemble(a_conv, tensor=K_conv)
                 A_u_tent.axpy(-(1.0-theta), K_conv, True)
             else:
-                cbc_log(20, "Assembling convection+diffusion matrix")
+                # Assemble convection and diffusion matrix in one
                 assemble(a2+a_conv, tensor=A)
-            #for bc in bcu:
-            #    bc[0].apply(K_conv)
             
             timer.completed("assemble convection matrix")
-            #print "assembled convection matrix", delta_memory()
-            
-            #tic()
-            # Reset A_u_tent
-            #A_u_tent.zero()
-            #print toc()
-            #tic()
             
             # Build rhs for tentative velocity
-            #A_u_tent.axpy(1.0/dt, M, False)
-            #print toc()
-            #print tic()
-            #A_u_tent.axpy(1.0, M, False)
-            #print "A_u_tent norm (mass matrix): ", A_u_tent.norm('frobenius')
-            #tic()
             A_u_tent.axpy(-(1.0-theta), A, True)
-            #print toc()
-            
-            #for bc in bcu:
-            #    bc[0].apply(A_u_tent)
-            
-            #print "Built A_u_tent for rhs", delta_memory()
             timer.completed("built A_u_tent for rhs")
 
+            # Use A_u_tent in current form to create rhs
+            # Note: No need to apply bcs to A_u_tent (this is set directly on b)
             b = [None]*len(dims)
             for d in dims:
-                #tic()
                 b[d] = rhs_u_tent[d]()
-                #print toc()
                 for bc in bcu:
                     bc[d].apply(b[d])
-                #print "b[%d] norm: " %d, b[d].norm('l2')
             timer.completed("built tentative velocity rhs")
-            #print "Built rhs", delta_memory()
-            
-            # Build lhs for tentative velocity
-            # Reset A_u_tent
-            #A_u_tent.zero()
-            
-            # Build rhs for tentative velocity
-            #A_u_tent.axpy(1.0/dt, M, False)
-            #A_u_tent.axpy(1.0, M, True)
-            #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
-            #print "M norm: ", M.norm("frobenius")
+
+            # Construct lhs for tentative velocity
             A_u_tent.axpy(1.0, A, True)
-            #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
-            #exit()
             if not self.params.low_memory_version and self.params.store_stiffness_matrix:
                 A_u_tent.axpy(1.0, K_conv, True)
-            #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
-            
             for bc in bcu:
                 bc[0].apply(A_u_tent)
-            
-            #A_u_tent.axpy(1, A, True)
-            #A_u_tent.axpy(1, K_conv, True)
-            #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
-            #print "Build A_u_tent for lhs", delta_memory()
 
-            # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
-            # the axpy (it doesn't matter which)
-            #for bc in bcu:
-            #    bc[0].zero(Kconv)
-
-            #A_u_tent.axpy(Kconv_axpy_factor, Kconv, True)
-
-            #for bc in bcu:
-            #    bc[0].apply(A_u_tent)
             timer.completed("u_tent construct lhs")
-            #print "u_tent construct lhs", delta_memory()
 
             # Check if preconditioner is to be rebuilt
             if timestep % self.params.rebuild_prec_frequency == 0 and 'preconditioner' in solver_u_tent.parameters:
                 solver_u_tent.parameters['preconditioner']['structure'] = self.params.u_tent_prec_structure
-            
-            if timestep == start_timestep +1 and "error_on_nonconvergence" in solver_u_tent.parameters:
-                #pass
-                #parameters["krylov_solver"]["error_on_nonconvergence"] = False
-                
-                error_on_nonconvergence = solver_u_tent.parameters["error_on_nonconvergence"]
-                solver_u_tent.parameters["error_on_nonconvergence"] = False
-                
-                #import ipdb; ipdb.set_trace()
-                #solver_u_tent.parameters["divergence_limit"] = 1e8
-                #solver_u_tent.parameters["nonzero_initial_guess"] = True
-                for d in dims:
-                    iter = solver_u_tent.solve(A_u_tent, u1[d].vector(), b[d])
-                    #print "intial u_tent solve %d" %d, delta_memory()
-                #solver_u_tent.parameters["error_on_nonconvergence"] = error_on_nonconvergence
-                #for d in dims:
-                #    if u1[d].vector().norm('l2') == 0.0:
-                #        u1[d].vector()[:] = 1.0
-                #        u1[d].vector()[0] = 3.0
-                        
 
             # Compute tentative velocity step
             for d in dims:
-                #b = rhs_u_tent[d]()
-
-                #for bc in bcu:
-                #    bc[d].apply(b)
-                #print "A_u_tent norm: ", A_u_tent.norm("frobenius")
-                #print "b[%d] norm: " %d, b[d].norm('l2')
-                
-                timer.completed("u_tent construct rhs")
-                #iter = solver_u_tent.solve(u1[d].vector(), b[d])
                 iter = solver_u_tent.solve(A_u_tent, u1[d].vector(), b[d])
-                #print "solve tent %d" %d, delta_memory()
 
                 # Preconditioner is the same for all three components, so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
-                #timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
                 timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b[d].size()), {"iter": iter})
 
-
-            #if timestep == start_timestep +1:
-            #    solver_u_tent = LinearSolver("bicgstab", "jacobi")
             # Reset A_u_tent to mass matrix           
             A_u_tent.axpy(-theta, A, True)
             if not self.params.low_memory_version and self.params.store_stiffness_matrix:
                 A_u_tent.axpy(-theta, K_conv, True)
-            
-            #print "A_u_tent norm (mass matrix): ", A_u_tent.norm('frobenius')
-            
+
             # Pressure correction
             b = rhs_p_corr()
+            
+            # Normalize around zero if no bcs are set on pressure
+            # FIXME: Should really set nullspace
             if len(bcp) == 0:
                 normalize(b)
+
             for bc in bcp:
+                # Restore physical pressure and apply bcs
                 b *= rho
                 bc.apply(b)
+
+                # Rescale to solver pressure
                 b *= 1.0/rho
+
             timer.completed("p_corr construct rhs")
 
+            # Solve p_corr
             iter = solver_p_corr.solve(p1.vector(), b)
+
+            # Normalize around zero if no bcs are set on pressure
+            # FIXME: Should really set nullspace
             if len(bcp) == 0:
                 normalize(p1.vector())
-            #print "solve p corr", delta_memory()
+
             timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
+            
+            # Velocity correction
             if self.params.solver_u_corr not in ["WeightedGradient"]:
-                # Velocity correction
                 for d in dims:
                     b = rhs_u_corr[d]()
                     for bc in bcu: bc[d].apply(b)
@@ -784,7 +530,6 @@ class IPCS_Stable2(NSScheme):
 
             p0.vector()[:] *= rho
             p1.vector()[:] *= rho
-            
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
