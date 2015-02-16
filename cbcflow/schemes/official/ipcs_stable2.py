@@ -17,21 +17,21 @@
 r"""
 This scheme follows the same logic as in :class:`.IPCS`, but with a few notable exceptions.
 
-A parameter :math:`\theta` is added to the diffusion and convection terms,
+A parameter :math:`\alpha` is added to the diffusion and convection terms,
 allowing for different evaluation of these, and the convection is handled semi-implicitly:
 
 .. math::
     \frac{1}{\Delta t}\left( \tilde{u}^{n+1}-u^{n} \right)-
-    \nabla\cdot\nu\nabla \tilde{u}^{n+\theta}+
-    u^*\cdot\nabla \tilde{u}^{n+\theta}+\nabla p^{n}=f^{n+1},
+    \nabla\cdot\nu\nabla \tilde{u}^{n+\alpha}+
+    u^*\cdot\nabla \tilde{u}^{n+\alpha}+\nabla p^{n}=f^{n+1},
 
 where
 
 .. math::
     u^* = \frac{3}{2}u^n - \frac{1}{2}u^{n-1}, \\
-    \tilde{u}^{n+\theta} = \theta \tilde{u}^{n+1}+\left(1-\theta\right)u^n.
+    \tilde{u}^{n+\alpha} = \alpha \tilde{u}^{n+1}+\left(1-\alpha\right)u^n.
 
-This convection term is unconditionally stable, and with :math:`\theta=0.5`,
+This convection term is unconditionally stable, and with :math:`\alpha=0.5`,
 this equation is second order in time and space [1]_.
 
 
@@ -114,6 +114,17 @@ def _get_weighted_gradient(mesh, dims, v,p):
 
     return dPdX
 
+def update_convection_term(uconv, u1, u0, theta):
+    theta = float(theta)
+    assert theta <= 0, "Non-linear schemes not supported"
+    for d in range(len(u1)):
+        uconv[d].vector().zero()
+        uconv[d].vector().axpy(1-theta, u1[d].vector())
+        uconv[d].vector().axpy(theta, u0[d].vector())
+
+    return uconv
+
+
 class IPCS_Stable2(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
 
@@ -127,7 +138,8 @@ class IPCS_Stable2(NSScheme):
             # Default to P1-P1
             u_degree = 1,
             p_degree = 1,
-            theta = 0.5,
+            alpha = 0.5,
+            theta = -0.5,
             rebuild_prec_frequency = 1e16,
             u_tent_prec_structure = "same_nonzero_pattern",
             u_tent_solver_parameters = {},
@@ -151,7 +163,7 @@ class IPCS_Stable2(NSScheme):
         ds = problem.ds
         n  = FacetNormal(mesh)
         dims = range(mesh.topology().dim())
-        theta = self.params.theta
+        alpha = self.params.alpha
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
@@ -172,7 +184,7 @@ class IPCS_Stable2(NSScheme):
         # Functions
         u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
         u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
-        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
+        uconv = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
 
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
@@ -188,11 +200,8 @@ class IPCS_Stable2(NSScheme):
         for d in dims:
             u1[d].assign(u0[d])
 
-        # Update Adams-Bashford term for first timestep
-        for d in dims:
-            u_ab[d].vector().zero()
-            u_ab[d].vector().axpy(1.5, u1[d].vector())
-            u_ab[d].vector().axpy(-0.5, u0[d].vector())
+        # Update convection term for first timestep
+        update_convection_term(uconv, u1, u0, self.params.theta)
 
         #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
@@ -220,12 +229,12 @@ class IPCS_Stable2(NSScheme):
         #a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
         a1 = inner(u,v)*dx()
         a2 = inner(grad(v), nu*grad(u))*dx()
-        a_conv  = inner(v, dot(u_ab, nabla_grad(u)))*dx()
+        a_conv  = inner(v, dot(uconv, nabla_grad(u)))*dx()
         """
-        if theta < 1.0:
-            # Set a_conv to match rhs theta-weighting for RHSGenerator
-            a_conv = Constant(1-theta)*a_conv
-            Kconv_axpy_factor = theta/(1-theta)
+        if alpha < 1.0:
+            # Set a_conv to match rhs alpha-weighting for RHSGenerator
+            a_conv = Constant(1-alpha)*a_conv
+            Kconv_axpy_factor = alpha/(1-alpha)
         else:
             Kconv_axpy_factor = 1.0
 
@@ -271,12 +280,12 @@ class IPCS_Stable2(NSScheme):
         # subspace.
         """
         print "before A_u_tent matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
-        A_u_tent = assemble(a1+theta*a2)
+        A_u_tent = assemble(a1+alpha*a2)
         print "after A_u_tent matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
         print "after first matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
         # Create matrices for generating the RHS
         print "before B matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
-        B = assemble(a1-(1-theta)*a2)
+        B = assemble(a1-(1-alpha)*a2)
         print "after B matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
         print "before M matrix creation: ", MPI.sum(mpi_comm_world(), get_memory_usage())
         M = assemble(v*u*dx())
@@ -298,7 +307,7 @@ class IPCS_Stable2(NSScheme):
                 rhs_u_tent[d] += A_u_tent, u0[d]
                 rhs_u_tent[d] += C, p0
                 #rhs_u_tent[d] += M, f[d]
-                #if theta < 1.0:
+                #if alpha < 1.0:
                 #    rhs_u_tent[d] -= Kconv, u0[d]
         else:
             print "Will not store rhs matrix for u_tent"
@@ -425,7 +434,7 @@ class IPCS_Stable2(NSScheme):
                 # Assemble only convection matrix
                 K_conv.zero()
                 assemble(a_conv, tensor=K_conv)
-                A_u_tent.axpy(-(1.0-theta), K_conv, True)
+                A_u_tent.axpy(-(1.0-alpha), K_conv, True)
             else:
                 # Assemble convection and diffusion matrix in one
                 assemble(a2+a_conv, tensor=A)
@@ -433,7 +442,7 @@ class IPCS_Stable2(NSScheme):
             timer.completed("assemble convection matrix")
             
             # Build rhs for tentative velocity
-            A_u_tent.axpy(-(1.0-theta), A, True)
+            A_u_tent.axpy(-(1.0-alpha), A, True)
             timer.completed("built A_u_tent for rhs")
 
             # Use A_u_tent in current form to create rhs
@@ -461,6 +470,7 @@ class IPCS_Stable2(NSScheme):
             # Compute tentative velocity step
             for d in dims:
                 iter = solver_u_tent.solve(A_u_tent, u1[d].vector(), b[d])
+                
 
                 # Preconditioner is the same for all three components, so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
@@ -469,9 +479,9 @@ class IPCS_Stable2(NSScheme):
                 timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b[d].size()), {"iter": iter})
 
             # Reset A_u_tent to mass matrix           
-            A_u_tent.axpy(-theta, A, True)
+            A_u_tent.axpy(-alpha, A, True)
             if not self.params.low_memory_version and self.params.store_stiffness_matrix:
-                A_u_tent.axpy(-theta, K_conv, True)
+                A_u_tent.axpy(-alpha, K_conv, True)
 
             # Pressure correction
             b = rhs_p_corr()
@@ -518,10 +528,12 @@ class IPCS_Stable2(NSScheme):
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
             # Update Adams-Bashford term for next timestep
-            for d in dims:
-                u_ab[d].vector().zero()
-                u_ab[d].vector().axpy(1.5, u1[d].vector())
-                u_ab[d].vector().axpy(-0.5, u0[d].vector())
+            update_convection_term(uconv, u1, u0, self.params.theta)
+
+            #for d in dims:
+            #    uconv[d].vector().zero()
+            #    uconv[d].vector().axpy(1.5, u1[d].vector())
+            #    uconv[d].vector().axpy(-0.5, u0[d].vector())
 
              # Rotate functions for next timestep
             for d in dims:
