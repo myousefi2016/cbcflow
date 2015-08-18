@@ -20,8 +20,9 @@ from dolfin import (TestFunction, Function,  FacetNormal,
                     TrialFunction, LinearSolver)
 
 from cbcpost import Field, SpacePool
-from cbcpost.utils import mesh_to_boundarymesh_dofmap, cbc_warning
-
+from cbcpost.utils import (mesh_to_boundarymesh_dofmap, cbc_warning,
+                           get_set_vector)
+import numpy as np
 from cbcflow.fields.DynamicViscosity import DynamicViscosity
 
 class WSS(Field):
@@ -50,8 +51,9 @@ class WSS(Field):
         self.tau_boundary = Function(Q_boundary, name="WSS")
 
         local_dofmapping = mesh_to_boundarymesh_dofmap(spaces.BoundaryMesh, Q, Q_boundary)
-        self._keys = local_dofmapping.keys()
-        self._values = local_dofmapping.values()
+        self._keys = np.array(local_dofmapping.keys(), dtype=np.intc)
+        self._values = np.array(local_dofmapping.values(), dtype=np.intc)
+        self._temp_array = np.zeros(len(self._keys), dtype=np.float_)
 
         Mb = assemble(inner(TestFunction(Q_boundary), TrialFunction(Q_boundary))*dx)
         #self.solver = LinearSolver("gmres", "hypre_euclid")
@@ -76,7 +78,8 @@ class WSS(Field):
         tau_form = dot(self.v, Tt)*ds()
         assemble(tau_form, tensor=self.tau.vector())
 
-        self.b[self._keys] = self.tau.vector()[self._values] # FIXME: This is not safe!!!
+        #self.b[self._keys] = self.tau.vector()[self._values] # FIXME: This is not safe!!!
+        get_set_vector(self.b, self._keys, self.tau.vector(), self._values, self._temp_array)
 
         # Ensure proper scaling
         self.solver.solve(self.tau_boundary.vector(), self.b)
