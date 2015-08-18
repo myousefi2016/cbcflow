@@ -18,6 +18,7 @@
 from cbcflow.dol import (SubsetIterator, MPI, ds, assemble, Constant, sqrt,
                          FacetNormal, as_vector, mpi_comm_world, SpatialCoordinate)
 import numpy as np
+from scipy.integrate import romberg
 
 def x_to_r2(x, c, n):
     """Compute r**2 from a coordinate x, center point c, and normal vector n.
@@ -97,14 +98,10 @@ def compute_transient_scale_value(bc, period, mesh, facet_domains, ind, scale_va
     dsi = ds(ind, domain=mesh, subdomain_data=facet_domains)
     form = sqrt(as_vector(bc)**2) * dsi
 
-    N = 100
-    qt = [0]*N
-    for i, t in enumerate(np.linspace(0, period, N)):
+    def Q(t):
         for e in bc:
             e.set_t(t)
-        qt[i] = assemble(form)
-    for e in bc:
-        e.set_t(0.0)
+        return assemble(form)
+    q_avg = 1/period*romberg(Q, 0, period, rtol=1e-2)
 
-    q_avg = sum(qt) / len(qt)
     return scale_value / q_avg
