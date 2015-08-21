@@ -117,7 +117,7 @@ def main():
         T1 = problem.params.T
         fields = []
         
-        plot = False
+        plot = True
         
         # Basic fields
         fields.append(Pressure(dict(plot=plot, save=True, stride_timestep=10)))
