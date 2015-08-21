@@ -60,6 +60,50 @@ from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    NSSpacePoolSegregated,
                                    RhsGenerator, create_solver)
 
+def _get_weighted_gradient(mesh, dims, v,p):
+    from fenicstools.WeightedGradient import compiled_gradient_module, weighted_gradient_matrix
+    DG = FunctionSpace(mesh, "DG", 0)
+    q = TestFunction(DG)
+    A = assemble(TrialFunction(DG)*v*dx)
+    dg = Function(DG)
+    
+    dPdX = []
+    for d in dims:
+        dP = assemble(p.dx(d)*q*dx)
+        dPmat = as_backend_type(dP).mat()
+        compiled_gradient_module.compute_DG0_to_CG_weight_matrix(A, dg)
+        Amat = as_backend_type(A).mat()    
+
+        Cpmat = Amat.matMultSymbolic(dPmat)
+        Amat.matMultNumeric(dPmat, Cpmat)
+
+        # Perform some strange copies that apparently saves memory
+        Cpmat2 = Cpmat.copy()
+        Cpmat.destroy()
+        Cp = PETScMatrix(Cpmat2)
+        Cp = PETScMatrix(Cp)
+
+        dPdX.append(Cp)
+
+        MPI.barrier(mpi_comm_world())
+        # Destroy petsc4py objects
+        dPmat.destroy()
+        Amat.destroy()
+        Cpmat2.destroy()
+
+    return dPdX
+
+def update_convection_term(uconv, u1, u0, theta):
+    theta = float(theta)
+    assert theta <= 0, "Non-linear schemes not supported"
+    for d in range(len(u1)):
+        uconv[d].vector().zero()
+        uconv[d].vector().axpy(1-theta, u1[d].vector())
+        uconv[d].vector().axpy(theta, u0[d].vector())
+
+    return uconv
+
+
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
 
@@ -73,12 +117,18 @@ class IPCS_Stable(NSScheme):
             # Default to P1-P1
             u_degree = 1,
             p_degree = 1,
-            theta = 0.5,
+            alpha = 0.5,
+            theta = -0.5,
             rebuild_prec_frequency = 1e16,
             u_tent_prec_structure = "same_nonzero_pattern",
             u_tent_solver_parameters = {},
             p_corr_solver_parameters = {},
             u_corr_solver_parameters = {},
+            low_memory_version = False,
+            store_rhs_matrix_p_corr = True,
+            store_rhs_matrix_u_tent = True,
+            store_rhs_matrix_u_corr = True,
+            store_stiffness_matrix = True,
             #assemble_convection = "standard", # unassembled, debug
             )
         return params
@@ -91,7 +141,7 @@ class IPCS_Stable(NSScheme):
         ds = problem.ds
         n  = FacetNormal(mesh)
         dims = range(mesh.topology().dim())
-        theta = self.params.theta
+        alpha = self.params.alpha
 
         # Timestepping
         dt, timesteps, start_timestep = compute_regular_timesteps(problem)
@@ -111,7 +161,7 @@ class IPCS_Stable(NSScheme):
         # Functions
         u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
         u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
-        u_ab = as_vector([Function(U, name="u_ab_%d"%d) for d in dims]) # Adams-Bashforth convection
+        uconv = as_vector([Function(U, name="uconv_%d"%d) for d in dims]) # Velocity interpolation used in convection
 
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
@@ -126,11 +176,8 @@ class IPCS_Stable(NSScheme):
         for d in dims:
             u1[d].assign(u0[d])
 
-        # Update Adams-Bashford term for first timestep
-        for d in dims:
-            u_ab[d].vector().zero()
-            u_ab[d].vector().axpy(1.5, u1[d].vector())
-            u_ab[d].vector().axpy(-0.5, u0[d].vector())
+        # Update convection term for first timestep
+        update_convection_term(uconv, u1, u0, self.params.theta)
 
         #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
@@ -148,69 +195,55 @@ class IPCS_Stable(NSScheme):
 
         timer.completed("create function spaces, functions and boundary conditions")
 
-        # Tentative velocity step. Crank-Nicholson time-stepping is used for diffusion and convection.
+        # Create forms for LHS of tenative velocity
+        # Convection linearized as in Simo/Armero (1994)
+        # Will set uconv = (1-theta)*u1[r] + theta*u0[r]
         a1 = (1/k) * inner(v, u) * dx()
         a2 = inner(grad(v), nu*grad(u)) * dx()
-
-        # Convection linearized as in Simo/Armero (1994)
-        # Will set u_ab = 1.5*u1[r] - 0.5*u0[r]
-        #a_conv = v * sum(u_ab[r] * u.dx(r) for r in dims) * dx()
-        a_conv  = inner(v, dot(u_ab, nabla_grad(u)))*dx()
-        if theta < 1.0:
-            # Set a_conv to match rhs theta-weighting for RHSGenerator
-            a_conv = Constant(1-theta)*a_conv
-            Kconv_axpy_factor = theta/(1-theta)
-        else:
-            Kconv_axpy_factor = 1.0
-
-        Kconv = Matrix() # assembled from a_conv in the time loop
+        a_conv  = inner(v, dot(uconv, nabla_grad(u)))*dx()
 
         # Create the static part of the coefficient matrix for the tentative
         # velocity step. The convection is added in the time loop. We use a
         # single matrix for all dimensions, which means that the BCs must match
         # (they must apply to the full vector space at the vertex, not a
         # subspace.
-        A_u_tent = assemble(a1+theta*a2)
-
-        # Create matrices for generating the RHS
-        B = assemble(a1-(1-theta)*a2)
-        M = assemble(v*u*dx())
-
+        A_u_tent = assemble(a1)
+        if not self.params.low_memory_version and self.params.store_stiffness_matrix:
+            A = assemble(a2)
+            K_conv = assemble(a_conv)
+        else:
+            A = assemble(a2+a_conv)
+            
         # Define how to create the RHS for the tentative velocity. The RHS is
         # (of course) different for each dimension.
         rhs_u_tent = [None]*len(dims)
-        for d in dims:
-            C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
-            #C = assemble(-v*p.dx(d)*dx())
-            rhs_u_tent[d] = RhsGenerator(U)
-            rhs_u_tent[d] += B, u0[d]
-            rhs_u_tent[d] += C, p0
-            rhs_u_tent[d] += M, f[d]
-            if theta < 1.0:
-                rhs_u_tent[d] -= Kconv, u0[d]
-
-        # Apply BCs to LHS
-        for bc in bcu:
-            bc[0].apply(A_u_tent)
-
+        if not self.params.low_memory_version and self.params.store_rhs_matrix_u_tent:
+            for d in dims:
+                C = assemble(-v*p*n[d]*ds() + v.dx(d)*p*dx())
+                rhs_u_tent[d] = RhsGenerator(U)
+                rhs_u_tent[d] += A_u_tent, u0[d]
+                rhs_u_tent[d] += C, p0
+        else:
+            rhs_u_tent = [lambda: A_u_tent*u0[d].vector()+assemble(-v*p0*n[d]*ds() + v.dx(d)*p0*dx()) for d in dims]
+        
         # Tentative velocity solver
-        #solver_u_tent = LinearSolver(*self.params.solver_u_tent)
         solver_u_tent = create_solver(*self.params.solver_u_tent)
-        solver_u_tent.set_operator(A_u_tent)
         if 'preconditioner' in solver_u_tent.parameters:
-                solver_u_tent.parameters['preconditioner']['structure'] = 'same'
-        solver_u_tent.parameters.update(self.params.u_tent_solver_parameters)
+            solver_u_tent.parameters['preconditioner']['structure'] = 'same'
 
         timer.completed("create tenative velocity solver")
 
         # Pressure correction
         A_p_corr = assemble(inner(grad(q), grad(p))*dx())
-        rhs_p_corr = RhsGenerator(Q)
-        rhs_p_corr += A_p_corr, p0
-        Ku = [None]*len(dims)
-        for d in dims:
-            Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
-            rhs_p_corr += Ku[d], u1[d]
+        if not self.params.low_memory_version and self.params.store_rhs_matrix_p_corr:
+            rhs_p_corr = RhsGenerator(Q)
+            rhs_p_corr += A_p_corr, p0
+            Ku = [None]*len(dims)
+            for d in dims:
+                Ku[d] = assemble(-(1/k)*q*u.dx(d)*dx()) # TODO: Store forms in list, this is copied below
+                rhs_p_corr += Ku[d], u1[d]
+        else:
+            rhs_p_corr = lambda: A_p_corr*p0.vector() + assemble(-(1/k)*q*sum(u1[d].dx(d) for d in dims)*dx())
 
         # Pressure correction solver
         if self.params.solver_p:
@@ -223,7 +256,6 @@ class IPCS_Stable(NSScheme):
         for bc in bcp:
             bc.apply(A_p_corr)
 
-        #solver_p_corr = LinearSolver(*solver_p_params)
         solver_p_corr = create_solver(*solver_p_params)
         solver_p_corr.set_operator(A_p_corr)
         if 'preconditioner' in solver_p_corr.parameters:
@@ -235,21 +267,24 @@ class IPCS_Stable(NSScheme):
         # Velocity correction solver
         if self.params.solver_u_corr not in ["WeightedGradient"]:
             # Velocity correction. Like for the tentative velocity, a single LHS is used.
-            A_u_corr = M
-            rhs_u_corr = [None]*len(dims)
-            Kp = [None]*len(dims)
-            for d in dims:
-                Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
-                rhs_u_corr[d] = RhsGenerator(U)
-                rhs_u_corr[d] += M, u1[d]
-                rhs_u_corr[d] += Kp[d], p1
-                rhs_u_corr[d] -= Kp[d], p0
+            M = assemble(inner(u,v)*dx())
+            A_u_corr = assemble(inner(u,v)*dx())
+            if not self.params.low_memory_version and self.params.store_rhs_matrix_u_corr:
+                rhs_u_corr = [None]*len(dims)
+                Kp = [None]*len(dims)
+                for d in dims:
+                    Kp[d] = assemble(-k*inner(v, grad(p)[d])*dx())
+                    rhs_u_corr[d] = RhsGenerator(U)
+                    rhs_u_corr[d] += M, u1[d]
+                    rhs_u_corr[d] += Kp[d], p1
+                    rhs_u_corr[d] -= Kp[d], p0
+            else:
+                rhs_u_corr = [lambda: A_u_corr*u1[d].vector()+assemble(-k*inner(v, grad(p1-p0)[d])*dx()) for d in dims]
 
             # Apply BCs to LHS
             for bc in bcu:
                 bc[0].apply(A_u_corr)
 
-            #solver_u_corr = LinearSolver(*self.params.solver_u_corr)
             solver_u_corr = create_solver(*self.params.solver_u_corr)
             solver_u_corr.set_operator(A_u_corr)
             if 'preconditioner' in solver_u_corr.parameters:
@@ -257,20 +292,8 @@ class IPCS_Stable(NSScheme):
             solver_u_corr.parameters.update(self.params.u_corr_solver_parameters)
 
         elif self.params.solver_u_corr == "WeightedGradient":
-            #from fenicstools.WeightedGradient import compiled_gradient_module
-            from fenicstools.WeightedGradient import weighted_gradient_matrix
-            dPdX = weighted_gradient_matrix(mesh, dims, "CG", 1)
-
-            #DG = spaces.DQ0
-            #CG1 = spaces.spacepool.get_space(1, 0)
-            #C = assemble(u*v*dx())
-            #G = assemble(TrialFunction(DG)*v*dx())
-            #dPdX = []
-            #dg = Function(DG)
-            #for d in dims:
-            #    dP = assemble(TrialFunction(CG1).dx(d)*TestFunction(DG)*dx())
-            #    compiled_gradient_module.compute_weighted_gradient_matrix(Matrix(G), dP, C, dg)
-            #    dPdX.append(C.copy())
+            assert self.params.p_degree == 1
+            dPdX = _get_weighted_gradient(mesh, dims, v,p)
 
         timer.completed("create velocity correction solver")
 
@@ -290,27 +313,35 @@ class IPCS_Stable(NSScheme):
             p0.vector()[:] *= 1.0/rho
             p1.vector()[:] *= 1.0/rho
 
-            # Assemble the u-dependent convection matrix. It is important that
-            # it is assembled into the same tensor, because the tensor is
-            # also stored in rhs. (And it's faster).
-            if Kconv.size(0) == 0:
-                # First time, just assemble normally
-                assemble(a_conv, tensor=Kconv)
+            # Assemble convection
+            if not self.params.low_memory_version and self.params.store_stiffness_matrix:
+                # Assemble only convection matrix
+                K_conv.zero()
+                assemble(a_conv, tensor=K_conv)
+                A_u_tent.axpy(-(1.0-alpha), K_conv, True)
             else:
-                # Subtract the convection for previous time step before re-assembling Kconv
-                A_u_tent.axpy(-Kconv_axpy_factor, Kconv, True)
-                assemble(a_conv, tensor=Kconv)
-            timer.completed("assemble convection matrix")
+                # Assemble convection and diffusion matrix in one
+                assemble(a2+a_conv, tensor=A)
 
-            # Either zero BC rows in Kconv, or re-apply BCs to A_u_tent after
-            # the axpy (it doesn't matter which)
-            #for bc in bcu:
-            #    bc[0].zero(Kconv)
+            A_u_tent.axpy(-(1.0-alpha), A, True)
+            timer.completed("built A_u_tent for rhs")
+            
+            # Use A_u_tent in current form to create rhs
+            # Note: No need to apply bcs to A_u_tent (this is set directly on b)
+            b = [None]*len(dims)
+            for d in dims:
+                b[d] = rhs_u_tent[d]()
+                for bc in bcu:
+                    bc[d].apply(b[d])
+            timer.completed("built tentative velocity rhs")
 
-            A_u_tent.axpy(Kconv_axpy_factor, Kconv, True)
-
+            # Construct lhs for tentative velocity
+            A_u_tent.axpy(1.0, A, True)
+            if not self.params.low_memory_version and self.params.store_stiffness_matrix:
+                A_u_tent.axpy(1.0, K_conv, True)
             for bc in bcu:
                 bc[0].apply(A_u_tent)
+
             timer.completed("u_tent construct lhs")
 
             # Check if preconditioner is to be rebuilt
@@ -319,33 +350,42 @@ class IPCS_Stable(NSScheme):
 
             # Compute tentative velocity step
             for d in dims:
-                b = rhs_u_tent[d]()
-
-                for bc in bcu:
-                    bc[d].apply(b)
-                timer.completed("u_tent construct rhs")
-                iter = solver_u_tent.solve(u1[d].vector(), b)
+                iter = solver_u_tent.solve(A_u_tent, u1[d].vector(), b[d])
 
                 # Preconditioner is the same for all three components, so don't rebuild several times
                 if 'preconditioner' in solver_u_tent.parameters:
                     solver_u_tent.parameters['preconditioner']['structure'] = "same"
 
-                timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b.size()), {"iter": iter})
+                timer.completed("u_tent solve (%s, %d dofs)"%(', '.join(self.params.solver_u_tent), b[d].size()), {"iter": iter})
+
+
+            
+            # Reset A_u_tent to mass matrix           
+            A_u_tent.axpy(-alpha, A, True)
+            if not self.params.low_memory_version and self.params.store_stiffness_matrix:
+                A_u_tent.axpy(-alpha, K_conv, True)
 
             # Pressure correction
             b = rhs_p_corr()
             if len(bcp) == 0:
                 normalize(b)
             for bc in bcp:
+                # Restore physical pressure and apply bcs
                 b *= rho
                 bc.apply(b)
+
+                # Rescale to solver pressure
                 b *= 1.0/rho
+
             timer.completed("p_corr construct rhs")
 
+            # Solve p_corr
             iter = solver_p_corr.solve(p1.vector(), b)
             if len(bcp) == 0:
                 normalize(p1.vector())
+
             timer.completed("p_corr solve (%s, %d dofs)"%(', '.join(solver_p_params), b.size()), {"iter": iter})
+
             if self.params.solver_u_corr not in ["WeightedGradient"]:
                 # Velocity correction
                 for d in dims:
@@ -362,11 +402,8 @@ class IPCS_Stable(NSScheme):
                         bc[d].apply(u1[d].vector())
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
-            # Update Adams-Bashford term for next timestep
-            for d in dims:
-                u_ab[d].vector().zero()
-                u_ab[d].vector().axpy(1.5, u1[d].vector())
-                u_ab[d].vector().axpy(-0.5, u0[d].vector())
+            # Update convection term for next timestep
+            update_convection_term(uconv, u1, u0, self.params.theta)
 
              # Rotate functions for next timestep
             for d in dims:
@@ -375,8 +412,6 @@ class IPCS_Stable(NSScheme):
 
             p0.vector()[:] *= rho
             p1.vector()[:] *= rho
-            
-            #print norm(u1[0]), norm(u1[1]), norm(u1[2]), norm(p1)
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,
