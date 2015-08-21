@@ -22,6 +22,7 @@ from .bcs import *
 from .timestepping import *
 from .rhsgenerator import RhsGenerator
 from .spaces import NSSpacePool, NSSpacePoolMixed, NSSpacePoolSegregated, NSSpacePoolSplit
+from .solver_creation import create_solver
 #from .unassembledmatrix import UnassembledMatrix
 
 __all__ = [k for k,v in globals().items()

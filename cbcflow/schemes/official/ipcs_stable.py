@@ -58,7 +58,7 @@ from cbcflow.schemes.utils import (compute_regular_timesteps,
                                    make_segregated_velocity_bcs,
                                    make_pressure_bcs,
                                    NSSpacePoolSegregated,
-                                   RhsGenerator)
+                                   RhsGenerator, create_solver)
 
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
@@ -194,7 +194,8 @@ class IPCS_Stable(NSScheme):
             bc[0].apply(A_u_tent)
 
         # Tentative velocity solver
-        solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        #solver_u_tent = LinearSolver(*self.params.solver_u_tent)
+        solver_u_tent = create_solver(*self.params.solver_u_tent)
         solver_u_tent.set_operator(A_u_tent)
         if 'preconditioner' in solver_u_tent.parameters:
                 solver_u_tent.parameters['preconditioner']['structure'] = 'same'
@@ -222,7 +223,8 @@ class IPCS_Stable(NSScheme):
         for bc in bcp:
             bc.apply(A_p_corr)
 
-        solver_p_corr = LinearSolver(*solver_p_params)
+        #solver_p_corr = LinearSolver(*solver_p_params)
+        solver_p_corr = create_solver(*solver_p_params)
         solver_p_corr.set_operator(A_p_corr)
         if 'preconditioner' in solver_p_corr.parameters:
                 solver_p_corr.parameters['preconditioner']['structure'] = 'same'
@@ -247,7 +249,8 @@ class IPCS_Stable(NSScheme):
             for bc in bcu:
                 bc[0].apply(A_u_corr)
 
-            solver_u_corr = LinearSolver(*self.params.solver_u_corr)
+            #solver_u_corr = LinearSolver(*self.params.solver_u_corr)
+            solver_u_corr = create_solver(*self.params.solver_u_corr)
             solver_u_corr.set_operator(A_u_corr)
             if 'preconditioner' in solver_u_corr.parameters:
                 solver_u_corr.parameters['preconditioner']['structure'] = 'same'
@@ -373,6 +376,7 @@ class IPCS_Stable(NSScheme):
             p0.vector()[:] *= rho
             p1.vector()[:] *= rho
             
+            #print norm(u1[0]), norm(u1[1]), norm(u1[2]), norm(p1)
 
             # Yield data for postprocessing
             yield ParamDict(spaces=spaces, observations=observations, controls=controls,

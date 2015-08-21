@@ -24,6 +24,7 @@ from cbcpost.utils import (mesh_to_boundarymesh_dofmap, cbc_warning,
                            get_set_vector)
 import numpy as np
 from cbcflow.fields.DynamicViscosity import DynamicViscosity
+from cbcflow.schemes.utils.solver_creation import create_solver
 
 class WSS(Field):
 
@@ -56,8 +57,7 @@ class WSS(Field):
         self._temp_array = np.zeros(len(self._keys), dtype=np.float_)
 
         Mb = assemble(inner(TestFunction(Q_boundary), TrialFunction(Q_boundary))*dx)
-        #self.solver = LinearSolver("gmres", "hypre_euclid")
-        self.solver = LinearSolver("gmres", "jacobi")
+        self.solver = create_solver("gmres", "jacobi")
         self.solver.set_operator(Mb)
 
         self.b = Function(Q_boundary).vector()
