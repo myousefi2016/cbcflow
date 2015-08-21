@@ -97,14 +97,19 @@ def main():
         #p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),
         u_degree=1,
         p_degree=1,
-        solver_u_tent=("gmres", "additive_schwarz"),
+        #solver_u_tent=("gmres", "additive_schwarz"),
+        solver_u_tent=("gmres", "hypre_euclid"),
+        solver_p=("cg", "ml_amg"),
+        low_memory_version = False,
+        #solver_u_tent=("mumps",),
         #solver_u_corr=("cg", "additive_schwarz"),
         solver_u_corr = "WeightedGradient",
-        theta=1.0,
+        #theta=-0.5,
+        alpha=1.0,
         ))
     
-    parameters["krylov_solver"]["relative_tolerance"] = 1e-15
-    parameters["krylov_solver"]["absolute_tolerance"] = 1e-15
+    parameters["krylov_solver"]["relative_tolerance"] = 1e-16
+    parameters["krylov_solver"]["absolute_tolerance"] = 1e-16
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=False, save=True, stride_timestep=100)
