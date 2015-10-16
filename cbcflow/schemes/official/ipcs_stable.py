@@ -255,6 +255,7 @@ class IPCS_Stable(NSScheme):
 
         for bc in bcp:
             bc.apply(A_p_corr)
+        A_p_corr.apply("insert")
 
         solver_p_corr = create_solver(*solver_p_params)
         solver_p_corr.set_operator(A_p_corr)
@@ -284,6 +285,7 @@ class IPCS_Stable(NSScheme):
             # Apply BCs to LHS
             for bc in bcu:
                 bc[0].apply(A_u_corr)
+            A_u_corr.apply("insert")
 
             solver_u_corr = create_solver(*self.params.solver_u_corr)
             solver_u_corr.set_operator(A_u_corr)
@@ -333,6 +335,7 @@ class IPCS_Stable(NSScheme):
                 b[d] = rhs_u_tent[d]()
                 for bc in bcu:
                     bc[d].apply(b[d])
+            for d in dims: b[d].apply("insert")
             timer.completed("built tentative velocity rhs")
 
             # Construct lhs for tentative velocity
@@ -341,6 +344,7 @@ class IPCS_Stable(NSScheme):
                 A_u_tent.axpy(1.0, K_conv, True)
             for bc in bcu:
                 bc[0].apply(A_u_tent)
+            A_u_tent.apply("insert")
 
             timer.completed("u_tent construct lhs")
 
@@ -369,13 +373,14 @@ class IPCS_Stable(NSScheme):
             b = rhs_p_corr()
             if len(bcp) == 0:
                 normalize(b)
+            b *= rho
             for bc in bcp:
                 # Restore physical pressure and apply bcs
-                b *= rho
                 bc.apply(b)
 
-                # Rescale to solver pressure
-                b *= 1.0/rho
+            # Rescale to solver pressure
+            b.apply("insert")
+            b *= 1.0/rho
 
             timer.completed("p_corr construct rhs")
 
@@ -391,6 +396,7 @@ class IPCS_Stable(NSScheme):
                 for d in dims:
                     b = rhs_u_corr[d]()
                     for bc in bcu: bc[d].apply(b)
+                    b.apply("insert")
                     timer.completed("u_corr construct rhs")
 
                     iter = solver_u_corr.solve(u1[d].vector(), b)
@@ -400,6 +406,7 @@ class IPCS_Stable(NSScheme):
                     u1[d].vector().axpy(-dt, dPdX[d]*(p1.vector()-p0.vector()))
                     for bc in bcu:
                         bc[d].apply(u1[d].vector())
+                    u1[d].vector().apply("insert")
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
             # Update convection term for next timestep

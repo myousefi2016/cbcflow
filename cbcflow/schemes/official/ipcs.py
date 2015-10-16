@@ -207,6 +207,8 @@ class IPCS(NSScheme):
             b = assemble(L_u_tent)
             for bc in bcu:
                 bc.apply(A_u_tent, b)
+            A_u_tent.apply("insert")
+            b.apply("insert")
             timer.completed("u1 construct rhs")
 
             iter = solve(A_u_tent, u1.vector(), b, *self.params.solver_u_tent)
@@ -221,6 +223,8 @@ class IPCS(NSScheme):
                 b *= rho
                 for bc in bcp:
                     bc.apply(A_p_corr, b)
+                A_p_corr.apply("insert")
+                b.apply("insert")
                 # ... and back to solver pressure
                 b *= 1.0/rho
             timer.completed("p construct rhs")
@@ -234,6 +238,8 @@ class IPCS(NSScheme):
             b = assemble(L_u_corr)
             for bc in bcu:
                 bc.apply(A_u_corr, b)
+            A_u_corr.apply("insert")
+            b.apply("insert")
             timer.completed("u2 construct rhs")
 
             solver_params = self.params.solver_u_corr
