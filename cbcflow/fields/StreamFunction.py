@@ -19,7 +19,7 @@ from cbcpost import SpacePool
 from cbcpost import Field
 from dolfin import (TrialFunction, TestFunction, dot, grad, DirichletBC,
                     DomainBoundary, dx, Constant, assemble, Vector, Function,
-                    solve)
+                    KrylovSolver)
 
 class StreamFunction(Field):
     def before_first_compute(self, get):
@@ -38,7 +38,7 @@ class StreamFunction(Field):
         self.A = assemble(a)
         self.L = Vector()
         self.bc.apply(self.A)
-        #self.solver = KrylovSolver(A, "cg")
+        self.solver = KrylovSolver(self.A, "cg")
         self.psi = Function(V)
 
 
@@ -47,7 +47,7 @@ class StreamFunction(Field):
         assemble(dot(u[1].dx(0)-u[0].dx(1), self.q)*dx(), tensor=self.L)
         self.bc.apply(self.L)
 
-        #self.solver.solve(self.psi.vector(), self.L)
-        solve(self.A, self.psi.vector(), self.L)
+        self.solver.solve(self.psi.vector(), self.L)
+        #solve(self.A, self.psi.vector(), self.L)
 
         return self.psi
