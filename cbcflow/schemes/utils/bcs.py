@@ -20,7 +20,7 @@ from __future__ import division
 from cbcflow.dol import (FacetNormal, DirichletBC, Constant, dot, as_vector, inner,
                          MPI, mpi_comm_world, compile_extension_module, GenericMatrix,
                          GenericVector)
-
+from numpy import array, float_
 # --- Boundary condition helper functions for schemes
 
 import numpy as np
@@ -167,14 +167,48 @@ def make_mixed_velocity_bcs(problem, spaces, bcs):
 
 def make_segregated_velocity_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
-    bcu = [[DirichletBC2(spaces.U, functions[d], *_domainargs(problem, region))
+    has_eval = True
+    D = spaces.U.mesh().geometry().dim()
+    x = array([0.0]*D, dtype=float_)
+    v = array([0.0], dtype=float_)
+
+    for functions, region in bcu_raw:
+        for f in functions:
+            try:
+                f.eval(v, x)
+            except:
+                has_eval = False
+    
+    if has_eval:
+        BC_class = DirichletBC2
+    else:
+        BC_class = DirichletBC
+
+    bcu = [[BC_class(spaces.U, functions[d], *_domainargs(problem, region))
             for d in range(len(functions))]
            for functions, region in bcu_raw]
     return bcu
 
 def make_pressure_bcs(problem, spaces, bcs):
     bcu_raw, bcp_raw = bcs
-    bcp = [DirichletBC2(spaces.Q, function, *_domainargs(problem, region))
+    has_eval = True
+    D = spaces.U.mesh().geometry().dim()
+    x = array([0.0]*D, dtype=float_)
+    v = array([0.0], dtype=float_)
+
+    for functions, region in bcu_raw:
+        for f in functions:
+            try:
+                f.eval(v, x)
+            except:
+                has_eval = False
+    
+    if has_eval:
+        BC_class = DirichletBC2
+    else:
+        BC_class = DirichletBC
+    
+    bcp = [BC_class(spaces.Q, function, *_domainargs(problem, region))
            for function, region in bcp_raw]
     return bcp
 

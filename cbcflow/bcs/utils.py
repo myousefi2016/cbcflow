@@ -32,13 +32,11 @@ def x_to_r2(x, c, n):
     # rp = rv - (rv . n) n
     # r2 = ||rp||**2
 
-    # TODO: Simplify this with numpy syntax?
-    d = len(c)
-    rv = [x[i]-c[i] for i in xrange(d)]
-    rvn = sum(rv[i]*n[i] for i in xrange(d))
-    #rp = [rv[i] - rvn*n[i] for i in xrange(d)]
-    #r2 = sum(rp[i]**2 for i in xrange(d))
-    r2 = sum((rv[i] - rvn*n[i])**2 for i in xrange(d))
+    rv = x-c
+    rvn = x.dot(n)
+    rp = rv - rvn*n
+    r2 = rp.dot(rp)
+
     return r2
 
 def compute_radius(mesh, facet_domains, ind, center):
@@ -73,9 +71,9 @@ def compute_boundary_geometry_acrn(mesh, ind, facet_domains):
 
     # Compute average normal (assuming boundary is actually flat)
     n = FacetNormal(mesh)
-    ni = [assemble(n[i]*dsi) for i in xrange(d)]
+    ni = np.array([assemble(n[i]*dsi) for i in xrange(d)])
     n_len = np.sqrt(sum([ni[i]**2 for i in xrange(d)])) # Should always be 1!?
-    normal = [ni[i]/n_len for i in xrange(d)]
+    normal = ni/n_len
 
     # Compute radius by taking max radius of boundary points
     # (assuming boundary points are on exact geometry)
