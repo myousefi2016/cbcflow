@@ -33,7 +33,7 @@ def x_to_r2(x, c, n):
     # r2 = ||rp||**2
 
     rv = x-c
-    rvn = x.dot(n)
+    rvn = rv.dot(n)
     rp = rv - rvn*n
     r2 = rp.dot(rp)
 
