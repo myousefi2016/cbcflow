@@ -205,7 +205,7 @@ Finally, we initate the problem, a scheme and postprocessor ::
     
     def main():
         problem = Womersley3D({"refinement_level": 2})
-        scheme = IPCS_Stable()
+        scheme = IPCS()
     
         casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
         plot_and_save = dict(plot=True, save=True)

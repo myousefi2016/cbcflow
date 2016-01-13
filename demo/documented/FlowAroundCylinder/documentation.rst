@@ -188,9 +188,9 @@ and validated, and hence classified as *official*. Use ::
 
 to list all schemes available, both official and unofficial.
 
-In our application we select a very efficient operator-splitting scheme, :class:`.IPCS_Stable`, ::
+In our application we select a very efficient operator-splitting scheme, :class:`.IPCS`, ::
 
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
 Setting up postprocessing
 --------------------------------------

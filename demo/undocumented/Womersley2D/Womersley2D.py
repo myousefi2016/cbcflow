@@ -181,7 +181,7 @@ class Womersley2D(NSProblem):
 
 def main():
     problem = Womersley2D()
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)

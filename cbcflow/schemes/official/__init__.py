@@ -17,8 +17,8 @@
 
 """These *official* schemes have been validated against reference solutions."""
 
+from cbcflow.schemes.official.ipcs_naive import IPCS_Naive
 from cbcflow.schemes.official.ipcs import IPCS
-from cbcflow.schemes.official.ipcs_stable import IPCS_Stable
 
 # Collect all schemes in list automatically
 from cbcflow.core.nsscheme import NSScheme

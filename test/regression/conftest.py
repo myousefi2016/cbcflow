@@ -106,10 +106,10 @@ def create_problem_factories(cmdline_problem_args):
 
 def create_default_scheme_factories():
     scheme_factories = [
-        lambda: IPCS(),
+        lambda: IPCS_Naive(),
         #lambda: Yosida(),
-        lambda: IPCS_Stable(ParamDict(theta=1.0)),
-        lambda: IPCS_Stable(ParamDict(theta=0.5)),
+        lambda: IPCS(ParamDict(theta=1.0)),
+        lambda: IPCS(ParamDict(theta=0.5)),
         ]
     return scheme_factories
 

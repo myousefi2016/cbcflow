@@ -67,7 +67,7 @@ class LidDrivenCavity(NSProblem):
 
 def main():
     problem = LidDrivenCavity({"refinement_level": 1})
-    scheme = IPCS_Stable({"u_degree": 2, "solver_p_neumann": ("cg", "ilu")}) # Displays pressure oscillations
+    scheme = IPCS({"u_degree": 2, "solver_p_neumann": ("cg", "ilu")}) # Displays pressure oscillations
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)

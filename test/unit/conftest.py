@@ -12,7 +12,7 @@ def create_scheme_factories():
         #IPCS_Stabilized,
         #PenaltyIPCS,
         #SegregatedPenaltyIPCS,
-        IPCS_Stable,
+        IPCS,
         #CoupledScheme,
         #CoupledNonLinear,
         #Stokes,
@@ -34,11 +34,11 @@ def create_scheme_factories():
 
     # Add list of factory functions for schemes with non-default parameters:
     scheme_factories += [
-        #lambda: IPCS_Stable(),
+        #lambda: IPCS(),
         #lambda: IPCS_Stabilized({'theta':0.0}),
         #lambda: IPCS_Stabilized({'theta':1.0}),
         #lambda: IPCS_Stabilized({'theta':0.5}),
-        #lambda: IPCS_Stable({'adaptive_timestepping':True}),
+        #lambda: IPCS({'adaptive_timestepping':True}),
         ]
     return scheme_factories
 

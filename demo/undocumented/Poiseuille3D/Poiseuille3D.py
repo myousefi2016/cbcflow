@@ -124,7 +124,7 @@ class Poiseuille3D(NSProblem):
 
 def main():
     problem = Poiseuille3D({"refinement_level": 0})
-    scheme = IPCS_Stable({"u_degree": 1})
+    scheme = IPCS({"u_degree": 1})
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)

@@ -91,7 +91,7 @@ def main():
     dt = 1e-2
     problem = BifurcationAneurysm(dict(refinement_level=0, dt=dt, T=2.0))
     print problem.mesh
-    scheme = IPCS_Stable(dict(
+    scheme = IPCS(dict(
         rebuild_prec_frequency = 1,
         u_tent_prec_structure = "same_nonzero_pattern",
         #p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),

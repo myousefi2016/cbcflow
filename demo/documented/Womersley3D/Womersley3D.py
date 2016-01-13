@@ -148,7 +148,7 @@ class Womersley3D(NSProblem):
 
 def main():
     problem = Womersley3D({"refinement_level": 2})
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
     casedir = "results_demo_%s_%s_%d" % (problem.shortname(), scheme.shortname(), problem.params.refinement_level)
     plot_and_save = dict(plot=True, save=True)

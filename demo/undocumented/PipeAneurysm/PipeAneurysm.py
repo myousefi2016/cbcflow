@@ -145,7 +145,7 @@ class PipeAneurysm(NSProblem):
 
 def main():
     problem = PipeAneurysm()
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)

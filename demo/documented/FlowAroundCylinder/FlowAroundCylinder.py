@@ -107,7 +107,7 @@ class FlowAroundCylinder(NSProblem):
 def main():
     # Create problem and scheme instances
     problem = FlowAroundCylinder({"refinement_level": 2})
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
     # Create postprocessor instance pointing to a case directory
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())

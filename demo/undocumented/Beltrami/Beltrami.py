@@ -111,7 +111,7 @@ class Beltrami(NSProblem):
 def main():
     set_log_level(100)
     problem = Beltrami()
-    scheme = IPCS_Stable()
+    scheme = IPCS()
 
     casedir = "results_demo_%s_%s" % (problem.shortname(), scheme.shortname())
     plot_and_save = dict(plot=True, save=True)
