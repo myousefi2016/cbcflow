@@ -179,7 +179,7 @@ class IPCS_Stable(NSScheme):
         for d in dims:
             u1[d].assign(u0[d])
 
-        # Update convection term for first timestep
+        # Update extrapolation term for first timestep
         update_extrapolation(u_est, u1, u0, self.params.theta)
 
         #for d in dims: u2[d].assign(u1[d])
@@ -423,7 +423,7 @@ class IPCS_Stable(NSScheme):
                     u1[d].vector().apply("insert")
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
-            # Update convection term for next timestep
+            # Update extrapolation term for next timestep
             update_extrapolation(u_est, u1, u0, self.params.theta)
 
              # Rotate functions for next timestep
