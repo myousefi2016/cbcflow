@@ -93,16 +93,15 @@ def _get_weighted_gradient(mesh, dims, v,p):
 
     return dPdX
 
-def update_convection_term(uconv, u1, u0, theta):
+def update_extrapolation(u_est, u1, u0, theta):
     theta = float(theta)
     assert theta <= 0, "Non-linear schemes not supported"
     for d in range(len(u1)):
-        uconv[d].vector().zero()
-        uconv[d].vector().axpy(1-theta, u1[d].vector())
-        uconv[d].vector().axpy(theta, u0[d].vector())
+        u_est[d].vector().zero()
+        u_est[d].vector().axpy(1-theta, u1[d].vector())
+        u_est[d].vector().axpy(theta, u0[d].vector())
 
-    return uconv
-
+    return u_est
 
 class IPCS_Stable(NSScheme):
     "Incremental pressure-correction scheme, fast and stable version."
@@ -129,12 +128,16 @@ class IPCS_Stable(NSScheme):
             store_rhs_matrix_u_tent = True,
             store_rhs_matrix_u_corr = True,
             store_stiffness_matrix = True,
+            isotropic_diffusion=0.,
+            streamline_diffusion=0.,
+            crosswind_diffusion=0.,
             #assemble_convection = "standard", # unassembled, debug
             )
         return params
 
     def solve(self, problem, timer):
-
+        #parameters["krylov_solver"]["monitor_convergence"] = True
+        
         # Get problem parameters
         mesh = problem.mesh
         dx = problem.dx
@@ -161,7 +164,7 @@ class IPCS_Stable(NSScheme):
         # Functions
         u0 = as_vector([Function(U, name="u0_%d"%d) for d in dims]) # u^n
         u1 = as_vector([Function(U, name="u1_%d"%d) for d in dims]) # u^{n+1}
-        uconv = as_vector([Function(U, name="uconv_%d"%d) for d in dims]) # Velocity interpolation used in convection
+        u_est = as_vector([Function(U, name="u_est_%d"%d) for d in dims]) # Velocity interpolation used in convection
 
         p0 = Function(Q, name="p0")
         p1 = Function(Q, name="p1")
@@ -177,7 +180,7 @@ class IPCS_Stable(NSScheme):
             u1[d].assign(u0[d])
 
         # Update convection term for first timestep
-        update_convection_term(uconv, u1, u0, self.params.theta)
+        update_extrapolation(u_est, u1, u0, self.params.theta)
 
         #for d in dims: u2[d].assign(u1[d])
         p1.assign(p0)
@@ -197,10 +200,21 @@ class IPCS_Stable(NSScheme):
 
         # Create forms for LHS of tenative velocity
         # Convection linearized as in Simo/Armero (1994)
-        # Will set uconv = (1-theta)*u1[r] + theta*u0[r]
+        # Will set u_est = (1-theta)*u1[r] + theta*u0[r]
         a1 = (1/k) * inner(v, u) * dx()
         a2 = inner(grad(v), nu*grad(u)) * dx()
-        a_conv  = inner(v, dot(uconv, nabla_grad(u)))*dx()
+        a_conv  = inner(v, dot(u_est, nabla_grad(u)))*dx()
+
+        # Optional stabilization
+        h = CellSize(mesh)
+        #common_stab = h*sqrt(inner(u_est,u_est))
+        isotropic_diffusion = h*sqrt(inner(u_est, u_est))*inner(grad(u), grad(v))*dx()
+        streamline_diffusion = h/(sqrt(inner(u_est, u_est))+h)*inner(dot(u_est, grad(u)), dot(u_est, grad(v)))*dx()
+        crosswind_diffusion = isotropic_diffusion-streamline_diffusion
+        
+        a_stab = int(self.params["isotropic_diffusion"]!=0)*Constant(self.params["isotropic_diffusion"])*isotropic_diffusion
+        a_stab += int(self.params["streamline_diffusion"]!=0)*Constant(self.params["streamline_diffusion"])*streamline_diffusion
+        a_stab += int(self.params["crosswind_diffusion"]!=0)*Constant(self.params["crosswind_diffusion"])*crosswind_diffusion
 
         # Create the static part of the coefficient matrix for the tentative
         # velocity step. The convection is added in the time loop. We use a
@@ -210,9 +224,9 @@ class IPCS_Stable(NSScheme):
         A_u_tent = assemble(a1)
         if not self.params.low_memory_version and self.params.store_stiffness_matrix:
             A = assemble(a2)
-            K_conv = assemble(a_conv)
+            K_conv = assemble(a_conv+a_stab)
         else:
-            A = assemble(a2+a_conv)
+            A = assemble(a2+a_conv+a_stab)
             
         # Define how to create the RHS for the tentative velocity. The RHS is
         # (of course) different for each dimension.
@@ -315,15 +329,15 @@ class IPCS_Stable(NSScheme):
             p0.vector()[:] *= 1.0/rho
             p1.vector()[:] *= 1.0/rho
 
-            # Assemble convection
+            # Assemble convection and stabilization
             if not self.params.low_memory_version and self.params.store_stiffness_matrix:
                 # Assemble only convection matrix
                 K_conv.zero()
-                assemble(a_conv, tensor=K_conv)
+                assemble(a_conv+a_stab, tensor=K_conv)
                 A_u_tent.axpy(-(1.0-alpha), K_conv, True)
             else:
-                # Assemble convection and diffusion matrix in one
-                assemble(a2+a_conv, tensor=A)
+                # Assemble convection, stabilization, and diffusion matrix in one
+                assemble(a2+a_conv+a_stab, tensor=A)
 
             A_u_tent.axpy(-(1.0-alpha), A, True)
             timer.completed("built A_u_tent for rhs")
@@ -410,7 +424,7 @@ class IPCS_Stable(NSScheme):
                     timer.completed("u_corr solve (weighted_gradient, %d dofs)" % u1[d].vector().size())
 
             # Update convection term for next timestep
-            update_convection_term(uconv, u1, u0, self.params.theta)
+            update_extrapolation(u_est, u1, u0, self.params.theta)
 
              # Rotate functions for next timestep
             for d in dims:
