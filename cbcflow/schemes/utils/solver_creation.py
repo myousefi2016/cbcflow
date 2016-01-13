@@ -15,7 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 from dolfin import (LinearSolver, PETScKrylovSolver, PETScPreconditioner,
-                    krylov_solver_methods, krylov_solver_preconditioners)
+                    krylov_solver_methods, krylov_solver_preconditioners,
+                    linear_solver_methods)
         
 import petsc4py
 petsc4py.init()
@@ -31,11 +32,16 @@ def create_solver(solver, preconditioner="default"):
     """
     # Create solver
     if isinstance(solver, str):
-        if solver not in krylov_solver_methods():
+        direct_solvers = set(linear_solver_methods())-set(krylov_solver_methods())
+        if solver not in direct_solvers:
             s = LinearSolver(solver)
             return s
-        else:
+        elif solver in krylov_solver_methods():
             s = PETScKrylovSolver(solver)
+        else:
+            s = PETScKrylovSolver()
+            s.ksp().setType(solver)
+            #raise RuntimeError("Don't know how to handle solver %s" %solver)
     elif isinstance(solver, PETScKrylovSolver):
         s = solver
     elif isinstance(solver, petsc4py.PETSc.KSP):
@@ -76,3 +82,5 @@ def create_solver(solver, preconditioner="default"):
         return s
     else:
         raise ValueError("Unable to create preconditioner from argument of type %s" %type(solver))
+
+    raise RuntimeError("Should not reach this code. The solver/preconditioner (%s/%s) failed to return a valid solver." %(str(solver),str(preconditioner)))
