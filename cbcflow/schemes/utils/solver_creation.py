@@ -33,7 +33,7 @@ def create_solver(solver, preconditioner="default"):
     # Create solver
     if isinstance(solver, str):
         direct_solvers = set(linear_solver_methods())-set(krylov_solver_methods())
-        if solver not in direct_solvers:
+        if solver in direct_solvers:
             s = LinearSolver(solver)
             return s
         elif solver in krylov_solver_methods():
