@@ -41,6 +41,8 @@ def create_solver(solver, preconditioner="default"):
         else:
             s = PETScKrylovSolver()
             s.ksp().setType(solver)
+            if s.ksp().getNormType() == petsc4py.PETSc.KSP.NormType.NONE:
+                s.ksp().setNormType(petsc4py.PETSc.KSP.NormType.PRECONDITIONED)
             #raise RuntimeError("Don't know how to handle solver %s" %solver)
     elif isinstance(solver, PETScKrylovSolver):
         s = solver
