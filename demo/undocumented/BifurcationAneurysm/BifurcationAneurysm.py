@@ -3,6 +3,7 @@
 from cbcflow import *
 from cbcflow.dol import *
 from cbcpost import *
+set_parse_command_line_arguments(True)
 from os import path
 
 files = [path.join(path.dirname(path.realpath(__file__)),"../../../cbcflow-data/dog_mesh_37k.xml.gz"),
