@@ -61,7 +61,7 @@ class BifurcationAneurysm(NSProblem):
     def boundary_conditions(self, spaces, u, p, t, controls):
         "Return boundary conditions as lists."
 
-        factor = 1000
+        factor = 3000
         profile = [0.4, 1.6, 1.4, 1.0, 0.8, 0.6, 0.55, 0.5, 0.5, 0.45, 0.4]
         profile = [p*factor for p in profile]
         time = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
@@ -104,6 +104,9 @@ def main():
         #solver_u_tent=("mumps",),
         #solver_u_corr=("cg", "additive_schwarz"),
         solver_u_corr = "WeightedGradient",
+        isotropic_diffusion=0.0,
+        streamline_diffusion=0.2,
+        crosswind_diffusion=0.0,
         #theta=-0.5,
         alpha=1.0,
         ))
