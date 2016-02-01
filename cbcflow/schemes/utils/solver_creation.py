@@ -32,11 +32,18 @@ def create_solver(solver, preconditioner="default"):
     """
     # Create solver
     if isinstance(solver, str):
-        direct_solvers = set(linear_solver_methods())-set(krylov_solver_methods())
+        try:
+            linear_solvers = set(dict(linear_solver_methods()).keys())
+            krylov_solvers = set(dict(krylov_solver_methods()).keys())
+        except:
+            linear_solvers = set(linear_solver_methods())
+            krylov_solvers = set(krylov_solver_methods())
+        direct_solvers = linear_solvers-krylov_solvers
+
         if solver in direct_solvers:
             s = LinearSolver(solver)
             return s
-        elif solver in krylov_solver_methods():
+        elif solver in krylov_solvers:
             s = PETScKrylovSolver(solver)
         else:
             s = PETScKrylovSolver()
