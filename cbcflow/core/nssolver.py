@@ -93,7 +93,8 @@ class NSSolver(Parameterized):
 
         # Loop over scheme steps
         for data in self.scheme.solve(self.problem, self.timer):
-            self.update(data.u, data.p, data.t, data.timestep, data.spaces)
+            data.setdefault("d", None)
+            self.update(data.u, data.p, data.d, data.t, data.timestep, data.spaces)
             yield data
 
         # Finalize postprocessor
@@ -197,7 +198,7 @@ class NSSolver(Parameterized):
             # TODO: Report to file separately for each process
             cbc_print('Memory usage is: %s' % MPI.sum(mpi_comm_world(), get_memory_usage()))
 
-    def update(self, u, p, t, timestep, spaces):
+    def update(self, u, p, d, t, timestep, spaces):
         """Callback from scheme.solve after each timestep to handle update of
         postprocessor, timings, memory etc."""
         self.timer.completed("completed solve")
@@ -223,9 +224,12 @@ class NSSolver(Parameterized):
             fields["Pressure"] = lambda: self.pressure_converter(p, spaces)
 
             # Add physical problem parameters
-            fields["Density"] = lambda: self.problem.params.rho # .density()
+            fields["FluidDensity"] = lambda: self.problem.params.rho # .density()
             fields["KinematicViscosity"] = lambda: self.problem.params.mu / self.problem.params.rho # .kinematic_viscosity()
             fields["DynamicViscosity"] = lambda: self.problem.params.mu # .dynamic_viscosity()
+
+            if d != None:
+                fields["Displacement"] = lambda: d
 
             # Trigger postprocessor update
             self.postprocessor.update_all(fields, t, timestep)

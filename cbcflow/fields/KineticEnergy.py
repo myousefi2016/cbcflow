@@ -17,12 +17,12 @@
 
 from cbcpost import Field, SpacePool
 from dolfin import assemble, dx, Function, Constant
-from cbcflow.fields.Density import Density
+from cbcflow.fields.FluidDensity import FluidDensity
 
 class KineticEnergy(Field):
 
     def add_fields(self):
-        return [Density()]
+        return [FluidDensity()]
 
     def before_first_compute(self, get):
         u = get("Velocity")
@@ -38,7 +38,7 @@ class KineticEnergy(Field):
 
     def compute(self, get):
         u = get("Velocity")
-        rho = get("Density")
+        rho = get("FluidDensity")
         if isinstance(rho, (float, int)):
             rho = Constant(rho)
 

@@ -17,6 +17,6 @@
 
 from cbcpost import SolutionField
 
-class Density(SolutionField):
+class FluidDensity(SolutionField):
     def __init__(self, params=None, label=None):
-        SolutionField.__init__(self, "Density", params, label)
+        SolutionField.__init__(self, "FluidDensity", params, label)

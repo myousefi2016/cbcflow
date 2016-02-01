@@ -53,7 +53,7 @@ basic_fields = [
     "Pressure",
 
     # The basic problem parameters:
-    "Density",
+    "FluidDensity",
     "KinematicViscosity",
     "DynamicViscosity",
 

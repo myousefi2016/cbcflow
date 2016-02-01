@@ -152,21 +152,21 @@ def _domainargs(problem, D):
         return (D,)
 
 def make_velocity_bcs(problem, spaces, bcs):
-    bcu_raw, bcp_raw = bcs
+    bcu_raw, bcp_raw = bcs[:2]
     bcu = [DirichletBC(spaces.V.sub(d), functions[d], *_domainargs(problem, region))
            for functions, region in bcu_raw
            for d in range(len(functions))]
     return bcu
 
 def make_mixed_velocity_bcs(problem, spaces, bcs):
-    bcu_raw, bcp_raw = bcs
+    bcu_raw, bcp_raw = bcs[:2]
     bcu = [DirichletBC(spaces.W.sub(0).sub(d), functions[d], *_domainargs(problem, region))
            for functions, region in bcu_raw
            for d in range(len(functions))]
     return bcu
 
 def make_segregated_velocity_bcs(problem, spaces, bcs):
-    bcu_raw, bcp_raw = bcs
+    bcu_raw, bcp_raw = bcs[:2]
     has_eval = True
     D = spaces.U.mesh().geometry().dim()
     x = array([0.0]*D, dtype=float_)
@@ -190,7 +190,7 @@ def make_segregated_velocity_bcs(problem, spaces, bcs):
     return bcu
 
 def make_pressure_bcs(problem, spaces, bcs):
-    bcu_raw, bcp_raw = bcs
+    bcu_raw, bcp_raw = bcs[:2]
     has_eval = True
     D = spaces.U.mesh().geometry().dim()
     x = array([0.0]*D, dtype=float_)
@@ -213,7 +213,7 @@ def make_pressure_bcs(problem, spaces, bcs):
     return bcp
 
 def make_rhs_pressure_bcs(problem, spaces, bcs, v):
-    bcu_raw, bcp_raw = bcs
+    bcu_raw, bcp_raw = bcs[:2]
     ds = problem.ds
     n = FacetNormal(problem.mesh)
     Lbc = -sum(dot(function*n, v)*ds(region) for (function, region) in bcp_raw)
