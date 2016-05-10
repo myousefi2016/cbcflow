@@ -1,67 +1,6 @@
-#from cbcpost import Field, Threshold, Magnitude, Norm, DomainAvg, DomainSD, TimeAverage
-#from dolfin import assemble, Constant, dx
-from cbcpost import MetaField2, Field, SubFunction, ConstantField, Threshold, DomainAvg, TimeAverage, Magnitude
+from cbcpost import MetaField2, Field, SubFunction, ConstantField, Threshold, DomainAvg, TimeAverage, Magnitude, Dot
 from cbcpost.utils.slice import create_slice
-from dolfin import GenericFunction, Function, dot, project, Constant, assemble, dx
-from numpy import dot as npdot
-
-class Dot(MetaField2):
-    def compute(self, get):
-        u1 = get(self.valuename1)
-        u2 = get(self.valuename2)
-
-        if u1 == None or u2 == None:
-            return
-
-        if not (isinstance(u1, GenericFunction) or isinstance(u2, GenericFunction)):
-            return npdot(u1,u2)
-
-        if not isinstance(u1, GenericFunction):
-            u1 = Constant(u1)
-            u1,u2 = u2,u1
-        if not isinstance(u2, GenericFunction):
-            u2 = Constant(u2)
-
-        if isinstance(u2, Function):
-            u1,u2 = u2,u1
-
-        assert isinstance(u1, Function)
-        assert isinstance(u2, GenericFunction)
-
-        if u1.value_rank() == u2.value_rank():
-            if u1.value_rank() == 0:
-                V = u1.function_space()
-            else:
-                V = u1.function_space().sub(0).collapse()
-        elif u1.value_rank() > u2.value_rank():
-            assert u2.value_rank() == 0
-            V = u1.function_space()
-            u1,u2 = u2,u1
-        else:
-            assert isinstance(u2, Function)
-            assert u1.value_rank() == 0
-            V = u2.function_space()
-
-        N = max([u1.value_rank(), u2.value_rank()])
-
-        if not hasattr(self, "u"):
-            self.u = Function(V)
-
-        if isinstance(u2, Function) and u1.function_space().dim() == u2.function_space().dim():
-            self.u.vector()[:] = u1.vector().array()*u2.vector().array()
-        elif u1.value_rank() == u2.value_rank():
-            project(dot(u1,u2), function=self.u)
-        else:
-            assert u1.value_rank() == 0
-            if isinstance(u1, Constant):
-                self.u.vector()[:] = float(u1)*u2.vector().array()
-            else:
-                project(u1*u2, function=self.u)
-
-        return self.u
-
-
-
+from dolfin import dx, assemble, Constant
 
 class ICI(Field):
     def __init__(self, neck, pa_planes, *args, **kwargs):
@@ -101,7 +40,6 @@ class ICI(Field):
         A = assemble(Constant(1)*dx(domain=self.neck))
         Qin = Dot(ConstantField(self.necknormal), uneck, params=params)
 
-        #Qin.params.update(params)
         t = Threshold(Qin, ConstantField(0), dict(threshold_by="above"))
         t.params.update(params)
         t.name = "threshold_neck"
@@ -123,8 +61,9 @@ class ICI(Field):
             Q.params.update(params)
             Qpa += Magnitude(Q)
             Qpa.params.update(params)
-
+        Qpa.name = "Sum_Qpa"
         f = (Qin/Qpa)/(Ain/A)
+
         if not self.params.use_timeaverage:
             f = TimeAverage(f.name, params=params)
         
@@ -141,16 +80,5 @@ class ICI(Field):
         return fields
 
     def compute(self, get):
-        Ain = get(self.Ain)
-        A = self.A
-        Qin = get(self.Qin)
-        Qpa = get(self.Qpa)
-        
-        print "Ain: ", Ain
-        print "A: ", A
-        print "Qin: ", Qin
-        print "Qpa: ", Qpa
-        
-        sci = get(self.valuename)
-        #print "SCI: ", sci
-        return sci
+        ici = get(self.valuename)
+        return ici

@@ -1,4 +1,3 @@
-
 from dolfin import assemble, inner, dx, Constant, grad
 from cbcpost import Field, MeshPool, Restrict, TimeAverage
 from cbcpost.utils import create_submesh

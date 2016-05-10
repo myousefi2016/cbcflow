@@ -1,4 +1,4 @@
-from cbcpost import Field, Threshold, Magnitude, Norm, DomainAvg, DomainSD, TimeAverage
+from cbcpost import Field, Threshold, Magnitude, Norm, DomainAvg, DomainSD, TimeAverage, ConstantField
 from dolfin import assemble, Constant, dx
 
 class SCI(Field):
@@ -34,16 +34,20 @@ class SCI(Field):
 
         threshold = DomainAvg(tau, cell_domains=self.near_vessel[0], indicator=self.near_vessel[1], label="nv") + \
                     DomainSD(tau, cell_domains=self.near_vessel[0], indicator=self.near_vessel[1], label="nv")
-
+        threshold.name = "threshold_sci_nv"
         mask = Threshold(tau, threshold, dict(threshold_by="above"))
 
         mf = self.aneurysm[0]
         idx = self.aneurysm[1]
 
-        Aa = assemble(Constant(1)*dx(idx, domain=mf.mesh(), subdomain_data=mf))
+        Aa = ConstantField(assemble(Constant(1)*dx(idx, domain=mf.mesh(), subdomain_data=mf)))
+        Aa.name = "AneurysmArea"
         Fh = Aa*DomainAvg(tau*mask, cell_domains=mf, indicator=idx, params=params)
+        Fh.name = "HighShear"
         Ah = Aa*DomainAvg(mask, cell_domains=mf, indicator=idx, params=params)
-        Fa = Aa*DomainAvg(tau, cell_domains=mf, indicator=idx, params=params)        
+        Ah.name = "HighShearArea"
+        Fa = Aa*DomainAvg(tau, cell_domains=mf, indicator=idx, params=params)
+        Fa.name = "TotalShear"
 
         f = (Fh/Fa)/(Ah/Aa)
 
@@ -57,5 +61,4 @@ class SCI(Field):
 
     def compute(self, get):
         sci = get(self.valuename)
-        print "SCI: ", sci
         return sci
