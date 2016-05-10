@@ -74,3 +74,5 @@ basic_fields = [
 
 for f in basic_fields:
     exec("from cbcflow.fields.%s import %s" % (f, f))
+
+
