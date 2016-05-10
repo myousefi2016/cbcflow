@@ -1,6 +1,4 @@
 from cbcpost import Field, SubFunction, DomainAvg, TimeAverage, Magnitude
-from IPython import embed
-
 
 class PLC(Field):
     def __init__(self, upstream_planes, downstream_planes, rho, *args, **kwargs):
