@@ -11,8 +11,9 @@ class Logarithm(MetaField):
         if isinstance(u, Function):
             if not hasattr(self, "u"):
                 self.u = Function(u)
-
             self.u.vector()[:] = log(u.vector().array())
+            m = min(u.vector().array()[u.vector().array()!=0])
+            self.u.vector()[u.vector().array()==0] = log(m)
         else:
             self.u = log(u)
         
