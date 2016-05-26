@@ -33,7 +33,7 @@ class SCI(Field):
             tau = TimeAverage(tau, params=params)
 
         threshold = DomainAvg(tau, cell_domains=self.near_vessel[0], indicator=self.near_vessel[1], label="nv") + \
-                    DomainSD(tau, cell_domains=self.near_vessel[0], indicator=self.near_vessel[1], label="nv")
+                    DomainSD(tau, cell_domains=self.aneurysm[0], indicator=self.aneurysm[1], label="aneurysm")
         threshold.name = "threshold_sci_nv"
         mask = Threshold(tau, threshold, dict(threshold_by="above"))
 
@@ -44,7 +44,7 @@ class SCI(Field):
         Aa.name = "AneurysmArea"
         Fh = Aa*DomainAvg(tau*mask, cell_domains=mf, indicator=idx, params=params)
         Fh.name = "HighShear"
-        Ah = Aa*DomainAvg(mask, cell_domains=mf, indicator=idx, params=params)
+        Ah = Aa*DomainAvg(mask, cell_domains=mf, indicator=idx, params=params)+ConstantField(1e-12)
         Ah.name = "HighShearArea"
         Fa = Aa*DomainAvg(tau, cell_domains=mf, indicator=idx, params=params)
         Fa.name = "TotalShear"

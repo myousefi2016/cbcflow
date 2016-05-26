@@ -42,7 +42,7 @@ class LSA(Field):
             threshold = 0.1*DomainAvg(tau, cell_domains=self.parent_artery[0], indicator=self.parent_artery[1])
         elif self.params.method == "Cebral":
             threshold = DomainAvg(tau, cell_domains=self.parent_artery[0], indicator=self.parent_artery[1]) - \
-                        DomainSD(tau, cell_domains=self.parent_artery[0], indicator=self.parent_artery[1])
+                        DomainSD(tau, cell_domains=self.aneurysm_domain[0], indicator=self.aneurysm_domain[1])
         else:
             raise RuntimeError("Unknown method: "+str(self.params.method))
 

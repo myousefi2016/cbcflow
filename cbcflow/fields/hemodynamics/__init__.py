@@ -9,7 +9,7 @@ from PLC import PLC
 from SCI import SCI
 from VDR import VDR
 """
-hemodynamic_fields = ["AWSS", "ICI", "LNWSS", "LSA", "MWSS", "AOSI", "PLC", "SCI", "VDR"]
+hemodynamic_fields = ["AWSS", "ICI", "LNWSS", "LSA", "MWSS", "AOSI", "PLC", "SCI", "VDR", "MinWSS"]
 
 for f in hemodynamic_fields:
     exec("from cbcflow.fields.hemodynamics.%s import %s" %(f, f))
