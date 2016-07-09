@@ -17,8 +17,10 @@
 
 
 from cbcflow.dol import (FunctionSpace, VectorFunctionSpace,
-                         TensorFunctionSpace, BoundaryMesh)
+                         TensorFunctionSpace, BoundaryMesh, dolfin_version,
+                         MixedElement)
 from cbcpost import SpacePool
+from distutils.version import LooseVersion
 
 def galerkin_family(degree):
     return "CG" if degree > 0 else "DG"
@@ -96,7 +98,10 @@ class NSSpacePool():
         "Mixed velocity-pressure space."
         space = self._spaces.get("W")
         if space is None:
-            space = self.V*self.Q
+            if LooseVersion(dolfin_version()) > LooseVersion("1.6.0"):
+                space = FunctionSpace(self.spacepool.mesh, MixedElement(self.V.ufl_element(),self.Q.ufl_element()))
+            else:
+                space = self.V*self.Q
             self._spaces["W"] = space
         return space
 
