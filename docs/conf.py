@@ -37,7 +37,7 @@ class Mock(object):
 MOCK_MODULES = ['dolfin', 'ufl', 'cbcflow.dol', 'numpy', 'scipy', 'scipy.interpolate',
                 'scipy.integrate', 'scipy.special', 'matplotlib', 'matplotlib.pyplot',
                 'scipy.spatial', 'scipy.spatial.ckdtree', 'cbcpost', 'cbcpost.utils',
-                'petsc4py', 'mpi4py']
+                'cbcpost.utils.slice', 'petsc4py', 'mpi4py']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
