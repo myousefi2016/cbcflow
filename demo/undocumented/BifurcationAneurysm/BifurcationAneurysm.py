@@ -98,8 +98,8 @@ def main():
         #p_corr_solver_parameters = dict(relative_tolerance=1e-6, absolute_tolerance=1e-6, monitor_convergence=False),
         u_degree=1,
         p_degree=1,
-        #solver_u_tent=("gmres", "additive_schwarz"),
-        solver_u_tent=("gmres", "hypre_euclid"),
+        solver_u_tent=("gmres", "additive_schwarz"),
+        #solver_u_tent=("gmres", "hypre_euclid"),
         solver_p=("cg", "ml_amg"),
         low_memory_version = False,
         #solver_u_tent=("mumps",),
@@ -141,7 +141,7 @@ def main():
         fields.append(OSI(dict(save=True, start_time=T0, end_time=T1)))
         
         # SubFunctions and Restrictions
-        from cbcpost.utils import create_submesh, Slice
+        from cbcpost.utils import create_submesh, create_slice
         
         submesh = create_submesh(problem.mesh, problem.cell_domains, 1)
         fields.append(Restrict("Velocity", submesh, dict(save=True, plot=plot)))
@@ -153,7 +153,7 @@ def main():
             mpi4py = None
         
         if mpi4py != None:          
-            slicemesh = Slice(problem.mesh, (54.8, 44.0, 33.1), (-0.23, -0.10, 0.97))
+            slicemesh = create_slice(problem.mesh, (54.8, 44.0, 33.1), (-0.23, -0.10, 0.97))
             fields.append(SubFunction("Velocity", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
             fields.append(SubFunction("Pressure", slicemesh, dict(save=True, plot=plot, plot_args=dict(mode='color'))))
             
