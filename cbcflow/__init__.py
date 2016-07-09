@@ -22,7 +22,7 @@ To use cbcflow, do::
     from cbcflow import *
 """
 
-__version__ = "1.3.9"
+__version__ = "2016.1.0"
 
 # Core component interfaces
 from cbcflow.core.nsproblem import NSProblem

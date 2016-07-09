@@ -55,7 +55,7 @@ The solvers in the original NSbench project is documented in
 Installation
 ------------
 
-cbcflow requires an installation of FEniCS version 1.4 or newer, see www.fenicsproject.org.
+cbcflow requires an installation of FEniCS version 2016.1 (version 1.4-1.6 should work, but not tested), see www.fenicsproject.org.
 
 To install simply run
 
