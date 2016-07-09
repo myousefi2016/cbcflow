@@ -25,7 +25,7 @@ from distutils.version import LooseVersion
 
 class PoiseuilleComponent(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
-    def __init__(self, args): # TODO: Document args properly
+    def __init__(self, args, **kwargs): # TODO: Document args properly
         if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
             Expression.__init__(self)
 
@@ -112,7 +112,7 @@ def make_poiseuille_bcs(coeffs, mesh, indicator, scale_to=None, facet_domains=No
             "period": period,
             "transient_profile": transient_profile,
             }
-        expressions.append(PoiseuilleComponent(args))
+        expressions.append(PoiseuilleComponent(args, degree=2))
 
     # Apply scaling w.r.t. peak transient profile (FIXME: This is unclear!)
     if scale_to is not None:

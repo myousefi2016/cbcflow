@@ -53,7 +53,7 @@ def fourier_coefficients(x, y, T, N=25):
 
 class WomersleyComponent2(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
-    def __init__(self, args): # TODO: Document args properly
+    def __init__(self, args, **kwargs): # TODO: Document args properly
         if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
             Expression.__init__(self)
 
@@ -134,7 +134,7 @@ class WomersleyComponent2(Expression):
 
 class WomersleyComponent1(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
-    def __init__(self, args): # TODO: Document args properly
+    def __init__(self, args, **kwargs): # TODO: Document args properly
         if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
             Expression.__init__(self)
 
@@ -287,7 +287,7 @@ def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains
             "nu": nu,
             }
         args[coeffstype] = Cn
-        expressions.append(WomersleyComponent1(args))
+        expressions.append(WomersleyComponent1(args, degree=2))
 
     # Apply scaling w.r.t. peak transient profile (FIXME: This is unclear!)
     if scale_to is not None:
