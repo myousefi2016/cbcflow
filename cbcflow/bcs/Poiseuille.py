@@ -15,17 +15,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
 
-from cbcflow.dol import Expression, Mesh, MeshFunction
+from cbcflow.dol import Expression, Mesh, MeshFunction, dolfin_version
 
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 from cbcflow.bcs.utils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
+from distutils.version import LooseVersion
 
 class PoiseuilleComponent(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
     def __init__(self, args): # TODO: Document args properly
-        Expression.__init__(self)
+        if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
+            Expression.__init__(self)
 
         # Spatial args
         self.radius = args["radius"]

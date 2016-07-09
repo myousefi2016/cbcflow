@@ -14,8 +14,13 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with CBCFLOW. If not, see <http://www.gnu.org/licenses/>.
-
-from cbcflow.dol import Expression, Mesh, MeshFunction, error
+"""
+Note: This class is slow for large meshes, and scales poorly (because the inlets/outlets
+are obviously not distributed evenly). It should be rewritten in C++, but this has not been
+done because of the lack of Bessel functions that support complex arguments (boost::math:cyl_bessel_j
+does not). It would also be a quite time-consuming task.
+"""
+from cbcflow.dol import Expression, Mesh, MeshFunction, error, dolfin_version
 
 import numpy as np
 
@@ -24,6 +29,8 @@ from scipy.integrate import simps
 from scipy.special import jn
 
 from cbcflow.bcs.utils import compute_boundary_geometry_acrn, compute_transient_scale_value, x_to_r2
+
+from distutils.version import LooseVersion
 
 def fourier_coefficients(x, y, T, N=25):
     '''From x-array and y-spline and period T, calculate N complex Fourier coefficients.'''
@@ -47,7 +54,8 @@ def fourier_coefficients(x, y, T, N=25):
 class WomersleyComponent2(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
     def __init__(self, args): # TODO: Document args properly
-        Expression.__init__(self)
+        if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
+            Expression.__init__(self)
 
         # Spatial args
         self.radius = args["radius"]
@@ -127,7 +135,8 @@ class WomersleyComponent2(Expression):
 class WomersleyComponent1(Expression):
     # Subclassing the expression class restricts the number of arguments, args is therefore a dict of arguments.
     def __init__(self, args): # TODO: Document args properly
-        Expression.__init__(self)
+        if LooseVersion(dolfin_version()) <= LooseVersion("1.6.0"):
+            Expression.__init__(self)
 
         # Spatial args
         self.radius = args["radius"]
