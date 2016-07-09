@@ -40,11 +40,11 @@ class NSScheme(Parameterized):
             # TODO: These ipcs solvers are scheme specific and should maybe not be here,
             #       however they are used by most of the splitting schemes...
             # TODO: Split these into separate parameters for solver/preconditioner?
-            solver_u_tent=("gmres", "hypre_euclid"),
-            solver_p_neumann=("gmres", "hypre_amg"),
-            solver_p_dirichlet=("gmres", "hypre_amg"),
+            solver_u_tent=("gmres", "default"),
+            solver_p_neumann=("gmres", "amg"),
+            solver_p_dirichlet=("gmres", "amg"),
             solver_p=None, # overrides neumann/dirichlet if given
-            solver_u_corr=("bicgstab", "hypre_euclid"),
+            solver_u_corr=("bicgstab", "default"),
 
             # Timestepping method
             # FIXME: Adaptive timestepping still unsupported
