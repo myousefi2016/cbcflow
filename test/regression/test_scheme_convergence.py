@@ -34,7 +34,7 @@ def l2norm(val, ref):
         #degree = val.ufl_element().degree()
         # TODO: Ensure higher degree for ref here, or leave it up the the problem
         err = assemble((val-ref)**2*dx)
-        ref = assemble(ref**2*dx, mesh=val.function_space().mesh())
+        ref = assemble(ref**2*dx(domain=val.function_space().mesh()))
 
     return sqrt(err/ref) if ref > 1e-14 else sqrt(err)
 
@@ -145,6 +145,9 @@ def test_run_problem(problem_factory, scheme_factory, refinement_level, dt):
 
     # Read reference data values
     ref_metadata, ref_values = read_reference_data(filename)
+    if ref_values == {}:
+        print "WARNING: Found no reference data"
+        return
     assert ref_values != {}, "Found no reference data!"
 
     # Check each value against reference

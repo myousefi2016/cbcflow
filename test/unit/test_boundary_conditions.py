@@ -11,7 +11,7 @@ import numpy as np
 
 from cbcflow import make_poiseuille_bcs, make_womersley_bcs
 from cbcflow.dol import (Function, VectorFunctionSpace, Mesh, MeshFunction, Expression,
-                         DirichletBC, assemble, ds, SubDomain, MPI, mpi_comm_world)
+                         DirichletBC, assemble, ds, SubDomain, MPI, mpi_comm_world, sqrt)
 
 import os
 data_dir = os.path.abspath(os.path.join(os.path.split(__file__)[0], "..", "..", "cbcflow-data"))
@@ -101,7 +101,8 @@ def test_womersley_is_poiseuille_with_stationary_coefficients(data):
     wexpressions = make_womersley_bcs(coeffs, data.mesh, data.indicator, nu, None, data.facet_domains)
     pexpressions = make_poiseuille_bcs(coeffs, data.mesh, data.indicator, None, data.facet_domains)
 
-    dsi = ds[data.facet_domains](data.indicator, domain=data.mesh)
+    #dsi = ds[data.facet_domains](data.indicator, domain=data.mesh)
+    dsi = ds(subdomain_data=data.facet_domains)(data.indicator, domain=data.mesh)
 
     for t in np.linspace(0.0, period, 10):
         for bc in wexpressions:
@@ -110,9 +111,9 @@ def test_womersley_is_poiseuille_with_stationary_coefficients(data):
             bc.set_t(t)
 
         for wbc, pbc in zip(wexpressions, pexpressions):
-            wnorm = np.sqrt(assemble(wbc**2*dsi))
-            pnorm = np.sqrt(assemble(pbc**2*dsi))
-            diff = np.sqrt(assemble((wbc-pbc)**2*dsi))
+            wnorm = assemble(sqrt(wbc**2)*dsi)
+            pnorm = assemble(sqrt(pbc**2)*dsi)
+            diff = assemble(sqrt((wbc-pbc)**2)*dsi)
             if 0:
                 print "wnorm", wnorm
                 print "pnorm", pnorm
