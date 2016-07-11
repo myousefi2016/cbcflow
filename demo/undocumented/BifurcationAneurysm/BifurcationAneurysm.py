@@ -100,7 +100,7 @@ def main():
         p_degree=1,
         solver_u_tent=("gmres", "additive_schwarz"),
         #solver_u_tent=("gmres", "hypre_euclid"),
-        solver_p=("cg", "ml_amg"),
+        solver_p=("cg", "amg"),
         low_memory_version = False,
         #solver_u_tent=("mumps",),
         #solver_u_corr=("cg", "additive_schwarz"),
