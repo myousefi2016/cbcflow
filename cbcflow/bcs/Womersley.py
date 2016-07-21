@@ -188,6 +188,7 @@ class WomersleyComponent1(Expression):
         pir2 = np.pi * self.radius**2
         # Compute intermediate terms for womersley function
         r_dependent_coeffs = np.zeros(self.N, dtype=np.complex)
+
         if hasattr(self, 'Vn'):
             #r_dependent_coeffs[0] = (self.Vn[0]/2.0) * (1 - y**2)
             r_dependent_coeffs[0] = self.Vn[0] * (1 - y**2)
@@ -232,7 +233,7 @@ class WomersleyComponent1(Expression):
 
 
 def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains=None,
-                       coeffstype="Q", num_fourier_coefficients=25):
+                       coeffstype="Q", period=None, num_fourier_coefficients=25):
     """Generate a list of expressions for the components of a Womersley profile."""
     assert(isinstance(mesh, Mesh))
 
@@ -244,28 +245,30 @@ def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains
     # Compute boundary geometry
     area, center, radius, normal = compute_boundary_geometry_acrn(mesh, indicator, facet_domains)
 
-    # Compute transient profile as interpolation of given coefficients
-    x,y = zip(*coeffs)
-    x = np.array(x)
-    y = np.array(y)
-    period = max(x)
-    transient_profile = UnivariateSpline(x, y, s=0, k=1)
-
-    # Compute fourier coefficients of transient profile
-    timedisc = np.linspace(0, period, 1001)
-    Cn = fourier_coefficients(timedisc, transient_profile, period, num_fourier_coefficients)
-    if 0: # FIXME: Move this code into a unit test of fourier_coefficients:
-        print "*"*80
-        print "Cn =", Cn
-        print "Reconstructing transient profile from Cn:"
-        for t in np.linspace(0.0, period, 100):
-            evaluated = transient_profile(t)
-            reconstructed = np.dot(Cn, np.exp(1j*(2*np.pi/period)*np.arange(len(Cn))*t)).real
-            print "%.2e  %.2e  %.2e  %.2e" % (evaluated, reconstructed, (evaluated - reconstructed),
-                                              (evaluated - reconstructed) * 2 / abs(evaluated + reconstructed))
-        print "*"*80
-
-    if 0:
+    if coeffstype == "Cn":
+        Cn = coeffs
+    else:
+        # Compute fourier coefficients of transient profile
+        timedisc = np.linspace(0, period, 1001)
+        # Compute transient profile as interpolation of given coefficients
+        x,y = zip(*coeffs)
+        x = np.array(x)
+        y = np.array(y)
+        period = max(x)
+        transient_profile = UnivariateSpline(x, y, s=0, k=1)
+        Cn = fourier_coefficients(timedisc, transient_profile, period, num_fourier_coefficients)
+        if 0: # FIXME: Move this code into a unit test of fourier_coefficients:
+            print "*"*80
+            print "Cn =", Cn
+            print "Reconstructing transient profile from Cn:"
+            for t in np.linspace(0.0, period, 100):
+                evaluated = transient_profile(t)
+                reconstructed = np.dot(Cn, np.exp(1j*(2*np.pi/period)*np.arange(len(Cn))*t)).real
+                print "%.2e  %.2e  %.2e  %.2e" % (evaluated, reconstructed, (evaluated - reconstructed),
+                                                  (evaluated - reconstructed) * 2 / abs(evaluated + reconstructed))
+            print "*"*80
+    
+    if 1:
         print "*"*80
         print "In womersley:"
         print 'r', radius
@@ -286,7 +289,8 @@ def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains
             "period": period,
             "nu": nu,
             }
-        args[coeffstype] = Cn
+        #args["Qn"] = Cn
+        args["Q"] = Cn
         expressions.append(WomersleyComponent1(args, degree=2))
 
     # Apply scaling w.r.t. peak transient profile (FIXME: This is unclear!)
