@@ -248,13 +248,15 @@ def make_womersley_bcs(coeffs, mesh, indicator, nu, scale_to=None, facet_domains
     if coeffstype == "Cn":
         Cn = coeffs
     else:
-        # Compute fourier coefficients of transient profile
-        timedisc = np.linspace(0, period, 1001)
         # Compute transient profile as interpolation of given coefficients
         x,y = zip(*coeffs)
         x = np.array(x)
         y = np.array(y)
         period = max(x)
+        
+        # Compute fourier coefficients of transient profile
+        timedisc = np.linspace(0, period, 1001)
+        
         transient_profile = UnivariateSpline(x, y, s=0, k=1)
         Cn = fourier_coefficients(timedisc, transient_profile, period, num_fourier_coefficients)
         if 0: # FIXME: Move this code into a unit test of fourier_coefficients:
