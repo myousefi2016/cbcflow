@@ -16,8 +16,8 @@ Get the software with git and install using pip:
 
 .. code-block:: bash
 
-   git clone https://bitbucket.org/simula_cbc/cbcpost.git
-   cd cbcpost
+   git clone https://bitbucket.org/simula_cbc/cbcflow.git
+   cd cbcflow
    pip install .
 
 See the pip documentation for more installation options.
