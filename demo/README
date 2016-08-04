@@ -1,1 +1,7 @@
 This directory contains demos of problems solved using cbcflow.
+
+Before running demos, cd .. to the cbcflow root and run
+
+  ./scripts/cbcflow-get-data
+
+to download meshes.
